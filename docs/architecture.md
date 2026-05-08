@@ -39,6 +39,7 @@ Build a human-approved agent workflow for job search:
 - Draft recruiter messages.
 - Suggest resume bullet edits.
 - Require human confirmation before any external action.
+- Save private run reports and Markdown drafts under `data/private/agent_runs/`.
 
 ### Milestone 5: Web dashboard
 

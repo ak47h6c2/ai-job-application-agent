@@ -64,6 +64,22 @@ After the index exists, QQ Mail scans also show resume evidence and missing keyw
 python -m backend.app.cli scan-qq-mail --since 2026-05-08 --show 5
 ```
 
+Run the safe agent workflow:
+
+```powershell
+python -m backend.app.cli run-agent --since 2026-05-08 --top 3
+```
+
+The agent writes a private run report and Markdown drafts under `data/private/agent_runs/`.
+It never sends emails or submits applications.
+
+Optional applicant fields for private draft generation:
+
+```powershell
+$env:APPLICANT_NAME="Your Name"
+$env:APPLICANT_SUMMARY="a Master of IT student with experience in Python, SQL, C, testing, and engineering validation"
+```
+
 Run tests:
 
 ```powershell
@@ -76,6 +92,7 @@ python -m unittest discover -s tests
 - Early agent-tool thinking: email is treated as an external tool/source.
 - QQ Mail ingestion through a local MCP tool boundary.
 - Local resume RAG: PDF resume text is chunked into evidence and retrieved for each job.
+- Safe agent workflow: shortlist jobs, generate application drafts, and stop at a human approval gate.
 - Human-centered workflow design for job applications.
 
 ## Safety Rules

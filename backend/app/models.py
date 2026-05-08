@@ -108,3 +108,59 @@ class JobApplicationAnalysis:
             "evidence_matches": [match.to_dict() for match in self.evidence_matches],
             "missing_keywords": list(self.missing_keywords),
         }
+
+
+@dataclass(frozen=True)
+class ApplicationDraft:
+    job_title: str
+    company: str
+    resume_focus: tuple[str, ...]
+    cover_letter: str
+    recruiter_message: str
+    application_notes: tuple[str, ...]
+    approval_required: bool = True
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "job_title": self.job_title,
+            "company": self.company,
+            "resume_focus": list(self.resume_focus),
+            "cover_letter": self.cover_letter,
+            "recruiter_message": self.recruiter_message,
+            "application_notes": list(self.application_notes),
+            "approval_required": self.approval_required,
+        }
+
+
+@dataclass(frozen=True)
+class AgentRunStep:
+    name: str
+    status: str
+    summary: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "name": self.name,
+            "status": self.status,
+            "summary": self.summary,
+        }
+
+
+@dataclass(frozen=True)
+class AgentRunReport:
+    goal: str
+    steps: tuple[AgentRunStep, ...]
+    selected_jobs: tuple[JobApplicationAnalysis, ...]
+    drafts: tuple[ApplicationDraft, ...]
+    output_dir: str
+    external_actions_blocked: bool = True
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "goal": self.goal,
+            "steps": [step.to_dict() for step in self.steps],
+            "selected_jobs": [job.to_dict() for job in self.selected_jobs],
+            "drafts": [draft.to_dict() for draft in self.drafts],
+            "output_dir": self.output_dir,
+            "external_actions_blocked": self.external_actions_blocked,
+        }

@@ -10,6 +10,7 @@ from backend.app.rag.resume_index import build_and_save_resume_index, load_resum
 from backend.app.sample_profile import DEFAULT_PROFILE
 from backend.app.services.application_analysis import analyze_ranked_leads
 from backend.app.services.email_ingestion import scan_qq_mail_for_jobs
+from backend.app.services.job_agent import default_agent_output_dir, run_job_application_agent
 from backend.app.services.matcher import rank_job_leads
 
 
@@ -116,6 +117,47 @@ def command_scan_qq_mail(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_run_agent(args: argparse.Namespace) -> int:
+    since = args.since or date.today().isoformat()
+    resume_index_path = Path(args.resume_index) if args.resume_index else DEFAULT_RESUME_INDEX_PATH
+    if not resume_index_path.exists():
+        print(f"Resume index not found: {resume_index_path}")
+        print("Build it first with: python -m backend.app.cli build-resume-index --resume-pdf <path>")
+        return 1
+
+    output_dir = Path(args.output_dir) if args.output_dir else default_agent_output_dir(PRIVATE_DATA_DIR, since)
+    resume_index = load_resume_index(resume_index_path)
+    report, ingestion = run_job_application_agent(
+        since=since,
+        resume_index=resume_index,
+        output_dir=output_dir,
+        folder=args.folder,
+        top=args.top,
+        min_score=args.min_score,
+        limit=args.limit,
+        candidate_limit=args.candidate_limit,
+    )
+
+    print(f"Goal: {report.goal}")
+    print(f"Scanned messages: {len(ingestion.scanned_messages)}")
+    print(f"Job-related messages: {len(ingestion.job_messages)}")
+    print(f"Extracted job leads: {len(ingestion.leads)}")
+    print(f"Selected jobs: {len(report.selected_jobs)}")
+    print(f"Drafts generated: {len(report.drafts)}")
+    print(f"Output directory: {output_dir}")
+    print()
+    print("Agent steps:")
+    for step in report.steps:
+        print(f"- {step.name}: {step.status} - {step.summary}")
+
+    if report.drafts:
+        print()
+        print("Drafts:")
+        for draft in report.drafts:
+            print(f"- {draft.company} | {draft.job_title}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="AI Job Application Agent prototype CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -144,6 +186,17 @@ def build_parser() -> argparse.ArgumentParser:
     scan_qq.add_argument("--resume-index", default=None, help="Resume index JSON path; defaults to data/private/resume_index.json")
     scan_qq.add_argument("--output", default=None, help="Private JSON output path")
     scan_qq.set_defaults(func=command_scan_qq_mail)
+
+    run_agent = subparsers.add_parser("run-agent", help="Run the safe job application agent workflow")
+    run_agent.add_argument("--since", default=None, help="IMAP since date in YYYY-MM-DD format; defaults to today")
+    run_agent.add_argument("--folder", default="INBOX", help="QQ Mail folder to scan")
+    run_agent.add_argument("--top", type=int, default=3, help="Maximum application drafts to generate")
+    run_agent.add_argument("--min-score", type=int, default=70, help="Minimum job match score to draft for")
+    run_agent.add_argument("--limit", type=int, default=50, help="Maximum message summaries to scan")
+    run_agent.add_argument("--candidate-limit", type=int, default=250, help="Maximum recent messages to consider")
+    run_agent.add_argument("--resume-index", default=None, help="Resume index JSON path; defaults to data/private/resume_index.json")
+    run_agent.add_argument("--output-dir", default=None, help="Private output directory for the agent run")
+    run_agent.set_defaults(func=command_run_agent)
 
     return parser
 

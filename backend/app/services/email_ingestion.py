@@ -6,21 +6,28 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from backend.app.models import EmailSummary, JobApplicationAnalysis, JobLead, ResumeEvidence, ResumeProfile, ScoredJobLead
+from backend.app.models import (
+    EmailSummary,
+    JobApplicationAnalysis,
+    JobLead,
+    ResumeEvidence,
+    ResumeProfile,
+    ScoredJobLead,
+)
 from backend.app.parsers.job_email_parser import parse_job_email
-from backend.app.services.application_analysis import analyze_ranked_leads
 from backend.app.sample_profile import DEFAULT_PROFILE
+from backend.app.services.application_analysis import analyze_ranked_leads
 from backend.app.services.matcher import rank_job_leads
 from backend.app.tools.qq_mail_mcp_client import QQMailMCPClient
 
 
 JOB_EMAIL_KEYWORDS = (
     "linkedin",
-    "领英",
+    "\u9886\u82f1",
     "job",
     "jobs",
-    "职位",
-    "招聘",
+    "\u804c\u4f4d",
+    "\u62db\u8058",
     "recruit",
     "intern",
     "internship",
@@ -28,7 +35,7 @@ JOB_EMAIL_KEYWORDS = (
     "developer",
     "graduate",
     "51job",
-    "前程无忧",
+    "\u524d\u7a0b\u65e0\u5fe7",
 )
 
 
