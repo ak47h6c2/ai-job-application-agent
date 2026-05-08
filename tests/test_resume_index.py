@@ -33,6 +33,27 @@ class ResumeIndexTests(unittest.TestCase):
         self.assertIn("python", index[0].keywords)
         self.assertNotIn("@", " ".join(chunk.text for chunk in index))
 
+    def test_build_resume_index_supports_chinese_sections(self) -> None:
+        text = """
+        张三
+        邮箱：person@example.com
+        电话：13800000000
+
+        专业技能
+        Python、SQL、Docker、FastAPI，熟悉大模型应用和检索增强。
+
+        项目经历
+        搭建 AI 求职助手，支持邮件解析、职位匹配、简历证据检索和申请草稿生成。
+        """
+
+        index = build_resume_index(text)
+
+        self.assertGreaterEqual(len(index), 2)
+        self.assertEqual(index[0].section, "专业技能")
+        self.assertIn("大模型", index[0].keywords)
+        self.assertIn("检索增强", " ".join(chunk.text for chunk in index))
+        self.assertNotIn("@", " ".join(chunk.text for chunk in index))
+
     def test_retrieve_resume_evidence_finds_relevant_chunks(self) -> None:
         index = build_resume_index(
             """

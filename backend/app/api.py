@@ -9,7 +9,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from backend.app.rag.resume_index import build_and_save_resume_index, load_resume_index
+from backend.app.rag.resume_index import build_resume_index, extract_pdf_text, load_resume_index, save_resume_index
 from backend.app.services.job_agent import default_agent_output_dir, run_job_application_agent
 
 
@@ -81,6 +81,8 @@ def resume_index_summary() -> dict[str, Any]:
     if not DEFAULT_RESUME_INDEX_PATH.exists():
         return {"exists": False, "chunk_count": 0, "modified_at": None}
     index = load_resume_index(DEFAULT_RESUME_INDEX_PATH)
+    if not index:
+        return {"exists": False, "chunk_count": 0, "modified_at": DEFAULT_RESUME_INDEX_PATH.stat().st_mtime}
     return {
         "exists": True,
         "chunk_count": len(index),
@@ -147,10 +149,26 @@ async def upload_resume_index(file: UploadFile = File(...)) -> dict[str, Any]:
     temp_path = RESUME_UPLOAD_DIR / "resume_upload.pdf"
     temp_path.write_bytes(contents)
     try:
-        index = build_and_save_resume_index(temp_path, DEFAULT_RESUME_INDEX_PATH)
+        resume_text = extract_pdf_text(temp_path)
+        index = build_resume_index(resume_text)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not read resume PDF. Please upload a readable text-based PDF resume.",
+        ) from exc
     finally:
         temp_path.unlink(missing_ok=True)
 
+    if not index:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Could not read enough resume text from this PDF. "
+                "If it is a scanned image resume, export it as a text-based PDF first."
+            ),
+        )
+
+    save_resume_index(index, DEFAULT_RESUME_INDEX_PATH)
     return {
         "exists": True,
         "chunk_count": len(index),
@@ -161,13 +179,13 @@ async def upload_resume_index(file: UploadFile = File(...)) -> dict[str, Any]:
 @app.post("/api/runs")
 def start_agent_run(request: AgentRunRequest) -> dict[str, Any]:
     since = validate_since(request.since)
-    if not DEFAULT_RESUME_INDEX_PATH.exists():
+    resume_index = load_resume_index(DEFAULT_RESUME_INDEX_PATH) if DEFAULT_RESUME_INDEX_PATH.exists() else []
+    if not resume_index:
         raise HTTPException(
             status_code=400,
             detail="Resume index not found. Build it before running the agent.",
         )
 
-    resume_index = load_resume_index(DEFAULT_RESUME_INDEX_PATH)
     output_dir = default_agent_output_dir(PRIVATE_DATA_DIR, since)
     run_job_application_agent(
         since=since,

@@ -7,14 +7,41 @@ from pathlib import Path
 from backend.app.models import JobLead, ResumeEvidence, ResumeEvidenceMatch
 
 
-SECTION_NAMES = {
-    "profile",
-    "education",
-    "technical skills",
-    "work experience",
-    "relevant projects",
-    "leadership & awards",
-    "professional development",
+SECTION_ALIASES: dict[str, str | None] = {
+    "profile": None,
+    "summary": None,
+    "education": None,
+    "technical skills": None,
+    "skills": None,
+    "work experience": None,
+    "professional experience": None,
+    "internship experience": None,
+    "relevant projects": None,
+    "projects": None,
+    "leadership & awards": None,
+    "awards": None,
+    "certifications": None,
+    "professional development": None,
+    "个人简介": "个人简介",
+    "个人总结": "个人简介",
+    "求职意向": "求职意向",
+    "教育经历": "教育经历",
+    "教育背景": "教育经历",
+    "专业技能": "专业技能",
+    "技能": "专业技能",
+    "技术技能": "专业技能",
+    "技术栈": "专业技能",
+    "工作经历": "工作经历",
+    "工作经验": "工作经历",
+    "实习经历": "实习经历",
+    "项目经历": "项目经历",
+    "项目经验": "项目经历",
+    "相关项目": "项目经历",
+    "校园经历": "校园经历",
+    "获奖经历": "获奖经历",
+    "荣誉奖项": "获奖经历",
+    "证书": "证书",
+    "资格证书": "证书",
 }
 
 IMPORTANT_TERMS = (
@@ -54,6 +81,23 @@ IMPORTANT_TERMS = (
     "engineer",
     "intern",
     "graduate",
+    "大模型",
+    "人工智能",
+    "机器学习",
+    "深度学习",
+    "自然语言处理",
+    "智能体",
+    "检索增强",
+    "数据分析",
+    "数据结构",
+    "算法",
+    "数据库",
+    "软件开发",
+    "自动化",
+    "云计算",
+    "测试",
+    "项目",
+    "实习",
 )
 
 STOP_WORDS = {
@@ -87,6 +131,7 @@ def normalize_text(text: str) -> str:
 def tokenize(text: str) -> set[str]:
     normalized = text.lower().replace("engineering", "engineer")
     tokens = set(re.findall(r"[a-z][a-z0-9+#.]{1,}", normalized))
+    tokens.update(term for term in IMPORTANT_TERMS if re.search(r"[\u4e00-\u9fff]", term) and term in text)
     return {token for token in tokens if token not in STOP_WORDS and len(token) > 2}
 
 
@@ -100,13 +145,22 @@ def should_skip_chunk(section: str, text: str) -> bool:
     lowered = text.lower()
     if section == "ignore":
         return True
-    private_markers = ("@", "linkedin.com/in/", "phone", "+61")
+    private_markers = ("@", "linkedin.com/in/", "phone", "+61", "邮箱", "电话", "手机号", "微信")
     return any(marker in lowered for marker in private_markers)
 
 
+def normalize_section_heading(line: str) -> tuple[str, str]:
+    display = re.sub(r"^[\s#>*\-•]+", "", line.strip())
+    display = re.sub(r"[\s:：]+$", "", display)
+    key = re.sub(r"\s+", " ", display.lower())
+    return display, key
+
+
 def section_for_line(line: str, current_section: str) -> str:
-    normalized = line.strip().lower()
-    return line.strip() if normalized in SECTION_NAMES else current_section
+    display, key = normalize_section_heading(line)
+    if key not in SECTION_ALIASES:
+        return current_section
+    return SECTION_ALIASES[key] or display
 
 
 def build_resume_index(text: str) -> list[ResumeEvidence]:

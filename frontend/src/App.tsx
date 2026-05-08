@@ -52,6 +52,7 @@ const translations = {
     uploading: "Uploading...",
     uploadSuccess: "Resume uploaded and indexed.",
     uploadError: "Resume upload failed.",
+    uploadTextError: "This PDF does not contain enough readable resume text. If it is a scanned image resume, export it as a text-based PDF first.",
     mailStep: "Mail",
     mailStepTitle: "Choose scan range",
     today: "Today",
@@ -60,15 +61,15 @@ const translations = {
     last7Days: "Last 7 days",
     customDate: "Custom date",
     agentStep: "Agent",
-    agentStepTitle: "Generate drafts",
-    startScan: "Start scan",
-    scanning: "Scanning...",
-    refresh: "Refresh",
-    scanSuccess: "New agent run generated.",
+    agentStepTitle: "Shortlist and draft",
+    startScan: "Analyze jobs",
+    scanning: "Analyzing...",
+    refresh: "Reload",
+    scanSuccess: "New job analysis generated.",
     scanError: "Scan failed.",
     readSince: "Read mail since",
-    topDrafts: "Drafts",
-    minScore: "Min score",
+    topDrafts: "Max drafts",
+    minScore: "Min match",
     jobs: "Jobs",
     steps: "Steps",
     recentRuns: "Recent runs",
@@ -102,10 +103,10 @@ const translations = {
     setup: "Setup"
   },
   zh: {
-    appName: "求职 Agent",
-    productName: "AI 求职申请 Agent",
-    headline: "申请工作台",
-    subline: "上传简历，扫描职位邮件，审核申请草稿。",
+    appName: "求职助手",
+    productName: "AI 求职申请助手",
+    headline: "求职申请工作台",
+    subline: "先上传简历，再分析邮件，最后审核生成的申请材料。",
     language: "语言",
     english: "EN",
     chinese: "中文",
@@ -114,65 +115,66 @@ const translations = {
     history: "历史记录",
     jobLeads: "职位线索",
     drafts: "申请草稿",
-    safeTitle: "人工确认开启",
-    safeBody: "不会自动发送邮件，也不会自动投递。",
+    safeTitle: "人工确认",
+    safeBody: "这里只生成建议和草稿，不会自动发送或投递。",
     resumeStep: "简历",
-    resumeStepTitle: "上传简历 PDF",
-    resumeReady: "简历索引已就绪",
-    resumeMissing: "扫描前先上传 PDF 简历",
-    resumePrivate: "只在本地生成私有简历证据索引。",
-    uploadResume: "上传 PDF",
+    resumeStepTitle: "上传 PDF 简历",
+    resumeReady: "简历已准备好",
+    resumeMissing: "请先上传一份 PDF 简历",
+    resumePrivate: "简历只用于本地分析，不会提交到 GitHub。",
+    uploadResume: "选择简历 PDF",
     uploading: "上传中...",
-    uploadSuccess: "简历已上传并完成索引。",
+    uploadSuccess: "简历已上传，可以开始分析职位邮件。",
     uploadError: "简历上传失败。",
-    mailStep: "邮件",
-    mailStepTitle: "选择扫描范围",
+    uploadTextError: "这份 PDF 读不到足够的简历文字。如果是扫描版图片简历，请先导出为可复制文字的 PDF 后再上传。",
+    mailStep: "邮件范围",
+    mailStepTitle: "选择要看的邮件",
     today: "今天",
     yesterday: "昨天起",
     last3Days: "近 3 天",
     last7Days: "近 7 天",
     customDate: "自定义日期",
-    agentStep: "Agent",
-    agentStepTitle: "生成草稿",
-    startScan: "开始扫描",
-    scanning: "扫描中...",
-    refresh: "刷新",
-    scanSuccess: "新的 Agent 运行结果已生成。",
-    scanError: "扫描失败。",
-    readSince: "读取此日期后的邮件",
-    topDrafts: "草稿数",
-    minScore: "最低分",
+    agentStep: "生成",
+    agentStepTitle: "筛选职位并生成草稿",
+    startScan: "开始分析",
+    scanning: "分析中...",
+    refresh: "更新结果",
+    scanSuccess: "分析完成，已生成新的求职材料。",
+    scanError: "分析失败。",
+    readSince: "读取邮件日期",
+    topDrafts: "最多生成",
+    minScore: "最低匹配度",
     jobs: "职位",
-    steps: "步骤",
-    recentRuns: "最近运行",
+    steps: "流程",
+    recentRuns: "历史结果",
     updated: "更新于",
-    selected: "已选中",
-    run: "运行",
-    loading: "正在加载最新运行",
-    noRun: "暂无运行",
-    emptyTitle: "暂无控制台数据",
-    emptyBody: "先上传简历并启动一次扫描，这里会生成第一份报告。",
-    apiError: "API 暂不可用，请确认 FastAPI 服务正在运行。",
-    timeline: "工作流",
-    selectedJobs: "候选职位",
-    shortlistCount: "个入选",
+    selected: "当前",
+    run: "结果",
+    loading: "正在加载最新结果",
+    noRun: "暂无结果",
+    emptyTitle: "还没有分析结果",
+    emptyBody: "先上传简历，再点开始分析。",
+    apiError: "本地服务未连接，请确认后端正在运行。",
+    timeline: "处理进度",
+    selectedJobs: "推荐职位",
+    shortlistCount: "个推荐",
     open: "打开",
-    resumeEvidence: "证据",
-    missingKeywords: "关键词缺口",
+    resumeEvidence: "简历依据",
+    missingKeywords: "可补关键词",
     noKeywordGap: "暂无明显缺口",
-    noEvidence: "暂未找到强匹配简历证据。",
-    applicationDraft: "草稿",
-    reviewRequired: "需要审核",
-    resumeFocus: "简历重点",
-    coverLetter: "求职信",
+    noEvidence: "暂未找到强匹配的简历内容。",
+    applicationDraft: "申请材料",
+    reviewRequired: "待你确认",
+    resumeFocus: "简历修改重点",
+    coverLetter: "求职信草稿",
     recruiterMessage: "招聘方消息",
-    notes: "备注",
+    notes: "投递提醒",
     copy: "复制",
     copied: "已复制",
     points: "分",
-    safeMode: "安全模式",
-    viewResults: "查看结果",
-    setup: "配置"
+    safeMode: "只读安全模式",
+    viewResults: "查看材料",
+    setup: "开始"
   }
 } as const;
 
@@ -322,6 +324,10 @@ function reasonName(reason: string, language: Language) {
   return reasonLabels[language][reason.toLowerCase()] ?? reason;
 }
 
+function matchScoreLabel(score: number, language: Language) {
+  return language === "zh" ? `匹配度 ${score}` : `Match ${score}`;
+}
+
 async function parseApiError(response: Response) {
   const payload = await response.json().catch(() => null);
   if (payload && typeof payload.detail === "string") return payload.detail;
@@ -391,10 +397,18 @@ function App() {
     void loadLatest();
   }, [loadLatest]);
 
+  const friendlyError = (rawMessage: string, fallback: string) => {
+    if (rawMessage.includes("Could not read enough resume text")) return t.uploadTextError;
+    if (rawMessage.includes("Could not read resume PDF")) return t.uploadTextError;
+    if (rawMessage.includes("Resume index not found")) return t.resumeMissing;
+    return rawMessage || fallback;
+  };
+
   async function uploadResume(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
     setUploadStatus("running");
+    setRunStatus("idle");
     setMessage("");
     try {
       const body = new FormData();
@@ -405,8 +419,9 @@ function App() {
       setUploadStatus("success");
       setMessage(t.uploadSuccess);
     } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : t.uploadError;
       setUploadStatus("error");
-      setMessage(error instanceof Error ? error.message : t.uploadError);
+      setMessage(friendlyError(rawMessage, t.uploadError));
     } finally {
       event.target.value = "";
     }
@@ -415,6 +430,7 @@ function App() {
   async function runAgent() {
     if (!resume?.exists) return;
     setRunStatus("running");
+    setUploadStatus("idle");
     setMessage("");
     try {
       const response = await fetch(`${API_BASE}/api/runs`, {
@@ -430,8 +446,9 @@ function App() {
       setRunStatus("success");
       setMessage(t.scanSuccess);
     } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : t.scanError;
       setRunStatus("error");
-      setMessage(error instanceof Error ? error.message : t.scanError);
+      setMessage(friendlyError(rawMessage, t.scanError));
     }
   }
 
@@ -675,7 +692,7 @@ function App() {
                               <p className="mt-1 text-xs text-muted">{lead.location}</p>
                             </div>
                             <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-semibold ${scoreTone(analysis.scored_lead.score)}`}>
-                              {analysis.scored_lead.score}
+                              {matchScoreLabel(analysis.scored_lead.score, language)}
                             </span>
                           </div>
                           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -843,14 +860,14 @@ function RangeButton({ active, label, onClick }: { active: boolean; label: strin
 function NumberField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) {
   return (
     <label>
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-normal text-muted">{label}</span>
+      <span className="mb-2 block text-sm font-semibold text-muted">{label}</span>
       <input
         type="number"
         min={min}
         max={max}
         value={value}
         onChange={(event) => onChange(Math.min(max, Math.max(min, Number(event.target.value))))}
-        className="h-10 w-full rounded-md border border-line bg-white px-3 text-sm font-semibold outline-none focus:border-accent"
+        className="h-12 w-full rounded-md border border-line bg-white px-3 text-xl font-semibold outline-none focus:border-accent"
       />
     </label>
   );

@@ -4,6 +4,10 @@
 
 ### English
 
+- Renamed score controls and job badges from generic “score” wording to clearer resume-job “match” wording.
+- Reworked Chinese UI copy to use natural job-search language instead of literal translations.
+- Added Chinese resume section support for local resume indexing, including skills, education, internship, and project sections.
+- Added a clear upload error when a PDF has no readable text, such as a scanned image resume.
 - Redesigned the Web UI around a shorter three-step flow: upload resume, choose mail range, start scan.
 - Added browser-based resume PDF upload and local resume index generation.
 - Added a browser-based mail scan workbench for starting safe Agent runs from the Web UI.
@@ -17,6 +21,10 @@ Safety note: the Agent still stops at the human approval gate. It does not send 
 
 ### 中文
 
+- 把“最低分”等容易误解的说法改成“最低匹配度”，职位卡片也显示为“匹配度”。
+- 重写中文界面文案，尽量使用求职场景里的自然说法，减少翻译腔。
+- 简历索引支持中文标题，例如“专业技能”“教育经历”“实习经历”“项目经历”。
+- 如果 PDF 简历读不到文字，会在页面上给出明确提示，避免上传后像是没有反应。
 - 重新设计 Web UI，改成更短的三步流程：上传简历、选择邮件范围、开始扫描。
 - 新增浏览器上传 PDF 简历，并在本地生成简历证据索引。
 - 新增网页端邮件扫描工作台，可以直接从 Web UI 启动安全 Agent 工作流。
