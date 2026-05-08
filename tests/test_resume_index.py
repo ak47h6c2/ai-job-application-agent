@@ -77,6 +77,26 @@ class ResumeIndexTests(unittest.TestCase):
         self.assertTrue(matches)
         self.assertIn("python", matches[0].matched_terms)
 
+    def test_retrieve_resume_evidence_matches_english_job_to_chinese_resume(self) -> None:
+        index = build_resume_index(
+            """
+            项目经历
+            使用 Python 和 SQL 完成测试工具开发，整理数据库验证结果和项目文档。
+            """
+        )
+        lead = JobLead(
+            title="Software Engineer Intern",
+            company="Example",
+            location="Sydney",
+            source="test",
+            raw_excerpt="testing database validation",
+        )
+
+        matches = retrieve_resume_evidence(lead, index)
+
+        self.assertTrue(matches)
+        self.assertIn("数据库", matches[0].matched_terms)
+
     def test_missing_resume_keywords_identifies_gaps(self) -> None:
         index = build_resume_index("TECHNICAL SKILLS\nPython, SQL, Git")
         lead = JobLead(

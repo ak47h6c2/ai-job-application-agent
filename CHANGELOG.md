@@ -4,6 +4,10 @@
 
 ### English
 
+- Chinese mode now generates Chinese resume advice, cover letters, recruiter messages, run steps, and Markdown headings.
+- Resume upload feedback now shows detected resume sections and keywords, so users can see what the PDF parser understood.
+- Added cross-language matching so English job titles can match Chinese resume evidence such as software development, testing, databases, and projects.
+- Added clear empty states when no jobs meet the selected match threshold.
 - Renamed score controls and job badges from generic “score” wording to clearer resume-job “match” wording.
 - Reworked Chinese UI copy to use natural job-search language instead of literal translations.
 - Added Chinese resume section support for local resume indexing, including skills, education, internship, and project sections.
@@ -21,6 +25,10 @@ Safety note: the Agent still stops at the human approval gate. It does not send 
 
 ### 中文
 
+- 中文模式现在会用中文生成简历修改建议、求职信、招聘方消息、流程说明和 Markdown 标题。
+- 上传简历后会直接显示已识别的简历模块和关键词，让用户知道 PDF 到底有没有被读懂。
+- 新增中英文关键词匹配，英文岗位也能匹配中文简历里的软件开发、测试、数据库、项目经历等证据。
+- 当没有职位达到最低匹配度时，页面会明确提示如何调整，而不是留空。
 - 把“最低分”等容易误解的说法改成“最低匹配度”，职位卡片也显示为“匹配度”。
 - 重写中文界面文案，尽量使用求职场景里的自然说法，减少翻译腔。
 - 简历索引支持中文标题，例如“专业技能”“教育经历”“实习经历”“项目经历”。

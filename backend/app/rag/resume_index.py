@@ -93,12 +93,49 @@ IMPORTANT_TERMS = (
     "算法",
     "数据库",
     "软件开发",
+    "软件",
+    "开发",
+    "工程",
     "自动化",
     "云计算",
+    "验证",
+    "计算机网络",
     "测试",
     "项目",
     "实习",
 )
+
+TERM_ALIASES = {
+    "software": ("软件开发", "软件", "开发"),
+    "developer": ("软件开发", "开发"),
+    "development": ("软件开发", "开发"),
+    "engineer": ("工程", "工程能力"),
+    "engineering": ("工程", "工程能力"),
+    "intern": ("实习",),
+    "graduate": ("毕业生岗位",),
+    "testing": ("测试",),
+    "test": ("测试",),
+    "validation": ("验证",),
+    "database": ("数据库", "sql"),
+    "databases": ("数据库", "sql"),
+    "algorithm": ("算法", "数据结构"),
+    "algorithms": ("算法", "数据结构"),
+    "cloud": ("云计算",),
+    "aws": ("云计算",),
+    "ai": ("人工智能", "大模型"),
+    "人工智能": ("ai",),
+    "大模型": ("ai", "llm"),
+    "软件开发": ("software", "developer"),
+    "开发": ("development", "developer"),
+    "工程": ("engineer", "engineering"),
+    "测试": ("testing", "test"),
+    "验证": ("validation",),
+    "数据库": ("database", "sql"),
+    "算法": ("algorithm", "algorithms"),
+    "数据结构": ("data", "structures", "algorithms"),
+    "云计算": ("cloud", "aws"),
+    "实习": ("intern",),
+}
 
 STOP_WORDS = {
     "and",
@@ -132,7 +169,18 @@ def tokenize(text: str) -> set[str]:
     normalized = text.lower().replace("engineering", "engineer")
     tokens = set(re.findall(r"[a-z][a-z0-9+#.]{1,}", normalized))
     tokens.update(term for term in IMPORTANT_TERMS if re.search(r"[\u4e00-\u9fff]", term) and term in text)
-    return {token for token in tokens if token not in STOP_WORDS and len(token) > 2}
+    return {
+        token
+        for token in tokens
+        if token not in STOP_WORDS and (len(token) > 2 or re.search(r"[\u4e00-\u9fff]", token))
+    }
+
+
+def expand_terms(terms: set[str]) -> set[str]:
+    expanded = set(terms)
+    for term in terms:
+        expanded.update(TERM_ALIASES.get(term, ()))
+    return expanded
 
 
 def extract_keywords(text: str) -> tuple[str, ...]:
@@ -235,7 +283,7 @@ def build_and_save_resume_index(pdf_path: Path, output_path: Path) -> list[Resum
 
 
 def query_terms_for_job(lead: JobLead) -> set[str]:
-    return tokenize(" ".join([lead.title, lead.company, lead.location, lead.raw_excerpt]))
+    return expand_terms(tokenize(" ".join([lead.title, lead.company, lead.location, lead.raw_excerpt])))
 
 
 def retrieve_resume_evidence(
@@ -247,7 +295,7 @@ def retrieve_resume_evidence(
     query_terms = query_terms_for_job(lead)
     matches: list[ResumeEvidenceMatch] = []
     for evidence in index:
-        evidence_terms = tokenize(" ".join([evidence.text, " ".join(evidence.keywords)]))
+        evidence_terms = expand_terms(tokenize(" ".join([evidence.text, " ".join(evidence.keywords)])))
         matched_terms = tuple(sorted(query_terms.intersection(evidence_terms)))
         if len(matched_terms) < 2:
             continue
@@ -267,5 +315,10 @@ def missing_resume_keywords(lead: JobLead, index: list[ResumeEvidence]) -> tuple
     resume_text = " ".join(evidence.text for evidence in index).lower().replace("engineering", "engineer")
     job_text = " ".join([lead.title, lead.company, lead.location, lead.raw_excerpt]).lower()
     job_keywords = [term for term in IMPORTANT_TERMS if term in job_text]
-    missing = [term for term in job_keywords if term not in resume_text]
+    missing = [
+        term
+        for term in job_keywords
+        if term not in resume_text
+        and not any(alias.lower() in resume_text for alias in TERM_ALIASES.get(term, ()))
+    ]
     return tuple(dict.fromkeys(missing))

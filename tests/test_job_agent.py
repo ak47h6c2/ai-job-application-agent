@@ -47,6 +47,14 @@ class JobAgentTests(unittest.TestCase):
         self.assertIn("Approval required before any external action: yes", markdown)
         self.assertIn("Cover Letter Draft", markdown)
 
+    def test_draft_to_markdown_supports_chinese_headings(self) -> None:
+        draft = generate_application_draft(make_analysis("Software Engineer Intern", 90), "zh")
+
+        markdown = draft_to_markdown(draft, "zh")
+
+        self.assertIn("求职信草稿", markdown)
+        self.assertIn("对外发送或投递前必须人工确认：是", markdown)
+
     def test_save_agent_run_writes_json_and_draft_files(self) -> None:
         analysis = make_analysis("Software Engineer Intern", 90)
         draft = generate_application_draft(analysis)

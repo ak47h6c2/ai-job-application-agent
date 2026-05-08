@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,6 +39,7 @@ class AgentRunRequest(BaseModel):
     min_score: int = Field(default=70, ge=0, le=100)
     limit: int = Field(default=50, ge=1, le=200)
     candidate_limit: int = Field(default=250, ge=1, le=1000)
+    language: Literal["en", "zh"] = "en"
 
 
 def validate_since(value: str) -> str:
@@ -79,14 +80,24 @@ def load_json(path: Path) -> dict[str, Any]:
 
 def resume_index_summary() -> dict[str, Any]:
     if not DEFAULT_RESUME_INDEX_PATH.exists():
-        return {"exists": False, "chunk_count": 0, "modified_at": None}
+        return {"exists": False, "chunk_count": 0, "modified_at": None, "sections": [], "keywords": []}
     index = load_resume_index(DEFAULT_RESUME_INDEX_PATH)
     if not index:
-        return {"exists": False, "chunk_count": 0, "modified_at": DEFAULT_RESUME_INDEX_PATH.stat().st_mtime}
+        return {
+            "exists": False,
+            "chunk_count": 0,
+            "modified_at": DEFAULT_RESUME_INDEX_PATH.stat().st_mtime,
+            "sections": [],
+            "keywords": [],
+        }
+    sections = list(dict.fromkeys(evidence.section for evidence in index))
+    keywords = list(dict.fromkeys(keyword for evidence in index for keyword in evidence.keywords))
     return {
         "exists": True,
         "chunk_count": len(index),
         "modified_at": DEFAULT_RESUME_INDEX_PATH.stat().st_mtime,
+        "sections": sections,
+        "keywords": keywords[:12],
     }
 
 
@@ -169,11 +180,7 @@ async def upload_resume_index(file: UploadFile = File(...)) -> dict[str, Any]:
         )
 
     save_resume_index(index, DEFAULT_RESUME_INDEX_PATH)
-    return {
-        "exists": True,
-        "chunk_count": len(index),
-        "modified_at": DEFAULT_RESUME_INDEX_PATH.stat().st_mtime,
-    }
+    return resume_index_summary()
 
 
 @app.post("/api/runs")
@@ -196,6 +203,7 @@ def start_agent_run(request: AgentRunRequest) -> dict[str, Any]:
         min_score=request.min_score,
         limit=request.limit,
         candidate_limit=request.candidate_limit,
+        language=request.language,
     )
     return get_run(output_dir.name)
 

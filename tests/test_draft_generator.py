@@ -45,6 +45,40 @@ class DraftGeneratorTests(unittest.TestCase):
         self.assertIn("Example Company", draft.recruiter_message)
         self.assertTrue(any("AWS" in note for note in draft.application_notes))
 
+    def test_generate_application_draft_supports_chinese_output(self) -> None:
+        os.environ["APPLICANT_NAME"] = "测试申请人"
+        lead = JobLead(
+            title="测试开发实习生",
+            company="示例公司",
+            location="上海",
+            source="test",
+            raw_excerpt="Python SQL 测试 数据库",
+        )
+        evidence = ResumeEvidence(
+            section="项目经历",
+            text="使用 Python 和 SQL 搭建测试工具，整理数据库验证结果。",
+            keywords=("python", "sql", "测试", "数据库"),
+        )
+        analysis = JobApplicationAnalysis(
+            scored_lead=ScoredJobLead(lead=lead, score=82, reasons=("target title match",)),
+            evidence_matches=(
+                ResumeEvidenceMatch(
+                    evidence=evidence,
+                    score=30,
+                    matched_terms=("python", "sql", "测试"),
+                ),
+            ),
+            missing_keywords=("大模型",),
+        )
+
+        draft = generate_application_draft(analysis, "zh")
+
+        self.assertTrue(draft.approval_required)
+        self.assertIn("我想申请", draft.cover_letter)
+        self.assertIn("项目经历", draft.cover_letter)
+        self.assertIn("测试申请人", draft.cover_letter)
+        self.assertTrue(any("能力缺口" in note for note in draft.application_notes))
+
 
 if __name__ == "__main__":
     unittest.main()

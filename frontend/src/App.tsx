@@ -48,6 +48,9 @@ const translations = {
     resumeReady: "Resume index ready",
     resumeMissing: "Upload a PDF before scanning",
     resumePrivate: "Stored locally as a private evidence index.",
+    resumeSectionsLabel: "Detected sections",
+    resumeKeywordsLabel: "Detected keywords",
+    uploadNextStep: "Next: analyze job emails.",
     uploadResume: "Upload PDF",
     uploading: "Uploading...",
     uploadSuccess: "Resume uploaded and indexed.",
@@ -80,6 +83,10 @@ const translations = {
     noRun: "No run yet",
     emptyTitle: "No dashboard data yet",
     emptyBody: "Upload a resume and start a scan to generate the first report.",
+    noJobsTitle: "No matched jobs in this run",
+    noJobsBody: "Expand the mail range or lower the minimum match threshold, then analyze again.",
+    noDraftTitle: "No drafts generated",
+    noDraftBody: "Drafts appear after at least one job meets the match threshold.",
     apiError: "API is not available. Check that the FastAPI server is running.",
     timeline: "Workflow",
     selectedJobs: "Shortlist",
@@ -122,6 +129,9 @@ const translations = {
     resumeReady: "简历已准备好",
     resumeMissing: "请先上传一份 PDF 简历",
     resumePrivate: "简历只用于本地分析，不会提交到 GitHub。",
+    resumeSectionsLabel: "已识别模块",
+    resumeKeywordsLabel: "已识别关键词",
+    uploadNextStep: "下一步：点击“开始分析”。",
     uploadResume: "选择简历 PDF",
     uploading: "上传中...",
     uploadSuccess: "简历已上传，可以开始分析职位邮件。",
@@ -154,6 +164,10 @@ const translations = {
     noRun: "暂无结果",
     emptyTitle: "还没有分析结果",
     emptyBody: "先上传简历，再点开始分析。",
+    noJobsTitle: "这次没有筛出合适职位",
+    noJobsBody: "可以扩大邮件范围，或者把最低匹配度调低后重新分析。",
+    noDraftTitle: "还没有生成申请材料",
+    noDraftBody: "当有职位达到最低匹配度后，这里会生成简历修改点、求职信和招聘方消息。",
     apiError: "本地服务未连接，请确认后端正在运行。",
     timeline: "处理进度",
     selectedJobs: "推荐职位",
@@ -199,9 +213,11 @@ const reasonLabels: Record<Language, Record<string, string>> = {
   en: {},
   zh: {
     "target title match": "目标职位匹配",
+    "software role keywords": "软件岗位关键词",
     "preferred location": "地点匹配",
     "resume skill overlap": "简历技能重合",
-    "ai/cloud stretch keyword": "AI/云方向关键词"
+    "ai/cloud stretch keyword": "AI/云方向关键词",
+    "positive job-alert signal": "职位邮件信号"
   }
 };
 
@@ -272,6 +288,8 @@ type ResumeStatus = {
   exists: boolean;
   chunk_count: number;
   modified_at: number | null;
+  sections?: string[];
+  keywords?: string[];
 };
 
 function formatLocalDate(date: Date) {
@@ -322,6 +340,10 @@ function displayRunId(id: string) {
 
 function reasonName(reason: string, language: Language) {
   return reasonLabels[language][reason.toLowerCase()] ?? reason;
+}
+
+function joinList(items: string[] | undefined, language: Language) {
+  return (items ?? []).filter(Boolean).join(language === "zh" ? "、" : ", ");
 }
 
 function matchScoreLabel(score: number, language: Language) {
@@ -404,6 +426,18 @@ function App() {
     return rawMessage || fallback;
   };
 
+  const resumeUploadMessage = (status: ResumeStatus) => {
+    const sections = joinList(status.sections?.slice(0, 5), language);
+    if (language === "zh") {
+      return sections
+        ? `简历已读取：${status.chunk_count} 个模块（${sections}）。${t.uploadNextStep}`
+        : `${t.uploadSuccess}${t.uploadNextStep}`;
+    }
+    return sections
+      ? `Resume parsed: ${status.chunk_count} sections (${sections}). ${t.uploadNextStep}`
+      : `${t.uploadSuccess} ${t.uploadNextStep}`;
+  };
+
   async function uploadResume(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -415,9 +449,10 @@ function App() {
       body.append("file", file);
       const response = await fetch(`${API_BASE}/api/resume-index`, { method: "POST", body });
       if (!response.ok) throw new Error(await parseApiError(response));
-      setResume((await response.json()) as ResumeStatus);
+      const status = (await response.json()) as ResumeStatus;
+      setResume(status);
       setUploadStatus("success");
-      setMessage(t.uploadSuccess);
+      setMessage(resumeUploadMessage(status));
     } catch (error) {
       const rawMessage = error instanceof Error ? error.message : t.uploadError;
       setUploadStatus("error");
@@ -436,7 +471,7 @@ function App() {
       const response = await fetch(`${API_BASE}/api/runs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ since: sinceDate, top: topDrafts, min_score: minScore })
+        body: JSON.stringify({ since: sinceDate, top: topDrafts, min_score: minScore, language })
       });
       if (!response.ok) throw new Error(await parseApiError(response));
       setRun((await response.json()) as AgentRun);
@@ -536,8 +571,27 @@ function App() {
           <section id="setup" className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_1.35fr_0.85fr]">
             <ActionPanel step="1" eyebrow={t.resumeStep} title={resume?.exists ? t.resumeReady : t.resumeStepTitle}>
               <p className="text-sm text-muted">
-                {resume?.exists ? `${resume.chunk_count} chunks · ${formatModified(resume.modified_at, language)}` : t.resumeMissing}
+                {resume?.exists
+                  ? `${resume.chunk_count} ${language === "zh" ? "个模块" : "sections"} · ${formatModified(resume.modified_at, language)}`
+                  : t.resumeMissing}
               </p>
+              {resume?.exists && Boolean(resume.sections?.length) && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-semibold text-muted">{t.resumeSectionsLabel}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {resume.sections?.slice(0, 5).map((section) => (
+                      <span key={section} className="rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-xs font-semibold text-accent">
+                        {section}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {resume?.exists && Boolean(resume.keywords?.length) && (
+                <p className="mt-2 text-xs leading-5 text-muted">
+                  {t.resumeKeywordsLabel}: <span className="text-ink">{joinList(resume.keywords?.slice(0, 6), language)}</span>
+                </p>
+              )}
               <label className="mt-4 inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-line px-3 text-sm font-semibold text-ink hover:border-blue-200 hover:bg-blue-50">
                 <Upload className="h-4 w-4" />
                 {uploadStatus === "running" ? t.uploading : t.uploadResume}
@@ -673,39 +727,46 @@ function App() {
                     </span>
                   </div>
                   <div className="space-y-2">
-                    {run.selected_jobs.map((analysis, index) => {
-                      const lead = analysis.scored_lead.lead;
-                      const isSelected = selectedIndex === index;
-                      return (
-                        <button
-                          key={`${lead.company}-${lead.title}`}
-                          type="button"
-                          onClick={() => setSelectedIndex(index)}
-                          className={`w-full rounded-md border p-3 text-left transition ${
-                            isSelected ? "border-accent bg-blue-50" : "border-line bg-white hover:border-blue-200 hover:bg-slate-50"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold">{lead.title}</p>
-                              <p className="mt-1 text-xs text-muted">{lead.company}</p>
-                              <p className="mt-1 text-xs text-muted">{lead.location}</p>
-                            </div>
-                            <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-semibold ${scoreTone(analysis.scored_lead.score)}`}>
-                              {matchScoreLabel(analysis.scored_lead.score, language)}
-                            </span>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-1.5">
-                            {analysis.scored_lead.reasons.slice(0, 3).map((reason, reasonIndex) => (
-                              <span key={`${reason}-${reasonIndex}`} className="rounded-md bg-white px-2 py-1 text-xs text-muted ring-1 ring-line">
-                                {reasonName(reason, language)}
+                    {run.selected_jobs.length ? (
+                      run.selected_jobs.map((analysis, index) => {
+                        const lead = analysis.scored_lead.lead;
+                        const isSelected = selectedIndex === index;
+                        return (
+                          <button
+                            key={`${lead.company}-${lead.title}`}
+                            type="button"
+                            onClick={() => setSelectedIndex(index)}
+                            className={`w-full rounded-md border p-3 text-left transition ${
+                              isSelected ? "border-accent bg-blue-50" : "border-line bg-white hover:border-blue-200 hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold">{lead.title}</p>
+                                <p className="mt-1 text-xs text-muted">{lead.company}</p>
+                                <p className="mt-1 text-xs text-muted">{lead.location}</p>
+                              </div>
+                              <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-semibold ${scoreTone(analysis.scored_lead.score)}`}>
+                                {matchScoreLabel(analysis.scored_lead.score, language)}
                               </span>
-                            ))}
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                              {analysis.scored_lead.reasons.slice(0, 3).map((reason, reasonIndex) => (
+                                <span key={`${reason}-${reasonIndex}`} className="rounded-md bg-white px-2 py-1 text-xs text-muted ring-1 ring-line">
+                                  {reasonName(reason, language)}
+                                </span>
+                              ))}
+                            </div>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        <p className="font-semibold">{t.noJobsTitle}</p>
+                        <p className="mt-1 leading-5">{t.noJobsBody}</p>
+                      </div>
+                    )}
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
 
                 <section className="space-y-5">
@@ -788,6 +849,12 @@ function App() {
                         onCopy={() => void copyText("recruiter", selectedDraft.recruiter_message)}
                       />
                       <DraftSection title={t.notes} items={selectedDraft.application_notes} />
+                    </section>
+                  )}
+                  {!selectedDraft && (
+                    <section id="drafts" className="rounded-md border border-line bg-panel p-4 shadow-soft">
+                      <h2 className="text-base font-semibold">{t.noDraftTitle}</h2>
+                      <p className="mt-2 text-sm leading-6 text-muted">{t.noDraftBody}</p>
                     </section>
                   )}
                 </section>
