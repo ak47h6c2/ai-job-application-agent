@@ -39,16 +39,16 @@ def draft_to_markdown(draft: ApplicationDraft, language: Language = "en") -> str
         return (
             f"# {draft.job_title} - {draft.company}\n\n"
             f"## 简历修改重点\n\n{focus}\n\n"
-            f"## 求职信草稿\n\n{draft.cover_letter}\n\n"
-            f"## 招聘方消息\n\n{draft.recruiter_message}\n\n"
+            f"## 求职信草稿 ({draft.communication_language.upper()})\n\n{draft.cover_letter}\n\n"
+            f"## 招聘方消息 ({draft.communication_language.upper()})\n\n{draft.recruiter_message}\n\n"
             f"## 投递提醒\n\n{notes}\n\n"
             f"对外发送或投递前必须人工确认：{'是' if draft.approval_required else '否'}\n"
         )
     return (
         f"# {draft.job_title} - {draft.company}\n\n"
         f"## Resume Focus\n\n{focus}\n\n"
-        f"## Cover Letter Draft\n\n{draft.cover_letter}\n\n"
-        f"## Recruiter Message Draft\n\n{draft.recruiter_message}\n\n"
+        f"## Cover Letter Draft ({draft.communication_language.upper()})\n\n{draft.cover_letter}\n\n"
+        f"## Recruiter Message Draft ({draft.communication_language.upper()})\n\n{draft.recruiter_message}\n\n"
         f"## Notes\n\n{notes}\n\n"
         f"Approval required before any external action: {'yes' if draft.approval_required else 'no'}\n"
     )

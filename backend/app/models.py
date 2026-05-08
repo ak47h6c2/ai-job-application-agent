@@ -118,6 +118,7 @@ class ApplicationDraft:
     cover_letter: str
     recruiter_message: str
     application_notes: tuple[str, ...]
+    communication_language: str = "en"
     approval_required: bool = True
 
     def to_dict(self) -> dict[str, object]:
@@ -128,6 +129,7 @@ class ApplicationDraft:
             "cover_letter": self.cover_letter,
             "recruiter_message": self.recruiter_message,
             "application_notes": list(self.application_notes),
+            "communication_language": self.communication_language,
             "approval_required": self.approval_required,
         }
 

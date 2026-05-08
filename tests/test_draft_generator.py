@@ -77,7 +77,41 @@ class DraftGeneratorTests(unittest.TestCase):
         self.assertIn("我想申请", draft.cover_letter)
         self.assertIn("项目经历", draft.cover_letter)
         self.assertIn("测试申请人", draft.cover_letter)
+        self.assertEqual(draft.communication_language, "zh")
         self.assertTrue(any("能力缺口" in note for note in draft.application_notes))
+
+    def test_generate_application_draft_uses_english_for_australia_even_in_chinese_ui(self) -> None:
+        lead = JobLead(
+            title="Software Engineer Intern",
+            company="Google",
+            location="悉尼, NSW",
+            source="test",
+            raw_excerpt="Python SQL testing database",
+        )
+        evidence = ResumeEvidence(
+            section="项目经历",
+            text="使用 Python 和 SQL 搭建测试工具，整理数据库验证结果。",
+            keywords=("python", "sql", "测试", "数据库"),
+        )
+        analysis = JobApplicationAnalysis(
+            scored_lead=ScoredJobLead(lead=lead, score=82, reasons=("target title match",)),
+            evidence_matches=(
+                ResumeEvidenceMatch(
+                    evidence=evidence,
+                    score=30,
+                    matched_terms=("python", "sql", "测试"),
+                ),
+            ),
+            missing_keywords=("aws",),
+        )
+
+        draft = generate_application_draft(analysis, "zh")
+
+        self.assertEqual(draft.communication_language, "en")
+        self.assertIn("Dear Hiring Team", draft.cover_letter)
+        self.assertIn("databases", draft.cover_letter)
+        self.assertIn("Hi, I am interested", draft.recruiter_message)
+        self.assertTrue(any("投递前确认" in note for note in draft.application_notes))
 
 
 if __name__ == "__main__":

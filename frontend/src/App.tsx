@@ -101,6 +101,9 @@ const translations = {
     resumeFocus: "Resume focus",
     coverLetter: "Cover letter",
     recruiterMessage: "Recruiter message",
+    draftLanguage: "Draft language",
+    draftLanguageEnglish: "English",
+    draftLanguageChinese: "Chinese",
     notes: "Notes",
     copy: "Copy",
     copied: "Copied",
@@ -182,6 +185,9 @@ const translations = {
     resumeFocus: "简历修改重点",
     coverLetter: "求职信草稿",
     recruiterMessage: "招聘方消息",
+    draftLanguage: "草稿语言",
+    draftLanguageEnglish: "英文",
+    draftLanguageChinese: "中文",
     notes: "投递提醒",
     copy: "复制",
     copied: "已复制",
@@ -264,6 +270,7 @@ type Draft = {
   cover_letter: string;
   recruiter_message: string;
   application_notes: string[];
+  communication_language: Language;
   approval_required: boolean;
 };
 
@@ -348,6 +355,11 @@ function joinList(items: string[] | undefined, language: Language) {
 
 function matchScoreLabel(score: number, language: Language) {
   return language === "zh" ? `匹配度 ${score}` : `Match ${score}`;
+}
+
+function draftLanguageName(value: Language | undefined, language: Language) {
+  if (value === "zh") return translations[language].draftLanguageChinese;
+  return translations[language].draftLanguageEnglish;
 }
 
 async function parseApiError(response: Response) {
@@ -510,9 +522,9 @@ function App() {
   const isInitialLoading = state === "loading" && !run;
 
   return (
-    <main className="min-h-screen bg-canvas text-ink">
+    <main className="app-backdrop min-h-screen text-ink">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-5 px-5 py-5 lg:grid-cols-[232px_minmax(0,1fr)]">
-        <aside className="rounded-md border border-line bg-panel p-4 shadow-soft lg:sticky lg:top-5 lg:h-[calc(100vh-40px)]">
+        <aside className="sidebar-panel rounded-md p-4 lg:sticky lg:top-5 lg:h-[calc(100vh-40px)]">
           <div className="flex items-center gap-3 border-b border-line pb-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-accent">
               <Sparkles className="h-5 w-5" />
@@ -525,7 +537,7 @@ function App() {
             </div>
           </div>
 
-          <div className="mt-4 rounded-md border border-line bg-slate-50 p-2">
+          <div className="mt-4 rounded-md border border-white/10 bg-white/10 p-2">
             <div className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold text-muted">
               <Languages className="h-3.5 w-3.5" />
               {t.language}
@@ -544,7 +556,7 @@ function App() {
             <NavItem href="#drafts" icon={<FileText className="h-4 w-4" />} label={t.drafts} />
           </nav>
 
-          <div className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          <div className="mt-6 rounded-md border border-emerald-300/30 bg-emerald-400/12 p-3 text-sm text-emerald-50">
             <div className="flex items-center gap-2 font-semibold">
               <ShieldCheck className="h-4 w-4" /> {t.safeTitle}
             </div>
@@ -553,12 +565,12 @@ function App() {
         </aside>
 
         <section className="space-y-5">
-          <header id="overview" className="rounded-md border border-line bg-panel p-5 shadow-soft">
+          <header id="overview" className="hero-panel fade-lift rounded-md p-5 shadow-soft">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <p className="text-sm font-medium text-accent">{t.productName}</p>
-                <h1 className="mt-1 text-3xl font-semibold tracking-normal">{t.headline}</h1>
-                <p className="mt-2 text-sm text-muted">{t.subline}</p>
+                <p className="text-sm font-medium text-emerald-100">{t.productName}</p>
+                <h1 className="mt-1 text-3xl font-semibold tracking-normal text-white">{t.headline}</h1>
+                <p className="mt-2 text-sm text-blue-50">{t.subline}</p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
                 <Metric label={t.jobs} value={isInitialLoading ? "..." : (run?.selected_jobs.length ?? 0).toString()} />
@@ -636,7 +648,7 @@ function App() {
                   type="button"
                   onClick={runAgent}
                   disabled={runStatus === "running" || !resume?.exists}
-                  className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300 sm:whitespace-nowrap"
+                  className="primary-action inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 sm:whitespace-nowrap"
                 >
                   {runStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                   {runStatus === "running" ? t.scanning : t.startScan}
@@ -657,7 +669,7 @@ function App() {
             </div>
           )}
 
-          <section id="history" className="rounded-md border border-line bg-panel p-4 shadow-soft">
+          <section id="history" className="surface-panel fade-lift rounded-md p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-base font-semibold">{t.recentRuns}</h2>
               <span className="text-xs text-muted">{runs.length}</span>
@@ -670,7 +682,7 @@ function App() {
                     key={item.id}
                     onClick={() => void loadRun(item.id)}
                     className={`rounded-md border p-3 text-left transition ${
-                      run?.id === item.id ? "border-accent bg-blue-50" : "border-line bg-white hover:border-blue-200 hover:bg-slate-50"
+                      run?.id === item.id ? "border-accent bg-blue-50" : "border-line bg-white/80 hover:border-blue-200 hover:bg-blue-50/60"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -689,7 +701,7 @@ function App() {
                 ))}
               </div>
             ) : (
-              <p className="rounded-md border border-line bg-slate-50 p-3 text-sm text-muted">{t.emptyBody}</p>
+              <p className="rounded-md border border-line bg-white/70 p-3 text-sm text-muted">{t.emptyBody}</p>
             )}
           </section>
 
@@ -699,7 +711,7 @@ function App() {
 
           {run && (
             <>
-              <section className="rounded-md border border-line bg-panel p-4 shadow-soft">
+              <section className="surface-panel fade-lift rounded-md p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-base font-semibold">{t.timeline}</h2>
                   <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -708,7 +720,7 @@ function App() {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-5">
                   {run.steps.map((step) => (
-                    <div key={step.name} className="rounded-md border border-line bg-slate-50 p-3">
+                    <div key={step.name} className="step-card rounded-md border border-line p-3">
                       <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-accent">
                         <CheckCircle2 className="h-4 w-4" />
                       </div>
@@ -719,7 +731,7 @@ function App() {
               </section>
 
               <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(420px,1.15fr)]">
-                <div id="jobs" className="rounded-md border border-line bg-panel p-4 shadow-soft">
+                <div id="jobs" className="surface-panel rounded-md p-4">
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-base font-semibold">{t.selectedJobs}</h2>
                     <span className="text-xs text-muted">
@@ -737,7 +749,7 @@ function App() {
                             type="button"
                             onClick={() => setSelectedIndex(index)}
                             className={`w-full rounded-md border p-3 text-left transition ${
-                              isSelected ? "border-accent bg-blue-50" : "border-line bg-white hover:border-blue-200 hover:bg-slate-50"
+                              isSelected ? "job-card-selected border-accent bg-blue-50" : "job-card border-line bg-white/85 hover:border-blue-200"
                             }`}
                           >
                             <div className="flex items-start justify-between gap-3">
@@ -771,7 +783,7 @@ function App() {
 
                 <section className="space-y-5">
                   {selected && (
-                    <section className="rounded-md border border-line bg-panel p-4 shadow-soft">
+                    <section className="surface-panel rounded-md p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="text-sm font-medium text-accent">{selected.scored_lead.lead.company}</p>
@@ -794,7 +806,7 @@ function App() {
                         <InfoBlock title={t.resumeEvidence}>
                           {selected.evidence_matches.length ? (
                             selected.evidence_matches.slice(0, 2).map((match, index) => (
-                              <div key={`${match.evidence.section}-${index}`} className="rounded-md border border-line bg-slate-50 p-3">
+                              <div key={`${match.evidence.section}-${index}`} className="rounded-md border border-line bg-white/75 p-3">
                                 <div className="flex justify-between gap-3 text-xs font-semibold text-muted">
                                   <span>{match.evidence.section}</span>
                                   <span>{match.score} {t.points}</span>
@@ -827,7 +839,7 @@ function App() {
                   )}
 
                   {selectedDraft && (
-                    <section id="drafts" className="rounded-md border border-line bg-panel p-4 shadow-soft">
+                    <section id="drafts" className="surface-panel rounded-md p-4">
                       <div className="mb-4 flex items-center justify-between">
                         <h2 className="text-base font-semibold">{t.applicationDraft}</h2>
                         <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -839,12 +851,14 @@ function App() {
                       <TextBlock
                         title={t.coverLetter}
                         text={selectedDraft.cover_letter}
+                        metaLabel={`${t.draftLanguage}: ${draftLanguageName(selectedDraft.communication_language, language)}`}
                         copyLabel={copiedKey === "cover" ? t.copied : t.copy}
                         onCopy={() => void copyText("cover", selectedDraft.cover_letter)}
                       />
                       <TextBlock
                         title={t.recruiterMessage}
                         text={selectedDraft.recruiter_message}
+                        metaLabel={`${t.draftLanguage}: ${draftLanguageName(selectedDraft.communication_language, language)}`}
                         copyLabel={copiedKey === "recruiter" ? t.copied : t.copy}
                         onCopy={() => void copyText("recruiter", selectedDraft.recruiter_message)}
                       />
@@ -852,7 +866,7 @@ function App() {
                     </section>
                   )}
                   {!selectedDraft && (
-                    <section id="drafts" className="rounded-md border border-line bg-panel p-4 shadow-soft">
+                    <section id="drafts" className="surface-panel rounded-md p-4">
                       <h2 className="text-base font-semibold">{t.noDraftTitle}</h2>
                       <p className="mt-2 text-sm leading-6 text-muted">{t.noDraftBody}</p>
                     </section>
@@ -896,7 +910,7 @@ function LanguageButton({ active, label, onClick }: { active: boolean; label: st
 
 function ActionPanel({ step, eyebrow, title, children }: { step: string; eyebrow: string; title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-md border border-line bg-panel p-4 shadow-soft">
+    <section className={`action-panel action-panel-${step} fade-lift rounded-md p-4`}>
       <div className="mb-3 flex items-center gap-3">
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-50 text-sm font-bold text-accent">{step}</div>
         <div>
@@ -942,9 +956,9 @@ function NumberField({ label, value, min, max, onChange }: { label: string; valu
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-20 rounded-md border border-line bg-slate-50 px-4 py-3">
-      <div className="text-xl font-semibold">{value}</div>
-      <div className="mt-1 text-xs font-medium text-muted">{label}</div>
+    <div className="metric-card min-w-20 rounded-md px-4 py-3">
+      <div className="text-xl font-semibold text-white">{value}</div>
+      <div className="mt-1 text-xs font-medium text-blue-50">{label}</div>
     </div>
   );
 }
@@ -973,12 +987,27 @@ function DraftSection({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function TextBlock({ title, text, copyLabel, onCopy }: { title: string; text: string; copyLabel: string; onCopy: () => void }) {
+function TextBlock({
+  title,
+  text,
+  copyLabel,
+  metaLabel,
+  onCopy
+}: {
+  title: string;
+  text: string;
+  copyLabel: string;
+  metaLabel?: string;
+  onCopy: () => void;
+}) {
   const copied = copyLabel === translations.en.copied || copyLabel === translations.zh.copied;
   return (
     <section className="mb-4">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold">{title}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          {metaLabel && <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{metaLabel}</span>}
+        </div>
         <button
           type="button"
           onClick={onCopy}

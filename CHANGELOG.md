@@ -4,6 +4,9 @@
 
 ### English
 
+- Cover letters and recruiter messages now use the detected job communication language, so Australia-facing roles get English drafts even when the UI and resume are Chinese.
+- Added visible draft-language chips in the Web UI.
+- Refreshed the Web UI visual system with a darker navigation rail, guided hero area, tinted panels, hover motion, and clearer active states.
 - Chinese mode now generates Chinese resume advice, cover letters, recruiter messages, run steps, and Markdown headings.
 - Resume upload feedback now shows detected resume sections and keywords, so users can see what the PDF parser understood.
 - Added cross-language matching so English job titles can match Chinese resume evidence such as software development, testing, databases, and projects.
@@ -25,6 +28,9 @@ Safety note: the Agent still stops at the human approval gate. It does not send 
 
 ### 中文
 
+- 求职信和招聘方消息现在会按岗位沟通语言生成：澳洲/英文岗位默认英文，中国岗位才默认中文。
+- Web UI 新增“草稿语言”标识，避免用户误以为中文界面一定生成中文求职信。
+- 重新调整 Web UI 视觉系统：深色导航、强化顶部引导、半透明信息面板、悬停动效和更明确的选中状态。
 - 中文模式现在会用中文生成简历修改建议、求职信、招聘方消息、流程说明和 Markdown 标题。
 - 上传简历后会直接显示已识别的简历模块和关键词，让用户知道 PDF 到底有没有被读懂。
 - 新增中英文关键词匹配，英文岗位也能匹配中文简历里的软件开发、测试、数据库、项目经历等证据。

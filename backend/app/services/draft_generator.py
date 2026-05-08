@@ -21,23 +21,28 @@ DISPLAY_TERMS = {
     "linux": "Linux",
     "docker": "Docker",
     "python": "Python",
-    "大模型": "大模型",
-    "人工智能": "人工智能",
-    "机器学习": "机器学习",
-    "深度学习": "深度学习",
-    "自然语言处理": "自然语言处理",
-    "智能体": "智能体",
-    "检索增强": "检索增强",
-    "数据分析": "数据分析",
-    "数据结构": "数据结构",
-    "算法": "算法",
-    "数据库": "数据库",
-    "软件开发": "软件开发",
-    "自动化": "自动化",
-    "云计算": "云计算",
-    "测试": "测试",
-    "项目": "项目",
-    "实习": "实习",
+    "大模型": "large language models",
+    "人工智能": "AI",
+    "机器学习": "machine learning",
+    "深度学习": "deep learning",
+    "自然语言处理": "natural language processing",
+    "智能体": "AI agents",
+    "检索增强": "retrieval-augmented generation",
+    "数据分析": "data analysis",
+    "数据结构": "data structures",
+    "算法": "algorithms",
+    "数据库": "databases",
+    "软件开发": "software development",
+    "软件": "software",
+    "开发": "development",
+    "工程": "engineering",
+    "自动化": "automation",
+    "云计算": "cloud computing",
+    "验证": "validation",
+    "计算机网络": "computer networks",
+    "测试": "testing",
+    "项目": "projects",
+    "实习": "internship",
 }
 
 ZH_DISPLAY_TERMS = {
@@ -60,10 +65,97 @@ ZH_DISPLAY_TERMS = {
     "algorithms": "算法",
 }
 
+AU_MARKERS = (
+    "australia",
+    "australian",
+    "sydney",
+    "melbourne",
+    "brisbane",
+    "perth",
+    "adelaide",
+    "canberra",
+    "nsw",
+    "vic",
+    "qld",
+    "act",
+    "wa",
+    "澳洲",
+    "澳大利亚",
+    "悉尼",
+    "墨尔本",
+    "布里斯班",
+    "珀斯",
+    "阿德莱德",
+    "堪培拉",
+)
+
+CHINA_MARKERS = (
+    "china",
+    "beijing",
+    "shanghai",
+    "shenzhen",
+    "guangzhou",
+    "hangzhou",
+    "chengdu",
+    "nanjing",
+    "suzhou",
+    "wuhan",
+    "中国",
+    "北京",
+    "上海",
+    "深圳",
+    "广州",
+    "杭州",
+    "成都",
+    "南京",
+    "苏州",
+    "武汉",
+)
+
+SECTION_LABELS_EN = {
+    "个人简介": "profile",
+    "求职意向": "career objective",
+    "教育经历": "education",
+    "专业技能": "technical skills",
+    "工作经历": "work experience",
+    "工作经验": "work experience",
+    "实习经历": "internship experience",
+    "项目经历": "project experience",
+    "项目经验": "project experience",
+    "获奖经历": "awards",
+    "证书": "certifications",
+}
+
+
+def has_cjk(text: str) -> bool:
+    return any("\u4e00" <= char <= "\u9fff" for char in text)
+
+
+def contains_marker(text: str, markers: tuple[str, ...]) -> bool:
+    lowered = text.lower()
+    return any(marker in lowered for marker in markers)
+
+
+def communication_language_for_job(analysis: JobApplicationAnalysis) -> Language:
+    lead = analysis.scored_lead.lead
+    job_text = " ".join([lead.title, lead.company, lead.location, lead.raw_excerpt])
+    location_text = lead.location or lead.raw_excerpt
+    if contains_marker(location_text, AU_MARKERS) or contains_marker(job_text, AU_MARKERS):
+        return "en"
+    if contains_marker(location_text, CHINA_MARKERS) or contains_marker(job_text, CHINA_MARKERS):
+        return "zh"
+    if has_cjk(lead.title) or has_cjk(lead.company):
+        return "zh"
+    return "en"
+
 
 def display_term(term: str, language: Language = "en") -> str:
     if language == "zh":
-        return ZH_DISPLAY_TERMS.get(term.lower(), DISPLAY_TERMS.get(term.lower(), term))
+        if term.lower() in ZH_DISPLAY_TERMS:
+            return ZH_DISPLAY_TERMS[term.lower()]
+        if has_cjk(term):
+            return term
+        return DISPLAY_TERMS.get(term.lower(), term)
     return DISPLAY_TERMS.get(term.lower(), term)
 
 
@@ -98,7 +190,8 @@ def evidence_sentence(matches: tuple[ResumeEvidenceMatch, ...], language: Langua
         keywords = display_terms(best.keywords[:4], "zh") if best.keywords else "相关技术能力"
         return f"简历中“{best.section}”部分提到的 {keywords}"
     keywords = display_terms(best.keywords[:4]) if best.keywords else "relevant technical skills"
-    return f"resume evidence from my {best.section.lower()} section, including {keywords}"
+    section = SECTION_LABELS_EN.get(best.section, best.section.lower())
+    return f"resume evidence from my {section} section, including {keywords}"
 
 
 def resume_focus_points(analysis: JobApplicationAnalysis, language: Language = "en") -> tuple[str, ...]:
@@ -219,12 +312,14 @@ def generate_recruiter_message(analysis: JobApplicationAnalysis, language: Langu
 
 def generate_application_draft(analysis: JobApplicationAnalysis, language: Language = "en") -> ApplicationDraft:
     lead = analysis.scored_lead.lead
+    communication_language = communication_language_for_job(analysis)
     return ApplicationDraft(
         job_title=lead.title,
         company=lead.company,
         resume_focus=resume_focus_points(analysis, language),
-        cover_letter=generate_cover_letter(analysis, language),
-        recruiter_message=generate_recruiter_message(analysis, language),
+        cover_letter=generate_cover_letter(analysis, communication_language),
+        recruiter_message=generate_recruiter_message(analysis, communication_language),
         application_notes=application_notes(analysis, language),
+        communication_language=communication_language,
         approval_required=True,
     )
