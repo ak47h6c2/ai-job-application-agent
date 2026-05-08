@@ -96,6 +96,8 @@ npm run dev
 
 Open `http://127.0.0.1:5173`.
 
+The dashboard supports Chinese and English UI labels from the language switcher in the sidebar.
+
 Run tests:
 
 ```powershell
