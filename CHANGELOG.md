@@ -4,6 +4,8 @@
 
 ### English
 
+- Redesigned the Web UI around a shorter three-step flow: upload resume, choose mail range, start scan.
+- Added browser-based resume PDF upload and local resume index generation.
 - Added a browser-based mail scan workbench for starting safe Agent runs from the Web UI.
 - Added quick scan ranges: today, yesterday, last 3 days, last 7 days, and custom start date.
 - Added recent run history so previous Agent reports can be opened from the dashboard.
@@ -15,6 +17,8 @@ Safety note: the Agent still stops at the human approval gate. It does not send 
 
 ### 中文
 
+- 重新设计 Web UI，改成更短的三步流程：上传简历、选择邮件范围、开始扫描。
+- 新增浏览器上传 PDF 简历，并在本地生成简历证据索引。
 - 新增网页端邮件扫描工作台，可以直接从 Web UI 启动安全 Agent 工作流。
 - 新增快捷扫描范围：今天、昨天起、近 3 天、近 7 天、自定义开始日期。
 - 新增最近运行记录，可以从控制台打开历史 Agent 报告。

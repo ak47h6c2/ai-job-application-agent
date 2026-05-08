@@ -5,11 +5,11 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from backend.app.rag.resume_index import load_resume_index
+from backend.app.rag.resume_index import build_and_save_resume_index, load_resume_index
 from backend.app.services.job_agent import default_agent_output_dir, run_job_application_agent
 
 
@@ -17,6 +17,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PRIVATE_DATA_DIR = PROJECT_ROOT / "data" / "private"
 AGENT_RUNS_DIR = PRIVATE_DATA_DIR / "agent_runs"
 DEFAULT_RESUME_INDEX_PATH = PRIVATE_DATA_DIR / "resume_index.json"
+RESUME_UPLOAD_DIR = PRIVATE_DATA_DIR / "uploads"
+MAX_RESUME_BYTES = 8 * 1024 * 1024
 
 
 app = FastAPI(title="AI Job Application Agent API")
@@ -75,6 +77,17 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def resume_index_summary() -> dict[str, Any]:
+    if not DEFAULT_RESUME_INDEX_PATH.exists():
+        return {"exists": False, "chunk_count": 0, "modified_at": None}
+    index = load_resume_index(DEFAULT_RESUME_INDEX_PATH)
+    return {
+        "exists": True,
+        "chunk_count": len(index),
+        "modified_at": DEFAULT_RESUME_INDEX_PATH.stat().st_mtime,
+    }
+
+
 def summarize_run(path: Path) -> dict[str, Any]:
     payload = load_json(path / "agent_run.json")
     return {
@@ -111,6 +124,38 @@ def health() -> dict[str, str]:
 @app.get("/api/runs")
 def list_runs() -> dict[str, Any]:
     return {"runs": [summarize_run(path) for path in run_dirs()]}
+
+
+@app.get("/api/resume-index")
+def get_resume_index() -> dict[str, Any]:
+    return resume_index_summary()
+
+
+@app.post("/api/resume-index")
+async def upload_resume_index(file: UploadFile = File(...)) -> dict[str, Any]:
+    filename = file.filename or "resume.pdf"
+    if not filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF resumes are supported")
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded resume is empty")
+    if len(contents) > MAX_RESUME_BYTES:
+        raise HTTPException(status_code=400, detail="Resume PDF is larger than 8 MB")
+
+    RESUME_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    temp_path = RESUME_UPLOAD_DIR / "resume_upload.pdf"
+    temp_path.write_bytes(contents)
+    try:
+        index = build_and_save_resume_index(temp_path, DEFAULT_RESUME_INDEX_PATH)
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+    return {
+        "exists": True,
+        "chunk_count": len(index),
+        "modified_at": DEFAULT_RESUME_INDEX_PATH.stat().st_mtime,
+    }
 
 
 @app.post("/api/runs")

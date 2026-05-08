@@ -29,6 +29,7 @@ The agent can:
 
 The dashboard is now an application workbench:
 
+- Upload a resume PDF from the browser and build a local private evidence index.
 - Choose a scan range: today, yesterday, last 3 days, last 7 days, or custom date.
 - Start the safe agent workflow from the browser.
 - Review recent agent runs.
@@ -61,6 +62,7 @@ For China-facing AI/LLM roles, it demonstrates practical agent architecture, too
 
 现在的界面已经从“结果看板”升级成“申请工作台”：
 
+- 可以在浏览器里上传 PDF 简历，并生成本地私有简历证据索引。
 - 可以选择扫描范围：今天、昨天起、近 3 天、近 7 天、自定义日期。
 - 可以直接从网页启动安全 Agent 工作流。
 - 可以查看最近运行记录。
