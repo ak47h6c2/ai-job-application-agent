@@ -80,6 +80,22 @@ $env:APPLICANT_NAME="Your Name"
 $env:APPLICANT_SUMMARY="a Master of IT student with experience in Python, SQL, C, testing, and engineering validation"
 ```
 
+Start the Web UI:
+
+```powershell
+python -m backend.app.api
+```
+
+In a second terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`.
+
 Run tests:
 
 ```powershell
@@ -93,6 +109,7 @@ python -m unittest discover -s tests
 - QQ Mail ingestion through a local MCP tool boundary.
 - Local resume RAG: PDF resume text is chunked into evidence and retrieved for each job.
 - Safe agent workflow: shortlist jobs, generate application drafts, and stop at a human approval gate.
+- Web UI dashboard for reviewing agent runs, shortlisted jobs, resume evidence, and drafts.
 - Human-centered workflow design for job applications.
 
 ## Safety Rules

@@ -44,3 +44,5 @@ Build a human-approved agent workflow for job search:
 ### Milestone 5: Web dashboard
 
 - Track job leads, status, generated drafts, and next actions.
+- Serve private run reports through a local FastAPI API.
+- Render shortlisted jobs, evidence, missing keywords, and drafts with a React dashboard.

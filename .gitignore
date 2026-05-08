@@ -221,3 +221,11 @@ __marimo__/
 data/private/
 data/runtime/
 data/output/
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+
+# Local verification artifacts
+output/
