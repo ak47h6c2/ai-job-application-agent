@@ -44,6 +44,14 @@ Run the sample parser:
 python -m backend.app.cli rank-samples
 ```
 
+Scan QQ Mail for job leads and save the private result locally:
+
+```powershell
+python -m backend.app.cli scan-qq-mail --since 2026-05-08
+```
+
+The scan output is written to `data/private/`, which is ignored by Git.
+
 Run tests:
 
 ```powershell
@@ -54,6 +62,7 @@ python -m unittest discover -s tests
 
 - Structured extraction from messy job-alert emails.
 - Early agent-tool thinking: email is treated as an external tool/source.
+- QQ Mail ingestion through a local MCP tool boundary.
 - Resume-to-job matching logic that will later become RAG-based.
 - Human-centered workflow design for job applications.
 

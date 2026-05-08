@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import date
 from pathlib import Path
 
 from backend.app.parsers.job_email_parser import parse_job_email
 from backend.app.sample_profile import DEFAULT_PROFILE
+from backend.app.services.email_ingestion import scan_qq_mail_for_jobs
 from backend.app.services.matcher import rank_job_leads
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SAMPLE_EMAIL_DIR = PROJECT_ROOT / "data" / "sample_emails"
+PRIVATE_DATA_DIR = PROJECT_ROOT / "data" / "private"
 
 
 def load_sample_emails() -> list[tuple[str, str]]:
@@ -47,6 +50,42 @@ def command_rank_samples(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_scan_qq_mail(args: argparse.Namespace) -> int:
+    since = args.since or date.today().isoformat()
+    output_path = Path(args.output) if args.output else PRIVATE_DATA_DIR / f"qq_mail_jobs_{since}.json"
+    result = scan_qq_mail_for_jobs(
+        since=since,
+        folder=args.folder,
+        limit=args.limit,
+        candidate_limit=args.candidate_limit,
+        max_chars=args.max_chars,
+        output_path=output_path,
+    )
+
+    print(f"Scanned messages: {len(result.scanned_messages)}")
+    print(f"Job-related messages: {len(result.job_messages)}")
+    print(f"Extracted job leads: {len(result.leads)}")
+    print(f"Saved private result: {output_path}")
+    print()
+
+    ranked = result.ranked[: args.show]
+    if not ranked:
+        print("No ranked job leads found.")
+        return 0
+
+    print("Top matches:")
+    for index, scored in enumerate(ranked, start=1):
+        lead = scored.lead
+        print(f"{index}. {lead.title} | {lead.company} | {lead.location}")
+        print(f"   score: {scored.score}/100")
+        if scored.reasons:
+            print(f"   why: {', '.join(scored.reasons)}")
+        if lead.url:
+            print(f"   url: {lead.url}")
+        print()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="AI Job Application Agent prototype CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -57,6 +96,16 @@ def build_parser() -> argparse.ArgumentParser:
     rank_samples = subparsers.add_parser("rank-samples", help="Rank sample job leads against the default profile")
     rank_samples.add_argument("--limit", type=int, default=10, help="Maximum jobs to print")
     rank_samples.set_defaults(func=command_rank_samples)
+
+    scan_qq = subparsers.add_parser("scan-qq-mail", help="Scan QQ Mail for job leads and save private results")
+    scan_qq.add_argument("--since", default=None, help="IMAP since date in YYYY-MM-DD format; defaults to today")
+    scan_qq.add_argument("--folder", default="INBOX", help="QQ Mail folder to scan")
+    scan_qq.add_argument("--limit", type=int, default=50, help="Maximum message summaries to scan")
+    scan_qq.add_argument("--candidate-limit", type=int, default=250, help="Maximum recent messages to consider")
+    scan_qq.add_argument("--max-chars", type=int, default=12000, help="Maximum characters to read per email")
+    scan_qq.add_argument("--show", type=int, default=10, help="Number of ranked results to print")
+    scan_qq.add_argument("--output", default=None, help="Private JSON output path")
+    scan_qq.set_defaults(func=command_scan_qq_mail)
 
     return parser
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import urlsplit, urlunsplit
 
 from backend.app.models import JobLead
 
@@ -43,10 +44,16 @@ def looks_like_location(line: str) -> bool:
     lowered = line.lower()
     known_locations = (
         "sydney",
+        "悉尼",
         "melbourne",
+        "墨尔本",
         "brisbane",
+        "布里斯班",
         "perth",
+        "珀斯",
         "australia",
+        "澳洲",
+        "澳大利亚",
         "remote",
         "nsw",
         "vic",
@@ -79,8 +86,13 @@ def extract_url(lines: list[str], start_index: int, end_index: int) -> str:
     for line in lines[start_index:end_index]:
         match = URL_RE.search(line)
         if match:
-            return match.group(0)
+            return clean_url(match.group(0))
     return ""
+
+
+def clean_url(url: str) -> str:
+    parsed = urlsplit(url)
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
 
 
 def extract_signals(lines: list[str], start_index: int, end_index: int) -> tuple[str, ...]:

@@ -26,6 +26,26 @@ class JobLead:
 
 
 @dataclass(frozen=True)
+class EmailSummary:
+    uid: str
+    subject: str
+    sender: str
+    date: str
+    folder: str = "INBOX"
+    seen: bool = False
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "uid": self.uid,
+            "subject": self.subject,
+            "sender": self.sender,
+            "date": self.date,
+            "folder": self.folder,
+            "seen": self.seen,
+        }
+
+
+@dataclass(frozen=True)
 class ResumeProfile:
     target_titles: tuple[str, ...]
     preferred_locations: tuple[str, ...]
@@ -39,3 +59,10 @@ class ScoredJobLead:
     lead: JobLead
     score: int
     reasons: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "lead": self.lead.to_dict(),
+            "score": self.score,
+            "reasons": list(self.reasons),
+        }

@@ -24,6 +24,7 @@ Build a human-approved agent workflow for job search:
 - Connect QQ Mail as a tool.
 - Fetch job-related emails.
 - Store extracted leads locally.
+- Keep private scan output under `data/private/`, which is ignored by Git.
 
 ### Milestone 3: Resume RAG
 

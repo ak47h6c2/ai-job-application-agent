@@ -14,9 +14,12 @@ DEFAULT_PROFILE = ResumeProfile(
     ),
     preferred_locations=(
         "sydney",
+        "悉尼",
         "nsw",
         "remote",
         "australia",
+        "澳洲",
+        "澳大利亚",
     ),
     skills=(
         "python",

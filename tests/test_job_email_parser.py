@@ -22,6 +22,18 @@ class JobEmailParserTests(unittest.TestCase):
         self.assertEqual(leads[0].url, "https://example.com/job")
         self.assertIn("high skill match", leads[0].signals)
 
+    def test_parse_job_email_cleans_tracking_query_from_url(self) -> None:
+        text = """
+        Software Engineer Intern
+        Catalyst Funds Management
+        Sydney
+        View job: https://www.linkedin.com/jobs/view/123/?trackingId=abc
+        """
+
+        leads = parse_job_email(text, source="sample")
+
+        self.assertEqual(leads[0].url, "https://www.linkedin.com/jobs/view/123/")
+
     def test_parse_job_email_ignores_non_job_lines(self) -> None:
         text = """
         Recommended for you
