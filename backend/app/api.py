@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+
+from backend.app.rag.resume_index import load_resume_index
+from backend.app.services.job_agent import default_agent_output_dir, run_job_application_agent
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PRIVATE_DATA_DIR = PROJECT_ROOT / "data" / "private"
 AGENT_RUNS_DIR = PRIVATE_DATA_DIR / "agent_runs"
+DEFAULT_RESUME_INDEX_PATH = PRIVATE_DATA_DIR / "resume_index.json"
 
 
 app = FastAPI(title="AI Job Application Agent API")
@@ -19,9 +25,28 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=False,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+class AgentRunRequest(BaseModel):
+    since: str
+    folder: str = Field(default="INBOX", min_length=1, max_length=80)
+    top: int = Field(default=3, ge=1, le=10)
+    min_score: int = Field(default=70, ge=0, le=100)
+    limit: int = Field(default=50, ge=1, le=200)
+    candidate_limit: int = Field(default=250, ge=1, le=1000)
+
+
+def validate_since(value: str) -> str:
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="since must use YYYY-MM-DD format") from exc
+    if parsed > date.today():
+        raise HTTPException(status_code=400, detail="since cannot be in the future")
+    return parsed.isoformat()
 
 
 def run_dirs() -> list[Path]:
@@ -86,6 +111,30 @@ def health() -> dict[str, str]:
 @app.get("/api/runs")
 def list_runs() -> dict[str, Any]:
     return {"runs": [summarize_run(path) for path in run_dirs()]}
+
+
+@app.post("/api/runs")
+def start_agent_run(request: AgentRunRequest) -> dict[str, Any]:
+    since = validate_since(request.since)
+    if not DEFAULT_RESUME_INDEX_PATH.exists():
+        raise HTTPException(
+            status_code=400,
+            detail="Resume index not found. Build it before running the agent.",
+        )
+
+    resume_index = load_resume_index(DEFAULT_RESUME_INDEX_PATH)
+    output_dir = default_agent_output_dir(PRIVATE_DATA_DIR, since)
+    run_job_application_agent(
+        since=since,
+        resume_index=resume_index,
+        output_dir=output_dir,
+        folder=request.folder,
+        top=request.top,
+        min_score=request.min_score,
+        limit=request.limit,
+        candidate_limit=request.candidate_limit,
+    )
+    return get_run(output_dir.name)
 
 
 @app.get("/api/runs/latest")

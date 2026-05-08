@@ -97,6 +97,7 @@ npm run dev
 Open `http://127.0.0.1:5173`.
 
 The dashboard supports Chinese and English UI labels from the language switcher in the sidebar.
+Use the mail scan workbench to choose today, yesterday, the last 3 days, the last 7 days, or a custom start date, then run the safe agent workflow from the browser.
 
 Run tests:
 
