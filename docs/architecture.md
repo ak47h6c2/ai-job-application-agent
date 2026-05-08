@@ -31,6 +31,7 @@ Build a human-approved agent workflow for job search:
 - Parse resume PDF.
 - Build a small resume knowledge base.
 - Retrieve relevant resume evidence for a target job.
+- Report missing keywords so the user can decide whether to improve the resume or build a supporting project.
 
 ### Milestone 4: Application assistant
 

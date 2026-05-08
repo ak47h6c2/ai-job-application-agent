@@ -52,6 +52,18 @@ python -m backend.app.cli scan-qq-mail --since 2026-05-08
 
 The scan output is written to `data/private/`, which is ignored by Git.
 
+Build a private resume evidence index from a PDF:
+
+```powershell
+python -m backend.app.cli build-resume-index --resume-pdf "C:\path\to\resume.pdf"
+```
+
+After the index exists, QQ Mail scans also show resume evidence and missing keywords:
+
+```powershell
+python -m backend.app.cli scan-qq-mail --since 2026-05-08 --show 5
+```
+
 Run tests:
 
 ```powershell
@@ -63,7 +75,7 @@ python -m unittest discover -s tests
 - Structured extraction from messy job-alert emails.
 - Early agent-tool thinking: email is treated as an external tool/source.
 - QQ Mail ingestion through a local MCP tool boundary.
-- Resume-to-job matching logic that will later become RAG-based.
+- Local resume RAG: PDF resume text is chunked into evidence and retrieved for each job.
 - Human-centered workflow design for job applications.
 
 ## Safety Rules

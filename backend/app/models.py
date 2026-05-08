@@ -55,6 +55,34 @@ class ResumeProfile:
 
 
 @dataclass(frozen=True)
+class ResumeEvidence:
+    section: str
+    text: str
+    keywords: tuple[str, ...] = field(default_factory=tuple)
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "section": self.section,
+            "text": self.text,
+            "keywords": list(self.keywords),
+        }
+
+
+@dataclass(frozen=True)
+class ResumeEvidenceMatch:
+    evidence: ResumeEvidence
+    score: int
+    matched_terms: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "evidence": self.evidence.to_dict(),
+            "score": self.score,
+            "matched_terms": list(self.matched_terms),
+        }
+
+
+@dataclass(frozen=True)
 class ScoredJobLead:
     lead: JobLead
     score: int
@@ -65,4 +93,18 @@ class ScoredJobLead:
             "lead": self.lead.to_dict(),
             "score": self.score,
             "reasons": list(self.reasons),
+        }
+
+
+@dataclass(frozen=True)
+class JobApplicationAnalysis:
+    scored_lead: ScoredJobLead
+    evidence_matches: tuple[ResumeEvidenceMatch, ...]
+    missing_keywords: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "scored_lead": self.scored_lead.to_dict(),
+            "evidence_matches": [match.to_dict() for match in self.evidence_matches],
+            "missing_keywords": list(self.missing_keywords),
         }

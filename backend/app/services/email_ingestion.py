@@ -6,8 +6,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from backend.app.models import EmailSummary, JobLead, ResumeProfile, ScoredJobLead
+from backend.app.models import EmailSummary, JobApplicationAnalysis, JobLead, ResumeEvidence, ResumeProfile, ScoredJobLead
 from backend.app.parsers.job_email_parser import parse_job_email
+from backend.app.services.application_analysis import analyze_ranked_leads
 from backend.app.sample_profile import DEFAULT_PROFILE
 from backend.app.services.matcher import rank_job_leads
 from backend.app.tools.qq_mail_mcp_client import QQMailMCPClient
@@ -37,6 +38,7 @@ class IngestionResult:
     job_messages: list[EmailSummary]
     leads: list[JobLead]
     ranked: list[ScoredJobLead]
+    analyses: list[JobApplicationAnalysis] | None = None
     output_path: Path | None = None
 
 
@@ -69,6 +71,7 @@ def serialize_ingestion_result(result: IngestionResult) -> dict[str, object]:
         "job_messages": [message.to_dict() for message in result.job_messages],
         "leads": [lead.to_dict() for lead in result.leads],
         "ranked": [scored.to_dict() for scored in result.ranked],
+        "analyses": [analysis.to_dict() for analysis in result.analyses] if result.analyses else [],
     }
 
 
@@ -108,6 +111,7 @@ def scan_qq_mail_for_jobs(
     candidate_limit: int = 250,
     max_chars: int = 12000,
     profile: ResumeProfile = DEFAULT_PROFILE,
+    resume_index: list[ResumeEvidence] | None = None,
     output_path: Path | None = None,
     client: QQMailMCPClient | None = None,
 ) -> IngestionResult:
@@ -134,11 +138,13 @@ def scan_qq_mail_for_jobs(
 
     leads = dedupe_leads(leads)
     ranked = rank_job_leads(leads, profile)
+    analyses = analyze_ranked_leads(ranked, resume_index) if resume_index else None
     result = IngestionResult(
         scanned_messages=scanned,
         job_messages=job_summaries,
         leads=leads,
         ranked=ranked,
+        analyses=analyses,
         output_path=output_path,
     )
     if output_path:
