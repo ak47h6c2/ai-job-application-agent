@@ -17,6 +17,7 @@ This project is an AI-assisted job application workflow designed for candidates 
 The agent can:
 
 - Scan QQ Mail for job-related emails by date range.
+- Paste a job post manually when it comes from LinkedIn, Seek, a company site, or another platform.
 - Parse job-alert emails into structured job leads.
 - Match job leads against a resume profile and local resume evidence.
 - Retrieve resume evidence with a lightweight local RAG flow.
@@ -32,6 +33,7 @@ The dashboard is now an application workbench:
 - Upload a resume PDF from the browser and build a local private evidence index.
 - Choose a scan range: today, yesterday, last 3 days, last 7 days, or custom date.
 - Start the safe agent workflow from the browser.
+- Paste a non-email job description and generate application materials from it.
 - Review recent agent runs.
 - Compare shortlisted jobs and match scores.
 - Inspect resume evidence and missing keywords.
@@ -50,6 +52,7 @@ For China-facing AI/LLM roles, it demonstrates practical agent architecture, too
 这个项目可以展示：
 
 - 从 QQ 邮箱读取求职相关邮件。
+- 支持手动粘贴岗位 JD，覆盖 LinkedIn、Seek、公司官网、Boss、猎聘等非邮件来源。
 - 把招聘邮件解析成结构化职位线索。
 - 将职位要求和简历能力做匹配评分。
 - 用本地简历证据做轻量 RAG 检索。
@@ -65,6 +68,7 @@ For China-facing AI/LLM roles, it demonstrates practical agent architecture, too
 - 可以在浏览器里上传 PDF 简历，并生成本地私有简历证据索引。
 - 可以选择扫描范围：今天、昨天起、近 3 天、近 7 天、自定义日期。
 - 可以直接从网页启动安全 Agent 工作流。
+- 可以手动粘贴岗位 JD，让系统结合简历生成申请材料。
 - 可以查看最近运行记录。
 - 可以查看入选职位、匹配分数、推荐原因。
 - 可以查看简历证据和缺失关键词。

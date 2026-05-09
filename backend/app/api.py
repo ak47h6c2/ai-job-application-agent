@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from backend.app.rag.resume_index import build_resume_index, extract_pdf_text, load_resume_index, save_resume_index
 from backend.app.services.job_agent import default_agent_output_dir, run_job_application_agent
+from backend.app.services.manual_job import run_manual_job_application
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -41,6 +42,15 @@ class AgentRunRequest(BaseModel):
     limit: int = Field(default=50, ge=1, le=200)
     candidate_limit: int = Field(default=250, ge=1, le=1000)
     language: Literal["en", "zh"] = "en"
+
+
+class ManualJobRequest(BaseModel):
+    title: str = Field(min_length=2, max_length=160)
+    company: str = Field(min_length=1, max_length=160)
+    location: str = Field(default="", max_length=160)
+    url: str = Field(default="", max_length=500)
+    description: str = Field(min_length=20, max_length=20000)
+    language: Literal["en", "zh"] = "zh"
 
 
 def validate_since(value: str) -> str:
@@ -204,6 +214,29 @@ def start_agent_run(request: AgentRunRequest) -> dict[str, Any]:
         min_score=request.min_score,
         limit=request.limit,
         candidate_limit=request.candidate_limit,
+        language=request.language,
+    )
+    return get_run(output_dir.name)
+
+
+@app.post("/api/manual-jobs")
+def start_manual_job_run(request: ManualJobRequest) -> dict[str, Any]:
+    resume_index = load_resume_index(DEFAULT_RESUME_INDEX_PATH) if DEFAULT_RESUME_INDEX_PATH.exists() else []
+    if not resume_index:
+        raise HTTPException(
+            status_code=400,
+            detail="Resume index not found. Build it before generating application materials.",
+        )
+
+    output_dir = default_agent_output_dir(PRIVATE_DATA_DIR, f"manual-{date.today().isoformat()}")
+    run_manual_job_application(
+        title=request.title,
+        company=request.company,
+        location=request.location,
+        description=request.description,
+        url=request.url,
+        resume_index=resume_index,
+        output_dir=output_dir,
         language=request.language,
     )
     return get_run(output_dir.name)

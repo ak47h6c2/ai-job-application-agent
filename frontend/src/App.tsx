@@ -33,12 +33,13 @@ const translations = {
     appName: "Job Agent",
     productName: "AI Job Application Agent",
     headline: "Application workbench",
-    subline: "Upload resume, scan job emails, review drafts.",
+    subline: "Upload resume, scan emails or paste jobs, review drafts.",
     language: "Language",
     english: "EN",
     chinese: "中文",
     overview: "Overview",
     controls: "Controls",
+    manualJob: "Manual job",
     history: "History",
     jobLeads: "Job leads",
     drafts: "Drafts",
@@ -47,11 +48,11 @@ const translations = {
     resumeStep: "Resume",
     resumeStepTitle: "Upload resume PDF",
     resumeReady: "Resume index ready",
-    resumeMissing: "Upload a PDF before scanning",
+    resumeMissing: "Upload a PDF before generating materials",
     resumePrivate: "Stored locally as a private evidence index.",
     resumeSectionsLabel: "Detected sections",
     resumeKeywordsLabel: "Detected keywords",
-    uploadNextStep: "Next: analyze job emails.",
+    uploadNextStep: "Next: scan email or paste a job post.",
     uploadResume: "Upload PDF",
     uploading: "Uploading...",
     uploadWorking: "Uploading and parsing the resume. This usually takes a few seconds.",
@@ -75,6 +76,18 @@ const translations = {
     refresh: "Reload",
     scanSuccess: "New job analysis generated.",
     scanError: "Scan failed.",
+    manualTitle: "Paste a job post",
+    manualSubtitle: "Use this when the role comes from LinkedIn, Seek, a company site, or another platform.",
+    manualJobTitle: "Job title",
+    manualCompany: "Company",
+    manualLocation: "Location",
+    manualUrl: "Job link",
+    manualDescription: "Job description",
+    manualDescriptionPlaceholder: "Paste responsibilities, requirements, and any useful job-post text here.",
+    manualGenerate: "Generate materials",
+    manualGenerating: "Generating...",
+    manualSuccess: "Application materials generated from the pasted job post.",
+    manualMissing: "Fill in the title, company, and job description first.",
     readSince: "Read mail since",
     topDrafts: "Max drafts",
     minScore: "Min match",
@@ -121,12 +134,13 @@ const translations = {
     appName: "求职助手",
     productName: "AI 求职申请助手",
     headline: "求职申请工作台",
-    subline: "先上传简历，再分析邮件，最后审核生成的申请材料。",
+    subline: "先上传简历，再扫描邮件或粘贴 JD，最后审核生成的申请材料。",
     language: "语言",
     english: "EN",
     chinese: "中文",
     overview: "总览",
     controls: "控制区",
+    manualJob: "手动岗位",
     history: "历史记录",
     jobLeads: "职位线索",
     drafts: "申请草稿",
@@ -139,7 +153,7 @@ const translations = {
     resumePrivate: "简历只用于本地分析，不会提交到 GitHub。",
     resumeSectionsLabel: "已识别模块",
     resumeKeywordsLabel: "已识别关键词",
-    uploadNextStep: "下一步：点击“开始分析”。",
+    uploadNextStep: "下一步：扫描邮件，或粘贴岗位 JD。",
     uploadResume: "选择简历 PDF",
     uploading: "上传中...",
     uploadWorking: "正在上传并解析简历，通常需要几秒钟。",
@@ -163,6 +177,18 @@ const translations = {
     refresh: "更新结果",
     scanSuccess: "分析完成，已生成新的求职材料。",
     scanError: "分析失败。",
+    manualTitle: "粘贴岗位 JD",
+    manualSubtitle: "适合 LinkedIn、Seek、公司官网、Boss、猎聘等非邮件来源的岗位。",
+    manualJobTitle: "岗位名称",
+    manualCompany: "公司",
+    manualLocation: "地点",
+    manualUrl: "岗位链接",
+    manualDescription: "岗位描述",
+    manualDescriptionPlaceholder: "把岗位职责、任职要求、技术栈和其他有用信息粘贴到这里。",
+    manualGenerate: "生成申请材料",
+    manualGenerating: "生成中...",
+    manualSuccess: "已根据粘贴的岗位生成申请材料。",
+    manualMissing: "请先填写岗位名称、公司和岗位描述。",
     readSince: "读取邮件日期",
     topDrafts: "最多生成",
     minScore: "最低匹配度",
@@ -209,6 +235,7 @@ const translations = {
 
 const stepLabels: Record<Language, Record<string, string>> = {
   en: {
+    manual_job_input: "manual job",
     scan_email: "scan email",
     analyze_resume_fit: "resume match",
     shortlist_jobs: "shortlist",
@@ -216,6 +243,7 @@ const stepLabels: Record<Language, Record<string, string>> = {
     human_approval_gate: "approval"
   },
   zh: {
+    manual_job_input: "手动岗位",
     scan_email: "扫描邮件",
     analyze_resume_fit: "简历匹配",
     shortlist_jobs: "筛选职位",
@@ -225,14 +253,21 @@ const stepLabels: Record<Language, Record<string, string>> = {
 };
 
 const reasonLabels: Record<Language, Record<string, string>> = {
-  en: {},
+  en: {
+    "target title match": "target role",
+    "software role keywords": "software keywords",
+    "preferred location": "location fit",
+    "resume skill overlap": "resume overlap",
+    "ai/cloud stretch keyword": "AI/cloud keywords",
+    "positive job-alert signal": "job source signal"
+  },
   zh: {
     "target title match": "目标职位匹配",
     "software role keywords": "软件岗位关键词",
     "preferred location": "地点匹配",
     "resume skill overlap": "简历技能重合",
     "ai/cloud stretch keyword": "AI/云方向关键词",
-    "positive job-alert signal": "职位邮件信号"
+    "positive job-alert signal": "岗位来源信号"
   }
 };
 
@@ -306,6 +341,14 @@ type ResumeStatus = {
   modified_at: number | null;
   sections?: string[];
   keywords?: string[];
+};
+
+type ManualJobForm = {
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  description: string;
 };
 
 function formatLocalDate(date: Date) {
@@ -389,6 +432,14 @@ function App() {
   const [minScore, setMinScore] = useState(70);
   const [runStatus, setRunStatus] = useState<AsyncStatus>("idle");
   const [uploadStatus, setUploadStatus] = useState<AsyncStatus>("idle");
+  const [manualStatus, setManualStatus] = useState<AsyncStatus>("idle");
+  const [manualJob, setManualJob] = useState<ManualJobForm>({
+    title: "",
+    company: "",
+    location: "Sydney, NSW",
+    url: "",
+    description: ""
+  });
   const [message, setMessage] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
   const uploadAbortRef = useRef<AbortController | null>(null);
@@ -488,6 +539,7 @@ function App() {
     uploadAbortRef.current = controller;
     setUploadStatus("running");
     setRunStatus("idle");
+    setManualStatus("idle");
     setMessage(t.uploadWorking);
     try {
       const body = new FormData();
@@ -521,6 +573,7 @@ function App() {
     if (!resume?.exists) return;
     setRunStatus("running");
     setUploadStatus("idle");
+    setManualStatus("idle");
     setMessage("");
     try {
       const response = await fetch(`${API_BASE}/api/runs`, {
@@ -538,6 +591,46 @@ function App() {
     } catch (error) {
       const rawMessage = error instanceof Error ? error.message : t.scanError;
       setRunStatus("error");
+      setMessage(friendlyError(rawMessage, t.scanError));
+    }
+  }
+
+  function updateManualJob(key: keyof ManualJobForm, value: string) {
+    setManualJob((current) => ({ ...current, [key]: value }));
+  }
+
+  async function runManualJob() {
+    if (!resume?.exists) {
+      setManualStatus("error");
+      setMessage(t.resumeMissing);
+      return;
+    }
+    if (!manualJob.title.trim() || !manualJob.company.trim() || manualJob.description.trim().length < 20) {
+      setManualStatus("error");
+      setMessage(t.manualMissing);
+      return;
+    }
+
+    setManualStatus("running");
+    setRunStatus("idle");
+    setUploadStatus("idle");
+    setMessage("");
+    try {
+      const response = await fetch(`${API_BASE}/api/manual-jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...manualJob, language })
+      });
+      if (!response.ok) throw new Error(await parseApiError(response));
+      setRun((await response.json()) as AgentRun);
+      setSelectedIndex(0);
+      setState("ready");
+      await loadRuns();
+      setManualStatus("success");
+      setMessage(t.manualSuccess);
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : t.scanError;
+      setManualStatus("error");
       setMessage(friendlyError(rawMessage, t.scanError));
     }
   }
@@ -594,6 +687,7 @@ function App() {
           <nav className="mt-5 space-y-1 text-sm">
             <NavItem href="#overview" active icon={<BriefcaseBusiness className="h-4 w-4" />} label={t.overview} />
             <NavItem href="#setup" icon={<SlidersHorizontal className="h-4 w-4" />} label={t.controls} />
+            <NavItem href="#manual" icon={<Clipboard className="h-4 w-4" />} label={t.manualJob} />
             <NavItem href="#history" icon={<History className="h-4 w-4" />} label={t.history} />
             <NavItem href="#jobs" icon={<Mail className="h-4 w-4" />} label={t.jobLeads} />
             <NavItem href="#drafts" icon={<FileText className="h-4 w-4" />} label={t.drafts} />
@@ -724,10 +818,46 @@ function App() {
             </ActionPanel>
           </section>
 
+          <section id="manual" className="surface-panel fade-lift rounded-md p-4">
+            <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.manualJob}</p>
+                <h2 className="mt-1 text-lg font-semibold">{t.manualTitle}</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{t.manualSubtitle}</p>
+              </div>
+              <button
+                type="button"
+                onClick={runManualJob}
+                disabled={manualStatus === "running" || !resume?.exists}
+                className="primary-action inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {manualStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                {manualStatus === "running" ? t.manualGenerating : t.manualGenerate}
+              </button>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <TextField label={t.manualJobTitle} value={manualJob.title} onChange={(value) => updateManualJob("title", value)} />
+              <TextField label={t.manualCompany} value={manualJob.company} onChange={(value) => updateManualJob("company", value)} />
+              <TextField label={t.manualLocation} value={manualJob.location} onChange={(value) => updateManualJob("location", value)} />
+              <TextField label={t.manualUrl} value={manualJob.url} onChange={(value) => updateManualJob("url", value)} />
+            </div>
+
+            <label className="mt-3 block">
+              <span className="mb-2 block text-sm font-semibold text-muted">{t.manualDescription}</span>
+              <textarea
+                value={manualJob.description}
+                onChange={(event) => updateManualJob("description", event.target.value)}
+                placeholder={t.manualDescriptionPlaceholder}
+                className="min-h-40 w-full resize-y rounded-md border border-line bg-white/85 px-3 py-3 text-sm leading-6 outline-none transition focus:border-accent focus:bg-white"
+              />
+            </label>
+          </section>
+
           {message && (
             <div
               className={`rounded-md border px-3 py-2 text-sm ${
-                runStatus === "error" || uploadStatus === "error"
+                runStatus === "error" || uploadStatus === "error" || manualStatus === "error"
                   ? "border-amber-200 bg-amber-50 text-amber-800"
                   : "border-emerald-200 bg-emerald-50 text-emerald-800"
               }`}
@@ -1016,6 +1146,19 @@ function NumberField({ label, value, min, max, onChange }: { label: string; valu
         value={value}
         onChange={(event) => onChange(Math.min(max, Math.max(min, Number(event.target.value))))}
         className="h-12 w-full rounded-md border border-line bg-white px-3 text-xl font-semibold outline-none focus:border-accent"
+      />
+    </label>
+  );
+}
+
+function TextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label>
+      <span className="mb-2 block text-sm font-semibold text-muted">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 w-full rounded-md border border-line bg-white/85 px-3 text-sm outline-none transition focus:border-accent focus:bg-white"
       />
     </label>
   );

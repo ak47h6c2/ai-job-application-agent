@@ -1,5 +1,19 @@
 # Changelog / 更新日志
 
+## 2026-05-10
+
+### English
+
+- Added a manual job-post workflow in the Web UI for LinkedIn, Seek, company sites, and other non-email job sources.
+- Added `POST /api/manual-jobs`, which matches a pasted job description against the uploaded resume index and generates application materials with the same human approval gate.
+- Manual job drafts still detect the employer communication language, so Australia-facing roles generate English cover letters and recruiter messages even when the UI is Chinese.
+
+### 中文
+
+- Web UI 新增“手动岗位”入口，可以把 LinkedIn、Seek、公司官网、Boss、猎聘等平台上的岗位 JD 粘贴进来生成申请材料。
+- 新增 `POST /api/manual-jobs` 接口，会用已上传简历和粘贴的岗位描述做匹配，并生成简历修改建议、求职信和招聘方消息。
+- 手动岗位同样会判断招聘方沟通语言：澳洲/英文岗位默认生成英文求职信和英文消息，中文岗位才生成中文消息。
+
 ## 2026-05-09
 
 ### English
