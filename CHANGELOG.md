@@ -4,6 +4,9 @@
 
 ### English
 
+- Added a logged-in browser import mode for job descriptions: users log in on LinkedIn, Seek, Boss, Liepin, or a company career site, open a job page, and use a bookmarklet to send the current job text to the local agent.
+- Added `POST /api/imported-jobs` and `POST /api/imported-jobs/form` for saving browser-imported job posts locally without storing platform credentials.
+- Updated the Web UI job-source area from two modes to three modes: public-link auto read, logged-in browser import, and manual paste fallback.
 - Upgraded the job-source workflow into two modes: automatic public-link reading and manual JD paste fallback.
 - Added `POST /api/job-url-preview` to extract title, company, location, and description from public job pages using HTML metadata and JSON-LD JobPosting data.
 - Fixed automatic job-link reading so login, captcha, or access-blocked pages are not mistaken for real job posts.
@@ -14,6 +17,9 @@
 
 ### 中文
 
+- 新增“网页登录导入”模式：用户在 LinkedIn、Seek、Boss、猎聘或公司官网登录后，打开岗位页面，通过书签按钮把当前岗位文本发送到本地助手。
+- 新增 `POST /api/imported-jobs` 和 `POST /api/imported-jobs/form`，用于保存浏览器导入的岗位信息，不保存招聘平台账号密码。
+- Web UI 的岗位来源从“双模式”升级为“三模式”：公开链接自动读取、网页登录导入、手动粘贴兜底。
 - 岗位来源升级为双模式：优先自动读取公开岗位链接，读不到时再手动粘贴 JD。
 - 新增 `POST /api/job-url-preview`，可以从公开招聘页面的 HTML metadata 和 JSON-LD JobPosting 中提取岗位名称、公司、地点和岗位描述。
 - 修复自动读取岗位链接时把登录页、验证码页或拦截页误当成真实岗位的问题。

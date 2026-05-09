@@ -4,13 +4,16 @@ import json
 from datetime import date
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import parse_qs
 from uuid import uuid4
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from backend.app.rag.resume_index import build_resume_index, extract_pdf_text, load_resume_index, save_resume_index
+from backend.app.services.imported_jobs import load_latest_imported_job, save_imported_job
 from backend.app.services.job_url_reader import JobUrlReadError, read_job_posting_from_url
 from backend.app.services.job_agent import default_agent_output_dir, run_job_application_agent
 from backend.app.services.manual_job import run_manual_job_application
@@ -263,6 +266,42 @@ def preview_job_url(request: JobUrlPreviewRequest) -> dict[str, Any]:
                 "Use manual paste mode for this link."
             ),
         }
+
+
+@app.post("/api/imported-jobs")
+async def import_job_from_browser(request: Request) -> dict[str, Any]:
+    raw_body = await request.body()
+    try:
+        payload = json.loads(raw_body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid imported job payload") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Invalid imported job payload")
+    imported = save_imported_job(payload, PRIVATE_DATA_DIR)
+    return {"ok": True, "job": imported}
+
+
+@app.post("/api/imported-jobs/form")
+async def import_job_from_browser_form(request: Request) -> RedirectResponse:
+    raw_body = await request.body()
+    try:
+        form_payload = parse_qs(raw_body.decode("utf-8"), keep_blank_values=True)
+        payload_text = form_payload.get("payload", [""])[0]
+        payload = json.loads(payload_text)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid imported job payload") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Invalid imported job payload")
+    save_imported_job(payload, PRIVATE_DATA_DIR)
+    return RedirectResponse("http://127.0.0.1:5173/?v=browser-import#manual", status_code=303)
+
+
+@app.get("/api/imported-jobs/latest")
+def latest_imported_job() -> dict[str, Any]:
+    imported = load_latest_imported_job(PRIVATE_DATA_DIR)
+    if not imported:
+        return {"ok": False, "detail": "No imported job found"}
+    return {"ok": True, "job": imported}
 
 
 @app.get("/api/runs/latest")

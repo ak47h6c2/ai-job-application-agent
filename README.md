@@ -1,8 +1,8 @@
 # AI Job Application Agent
 
-面向中澳求职市场的双语 AI 求职申请助手。它可以读取求职邮件或手动粘贴岗位 JD，结合本地简历证据做匹配分析，并生成简历修改建议、求职信草稿和招聘方消息。所有对外动作都会停在人工确认前。
+面向中澳求职市场的双语 AI 求职申请助手。它可以读取求职邮件、自动读取公开岗位链接、从已登录的招聘网页导入岗位 JD，或让用户手动粘贴岗位信息；随后结合本地简历证据做匹配分析，并生成简历修改建议、求职信草稿和招聘方消息。所有对外动作都会停在人工确认前。
 
-An AI-assisted, bilingual job application workflow for candidates applying across Australia and China-facing roles. It scans job emails or accepts pasted job descriptions, matches them against local resume evidence, and prepares application drafts with a human approval gate.
+An AI-assisted, bilingual job application workflow for candidates applying across Australia and China-facing roles. It scans job emails, reads public job links, imports job text from logged-in browser pages, or accepts pasted job descriptions; then it matches roles against local resume evidence and prepares application drafts with a human approval gate.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-local%20API-009688?logo=fastapi&logoColor=white)
@@ -36,7 +36,7 @@ The project is designed as a portfolio-ready AI agent system rather than a blind
 | --- | --- |
 | 简历上传 | 在 Web UI 上传 PDF 简历，并生成本地简历证据索引。 |
 | 邮件扫描 | 从 QQ 邮箱读取求职相关邮件，按日期范围筛选岗位线索。 |
-| 岗位来源双模式 | 支持自动读取公开岗位链接，也支持手动粘贴 LinkedIn、Seek、公司官网、Boss、猎聘等平台的岗位 JD。 |
+| 岗位来源三模式 | 支持自动读取公开岗位链接、从已登录招聘网页导入岗位文本，也支持手动粘贴 LinkedIn、Seek、公司官网、Boss、猎聘等平台的岗位 JD。 |
 | 简历匹配 | 将岗位要求和简历证据做匹配，显示匹配度、推荐原因和缺失关键词。 |
 | RAG 检索 | 从简历索引中找出与岗位最相关的经历片段。 |
 | 草稿生成 | 生成简历修改重点、求职信草稿和招聘方消息。 |
@@ -81,7 +81,8 @@ http://127.0.0.1:5173
 2. 选择一种岗位来源：
    - 扫描 QQ 邮箱里的求职邮件。
    - 或在“岗位来源”里用自动模式读取岗位链接。
-   - 如果网站需要登录或阻止读取，再切换到手动模式粘贴 JD。
+   - 如果网站需要登录，用“网页登录导入”：在招聘平台官网登录，打开岗位页，点击书签栏里的“导入岗位到助手”，再回到 Web UI 读取最近导入。
+   - 如果自动读取和网页登录导入都不方便，再切换到手动模式粘贴 JD。
 3. 点击生成或分析。
 4. 查看职位匹配结果、简历证据、缺失关键词和申请草稿。
 5. 人工确认后，再决定是否复制内容去投递或回复招聘方。
@@ -107,6 +108,7 @@ npm run build
 
 | 日期 | 更新重点 |
 | --- | --- |
+| 2026-05-10 | 新增网页登录导入模式：用户在 LinkedIn、Seek、Boss、猎聘或公司官网登录后，用书签按钮把当前岗位导入本地助手，账号密码不进入本项目。 |
 | 2026-05-10 | 岗位来源升级为自动/手动双模式：可以读取公开岗位链接，也可以粘贴非邮件来源 JD 并生成申请材料。 |
 | 2026-05-09 | 重构 Web UI，强化视觉引导；支持中文简历解析、中英文匹配、草稿语言判断和上传超时处理。 |
 | 2026-05-08 | 搭建早期 Agent 原型：邮件解析、岗位匹配、简历证据检索、申请草稿和安全审批关卡。 |
@@ -117,8 +119,10 @@ npm run build
 flowchart LR
     Resume["PDF Resume"] --> Index["Local Resume Index"]
     Mail["QQ Mail / Job Alerts"] --> Parser["Email Parser"]
+    Browser["Logged-in Browser Job Page"] --> Import["Local Browser Import"]
     Manual["Pasted Job JD"] --> Lead["Structured Job Lead"]
     Parser --> Lead
+    Import --> Lead
     Lead --> Matcher["Resume-Job Matcher"]
     Index --> Retriever["Resume Evidence Retrieval"]
     Matcher --> Drafts["Cover Letter / Recruiter Message / Resume Notes"]

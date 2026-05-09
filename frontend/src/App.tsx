@@ -27,7 +27,79 @@ const RESUME_UPLOAD_TIMEOUT_MS = 45000;
 type Language = "en" | "zh";
 type LoadState = "loading" | "ready" | "empty" | "error";
 type AsyncStatus = "idle" | "running" | "success" | "error";
-type JobInputMode = "auto" | "manual";
+type JobInputMode = "auto" | "browser" | "manual";
+
+const JOB_IMPORT_BOOKMARKLET_SOURCE = `
+(async () => {
+  const clean = (value) => (value || "").replace(/\\s+/g, " ").trim();
+  const read = (selector) => {
+    const element = document.querySelector(selector);
+    return clean((element && (element.innerText || element.textContent)) || "");
+  };
+  const meta = (name) => {
+    const element = document.querySelector('meta[property="' + name + '"],meta[name="' + name + '"]');
+    return clean((element && element.content) || "");
+  };
+  const first = (selectors) => {
+    for (const selector of selectors) {
+      const value = read(selector);
+      if (value) return value;
+    }
+    return "";
+  };
+  const title = first([
+    "h1",
+    '[data-automation="job-detail-title"]',
+    ".jobs-unified-top-card__job-title",
+    ".job-details-jobs-unified-top-card__job-title"
+  ]) || meta("og:title") || document.title;
+  const company = first([
+    '[data-automation="advertiser-name"]',
+    ".jobs-unified-top-card__company-name",
+    ".job-details-jobs-unified-top-card__company-name",
+    '[class*="company"]'
+  ]) || meta("og:site_name") || location.hostname.replace(/^www\\./, "");
+  const locationText = first([
+    '[data-automation="job-detail-location"]',
+    ".jobs-unified-top-card__bullet",
+    ".job-details-jobs-unified-top-card__primary-description-container",
+    '[class*="location"]'
+  ]);
+  const description = first([
+    '[data-automation="jobAdDetails"]',
+    ".jobs-description__content",
+    "#jobDescriptionText",
+    '[class*="job-description"]',
+    "main"
+  ]) || clean(document.body.innerText).slice(0, 12000);
+  const payload = {
+    title,
+    company,
+    location: locationText,
+    url: location.href,
+    description,
+    source: location.hostname
+  };
+  const fallbackText = [title, company, locationText, location.href, "", description].filter(Boolean).join("\\n");
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(fallbackText).catch(() => {});
+  }
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "http://127.0.0.1:8000/api/imported-jobs/form";
+  form.target = "_blank";
+  const input = document.createElement("input");
+  input.type = "hidden";
+  input.name = "payload";
+  input.value = JSON.stringify(payload);
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit();
+  setTimeout(() => form.remove(), 500);
+})();
+`.trim();
+
+const JOB_IMPORT_BOOKMARKLET_HREF = `javascript:${encodeURIComponent(JOB_IMPORT_BOOKMARKLET_SOURCE)}`;
 
 const translations = {
   en: {
@@ -78,8 +150,9 @@ const translations = {
     scanSuccess: "New job analysis generated.",
     scanError: "Scan failed.",
     manualTitle: "Add a job post",
-    manualSubtitle: "Use automatic reading for public links, or paste the job description manually when a site blocks access.",
+    manualSubtitle: "Choose the least manual route: read a public link, import from a logged-in browser page, or paste the JD yourself.",
     autoMode: "Auto read",
+    browserMode: "Browser import",
     manualMode: "Manual paste",
     autoFetch: "Read job link",
     autoFetching: "Reading...",
@@ -87,6 +160,16 @@ const translations = {
     autoMissing: "Paste a job link first.",
     autoError: "Could not read this link automatically. Some sites require login or block automated reading. Use manual paste mode.",
     autoHint: "Best for public company career pages and job boards. LinkedIn may require manual paste.",
+    browserImportTitle: "Login on the official site",
+    browserImportBody: "Drag the bookmarklet to your bookmarks bar. Log in on LinkedIn, Seek, Boss, Liepin, or a company career site, open a job page, then click the bookmarklet.",
+    bookmarkletLabel: "Import job to agent",
+    copyBookmarklet: "Copy bookmarklet",
+    bookmarkletCopied: "Bookmarklet copied",
+    loadImported: "Load latest import",
+    loadingImported: "Loading import...",
+    importedSuccess: "Imported job loaded. Check the fields, then generate materials.",
+    importedEmpty: "No imported job found yet. Open a job page and click the bookmarklet first.",
+    credentialSafety: "Passwords stay on the official job site. This app only receives the job text you choose to import.",
     useSelectedJobLink: "Use selected job link",
     manualJobTitle: "Job title",
     manualCompany: "Company",
@@ -188,8 +271,9 @@ const translations = {
     scanSuccess: "分析完成，已生成新的求职材料。",
     scanError: "分析失败。",
     manualTitle: "添加岗位 JD",
-    manualSubtitle: "优先用自动读取链接；如果网站需要登录或阻止读取，再切换成手动粘贴。",
+    manualSubtitle: "尽量减少手动操作：公开链接直接读，需要登录的网页用书签导入，实在不行再手动粘贴。",
     autoMode: "自动读取",
+    browserMode: "网页登录导入",
     manualMode: "手动粘贴",
     autoFetch: "读取岗位链接",
     autoFetching: "读取中...",
@@ -197,6 +281,16 @@ const translations = {
     autoMissing: "请先粘贴岗位链接。",
     autoError: "这个链接暂时无法自动读取。部分网站需要登录或会阻止抓取，请切换到手动粘贴。",
     autoHint: "公司官网和公开招聘页通常更容易读取；LinkedIn 可能需要手动粘贴。",
+    browserImportTitle: "在招聘平台官网登录后导入",
+    browserImportBody: "把下面的书签按钮拖到浏览器书签栏。然后在 LinkedIn、Seek、Boss、猎聘或公司官网登录，打开岗位页面，再点击这个书签。",
+    bookmarkletLabel: "导入岗位到助手",
+    copyBookmarklet: "复制书签脚本",
+    bookmarkletCopied: "书签脚本已复制",
+    loadImported: "读取最近导入",
+    loadingImported: "读取中...",
+    importedSuccess: "已读取最近导入的岗位，请检查字段后生成申请材料。",
+    importedEmpty: "还没有导入岗位。请先打开岗位页面并点击书签。",
+    credentialSafety: "账号密码只输入在招聘平台官网。本项目只接收你主动导入的岗位文字。",
     useSelectedJobLink: "使用当前职位链接",
     manualJobTitle: "岗位名称",
     manualCompany: "公司",
@@ -459,6 +553,7 @@ function App() {
   const [uploadStatus, setUploadStatus] = useState<AsyncStatus>("idle");
   const [manualStatus, setManualStatus] = useState<AsyncStatus>("idle");
   const [jobFetchStatus, setJobFetchStatus] = useState<AsyncStatus>("idle");
+  const [importStatus, setImportStatus] = useState<AsyncStatus>("idle");
   const [jobInputMode, setJobInputMode] = useState<JobInputMode>("auto");
   const [manualJob, setManualJob] = useState<ManualJobForm>({
     title: "",
@@ -471,6 +566,7 @@ function App() {
   const [copiedKey, setCopiedKey] = useState("");
   const uploadAbortRef = useRef<AbortController | null>(null);
   const uploadRequestIdRef = useRef(0);
+  const bookmarkletRef = useRef<HTMLAnchorElement | null>(null);
   const t = translations[language];
 
   const loadResume = useCallback(async () => {
@@ -519,6 +615,18 @@ function App() {
   useEffect(() => {
     void loadLatest();
   }, [loadLatest]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("v") === "browser-import") {
+      setJobInputMode("browser");
+      void loadImportedJob();
+    }
+  }, []);
+
+  useEffect(() => {
+    bookmarkletRef.current?.setAttribute("href", JOB_IMPORT_BOOKMARKLET_HREF);
+  });
 
   const friendlyError = (rawMessage: string, fallback: string) => {
     if (rawMessage.includes("Could not read enough resume text")) return t.uploadTextError;
@@ -573,6 +681,7 @@ function App() {
     setRunStatus("idle");
     setManualStatus("idle");
     setJobFetchStatus("idle");
+    setImportStatus("idle");
     setMessage(t.uploadWorking);
     try {
       const body = new FormData();
@@ -608,6 +717,7 @@ function App() {
     setUploadStatus("idle");
     setManualStatus("idle");
     setJobFetchStatus("idle");
+    setImportStatus("idle");
     setMessage("");
     try {
       const response = await fetch(`${API_BASE}/api/runs`, {
@@ -645,6 +755,7 @@ function App() {
     setManualStatus("idle");
     setRunStatus("idle");
     setUploadStatus("idle");
+    setImportStatus("idle");
     setMessage("");
     try {
       const response = await fetch(`${API_BASE}/api/job-url-preview`, {
@@ -668,6 +779,35 @@ function App() {
       const rawMessage = error instanceof Error ? error.message : t.autoError;
       setJobFetchStatus("error");
       setMessage(friendlyError(rawMessage, t.autoError));
+    }
+  }
+
+  async function loadImportedJob() {
+    setImportStatus("running");
+    setManualStatus("idle");
+    setRunStatus("idle");
+    setUploadStatus("idle");
+    setJobFetchStatus("idle");
+    setMessage("");
+    try {
+      const response = await fetch(`${API_BASE}/api/imported-jobs/latest`);
+      if (!response.ok) throw new Error(await parseApiError(response));
+      const payload = (await response.json()) as { ok: boolean; detail?: string; job?: JobUrlPreview };
+      if (!payload.ok || !payload.job) throw new Error(payload.detail || t.importedEmpty);
+      const imported = payload.job;
+      setManualJob((current) => ({
+        title: imported.title || current.title,
+        company: imported.company || current.company,
+        location: imported.location || current.location,
+        url: imported.url || current.url,
+        description: imported.description || current.description
+      }));
+      setImportStatus("success");
+      setMessage(t.importedSuccess);
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : t.importedEmpty;
+      setImportStatus("error");
+      setMessage(rawMessage.includes("No imported job found") ? t.importedEmpty : friendlyError(rawMessage, t.importedEmpty));
     }
   }
 
@@ -701,6 +841,7 @@ function App() {
     setRunStatus("idle");
     setUploadStatus("idle");
     setJobFetchStatus("idle");
+    setImportStatus("idle");
     setMessage("");
     try {
       const response = await fetch(`${API_BASE}/api/manual-jobs`, {
@@ -923,8 +1064,9 @@ function App() {
               </button>
             </div>
 
-            <div className="mb-4 inline-flex rounded-md border border-line bg-slate-50 p-1">
+            <div className="mb-4 flex flex-wrap gap-1 rounded-md border border-line bg-slate-50 p-1 md:inline-flex">
               <ModeButton active={jobInputMode === "auto"} label={t.autoMode} onClick={() => setJobInputMode("auto")} />
+              <ModeButton active={jobInputMode === "browser"} label={t.browserMode} onClick={() => setJobInputMode("browser")} />
               <ModeButton active={jobInputMode === "manual"} label={t.manualMode} onClick={() => setJobInputMode("manual")} />
             </div>
 
@@ -959,6 +1101,49 @@ function App() {
               </div>
             )}
 
+            {jobInputMode === "browser" && (
+              <div className="mb-4 rounded-md border border-emerald-100 bg-emerald-50/70 p-3">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="max-w-3xl">
+                    <div className="mb-2 inline-flex items-center gap-2 rounded-md bg-white/80 px-2 py-1 text-xs font-semibold text-emerald-700">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      {t.credentialSafety}
+                    </div>
+                    <h3 className="text-sm font-semibold">{t.browserImportTitle}</h3>
+                    <p className="mt-1 text-sm leading-6 text-muted">{t.browserImportBody}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 lg:justify-end">
+                    <a
+                      ref={bookmarkletRef}
+                      href="#manual"
+                      onClick={(event) => event.preventDefault()}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-emerald-200 bg-white px-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      {t.bookmarkletLabel}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => void copyText("bookmarklet", JOB_IMPORT_BOOKMARKLET_HREF)}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-blue-200 hover:bg-blue-50"
+                    >
+                      {copiedKey === "bookmarklet" ? <Check className="h-4 w-4 text-success" /> : <Clipboard className="h-4 w-4" />}
+                      {copiedKey === "bookmarklet" ? t.bookmarkletCopied : t.copyBookmarklet}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void loadImportedJob()}
+                      disabled={importStatus === "running"}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-3 text-sm font-semibold text-accent hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {importStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                      {importStatus === "running" ? t.loadingImported : t.loadImported}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-3 md:grid-cols-3">
               <TextField label={t.manualJobTitle} value={manualJob.title} onChange={(value) => updateManualJob("title", value)} />
               <TextField label={t.manualCompany} value={manualJob.company} onChange={(value) => updateManualJob("company", value)} />
@@ -985,7 +1170,7 @@ function App() {
           {message && (
             <div
               className={`rounded-md border px-3 py-2 text-sm ${
-                runStatus === "error" || uploadStatus === "error" || manualStatus === "error" || jobFetchStatus === "error"
+                runStatus === "error" || uploadStatus === "error" || manualStatus === "error" || jobFetchStatus === "error" || importStatus === "error"
                   ? "border-amber-200 bg-amber-50 text-amber-800"
                   : "border-emerald-200 bg-emerald-50 text-emerald-800"
               }`}
