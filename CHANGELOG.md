@@ -4,6 +4,7 @@
 
 ### English
 
+- Hardened resume upload state handling with a timeout, cancel action, clearer parsing status, and unique backend temp files for repeated uploads.
 - Cover letters and recruiter messages now use the detected job communication language, so Australia-facing roles get English drafts even when the UI and resume are Chinese.
 - Added visible draft-language chips in the Web UI.
 - Refreshed the Web UI visual system with a darker navigation rail, guided hero area, tinted panels, hover motion, and clearer active states.
@@ -28,6 +29,7 @@ Safety note: the Agent still stops at the human approval gate. It does not send 
 
 ### 中文
 
+- 优化简历上传状态：新增超时处理、取消按钮、解析中提示，并让后端连续上传时使用独立临时文件，避免卡在“上传中”。
 - 求职信和招聘方消息现在会按岗位沟通语言生成：澳洲/英文岗位默认英文，中国岗位才默认中文。
 - Web UI 新增“草稿语言”标识，避免用户误以为中文界面一定生成中文求职信。
 - 重新调整 Web UI 视觉系统：深色导航、强化顶部引导、半透明信息面板、悬停动效和更明确的选中状态。

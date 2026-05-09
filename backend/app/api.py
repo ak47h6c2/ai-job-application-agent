@@ -4,6 +4,7 @@ import json
 from datetime import date
 from pathlib import Path
 from typing import Any, Literal
+from uuid import uuid4
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -157,7 +158,7 @@ async def upload_resume_index(file: UploadFile = File(...)) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Resume PDF is larger than 8 MB")
 
     RESUME_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    temp_path = RESUME_UPLOAD_DIR / "resume_upload.pdf"
+    temp_path = RESUME_UPLOAD_DIR / f"resume_upload_{uuid4().hex}.pdf"
     temp_path.write_bytes(contents)
     try:
         resume_text = extract_pdf_text(temp_path)

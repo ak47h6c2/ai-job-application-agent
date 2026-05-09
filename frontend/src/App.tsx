@@ -19,9 +19,10 @@ import {
   Upload,
   UserCheck
 } from "lucide-react";
-import { ChangeEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
+const RESUME_UPLOAD_TIMEOUT_MS = 45000;
 
 type Language = "en" | "zh";
 type LoadState = "loading" | "ready" | "empty" | "error";
@@ -53,6 +54,10 @@ const translations = {
     uploadNextStep: "Next: analyze job emails.",
     uploadResume: "Upload PDF",
     uploading: "Uploading...",
+    uploadWorking: "Uploading and parsing the resume. This usually takes a few seconds.",
+    uploadTimeout: "Resume upload timed out. Check that the backend is running, or try a text-based PDF.",
+    uploadCanceled: "Resume upload canceled.",
+    cancelUpload: "Cancel",
     uploadSuccess: "Resume uploaded and indexed.",
     uploadError: "Resume upload failed.",
     uploadTextError: "This PDF does not contain enough readable resume text. If it is a scanned image resume, export it as a text-based PDF first.",
@@ -137,6 +142,10 @@ const translations = {
     uploadNextStep: "下一步：点击“开始分析”。",
     uploadResume: "选择简历 PDF",
     uploading: "上传中...",
+    uploadWorking: "正在上传并解析简历，通常需要几秒钟。",
+    uploadTimeout: "简历上传超时。请确认后端服务正常，或者换成可复制文字的 PDF 后重试。",
+    uploadCanceled: "已取消上传。",
+    cancelUpload: "取消",
     uploadSuccess: "简历已上传，可以开始分析职位邮件。",
     uploadError: "简历上传失败。",
     uploadTextError: "这份 PDF 读不到足够的简历文字。如果是扫描版图片简历，请先导出为可复制文字的 PDF 后再上传。",
@@ -382,6 +391,8 @@ function App() {
   const [uploadStatus, setUploadStatus] = useState<AsyncStatus>("idle");
   const [message, setMessage] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
+  const uploadAbortRef = useRef<AbortController | null>(null);
+  const uploadRequestIdRef = useRef(0);
   const t = translations[language];
 
   const loadResume = useCallback(async () => {
@@ -450,26 +461,58 @@ function App() {
       : `${t.uploadSuccess} ${t.uploadNextStep}`;
   };
 
+  function cancelUpload() {
+    uploadRequestIdRef.current += 1;
+    uploadAbortRef.current?.abort();
+    uploadAbortRef.current = null;
+    setUploadStatus("idle");
+    setMessage(t.uploadCanceled);
+  }
+
   async function uploadResume(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (uploadStatus === "running") {
+      event.target.value = "";
+      return;
+    }
+    const requestId = uploadRequestIdRef.current + 1;
+    uploadRequestIdRef.current = requestId;
+    const controller = new AbortController();
+    let timedOut = false;
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, RESUME_UPLOAD_TIMEOUT_MS);
+    uploadAbortRef.current?.abort();
+    uploadAbortRef.current = controller;
     setUploadStatus("running");
     setRunStatus("idle");
-    setMessage("");
+    setMessage(t.uploadWorking);
     try {
       const body = new FormData();
       body.append("file", file);
-      const response = await fetch(`${API_BASE}/api/resume-index`, { method: "POST", body });
+      const response = await fetch(`${API_BASE}/api/resume-index`, {
+        method: "POST",
+        body,
+        signal: controller.signal
+      });
+      if (requestId !== uploadRequestIdRef.current) return;
       if (!response.ok) throw new Error(await parseApiError(response));
       const status = (await response.json()) as ResumeStatus;
       setResume(status);
       setUploadStatus("success");
       setMessage(resumeUploadMessage(status));
     } catch (error) {
+      if (requestId !== uploadRequestIdRef.current) return;
       const rawMessage = error instanceof Error ? error.message : t.uploadError;
       setUploadStatus("error");
-      setMessage(friendlyError(rawMessage, t.uploadError));
+      setMessage(timedOut ? t.uploadTimeout : friendlyError(rawMessage, t.uploadError));
     } finally {
+      window.clearTimeout(timeoutId);
+      if (requestId === uploadRequestIdRef.current) {
+        uploadAbortRef.current = null;
+      }
       event.target.value = "";
     }
   }
@@ -604,11 +647,35 @@ function App() {
                   {t.resumeKeywordsLabel}: <span className="text-ink">{joinList(resume.keywords?.slice(0, 6), language)}</span>
                 </p>
               )}
-              <label className="mt-4 inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-line px-3 text-sm font-semibold text-ink hover:border-blue-200 hover:bg-blue-50">
-                <Upload className="h-4 w-4" />
-                {uploadStatus === "running" ? t.uploading : t.uploadResume}
-                <input className="hidden" type="file" accept="application/pdf,.pdf" onChange={uploadResume} />
-              </label>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <label
+                  aria-disabled={uploadStatus === "running"}
+                  className={`inline-flex h-10 items-center gap-2 rounded-md border border-line px-3 text-sm font-semibold text-ink transition ${
+                    uploadStatus === "running"
+                      ? "cursor-not-allowed bg-white/60 opacity-80"
+                      : "cursor-pointer hover:border-blue-200 hover:bg-blue-50"
+                  }`}
+                >
+                  {uploadStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {uploadStatus === "running" ? t.uploading : t.uploadResume}
+                  <input
+                    className="hidden"
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    disabled={uploadStatus === "running"}
+                    onChange={uploadResume}
+                  />
+                </label>
+                {uploadStatus === "running" && (
+                  <button
+                    type="button"
+                    onClick={cancelUpload}
+                    className="inline-flex h-10 items-center rounded-md border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+                  >
+                    {t.cancelUpload}
+                  </button>
+                )}
+              </div>
               <p className="mt-3 text-xs leading-5 text-muted">{t.resumePrivate}</p>
             </ActionPanel>
 
