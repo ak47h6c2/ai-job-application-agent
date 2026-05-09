@@ -67,6 +67,20 @@ class JobUrlReaderTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_public_http_url("http://127.0.0.1:5173/job")
 
+    def test_preview_rejects_login_page_instead_of_treating_as_job(self) -> None:
+        html = """
+        <html>
+          <head>
+            <title>LinkedIn Login, Sign in | LinkedIn</title>
+            <meta name="description" content="Login to LinkedIn to keep in touch with people you know.">
+          </head>
+          <body>Sign in to access this page.</body>
+        </html>
+        """
+
+        with self.assertRaises(JobUrlReadError):
+            preview_from_html(html, "https://www.linkedin.com/comm/jobs/view/123/")
+
     def test_preview_requires_enough_information(self) -> None:
         with self.assertRaises(JobUrlReadError):
             preview_from_html("<html><title>x</title></html>", "https://example.com")

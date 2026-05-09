@@ -248,19 +248,21 @@ def start_manual_job_run(request: ManualJobRequest) -> dict[str, Any]:
 
 
 @app.post("/api/job-url-preview")
-def preview_job_url(request: JobUrlPreviewRequest) -> dict[str, str]:
+def preview_job_url(request: JobUrlPreviewRequest) -> dict[str, Any]:
     try:
-        return read_job_posting_from_url(request.url).to_dict()
+        payload = read_job_posting_from_url(request.url).to_dict()
+        payload["ok"] = True
+        return payload
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"ok": False, "detail": str(exc)}
     except JobUrlReadError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=(
+        return {
+            "ok": False,
+            "detail": (
                 f"{exc} Some job sites require login or block automated reading. "
                 "Use manual paste mode for this link."
             ),
-        ) from exc
+        }
 
 
 @app.get("/api/runs/latest")

@@ -236,6 +236,35 @@ def compact_description(parts: list[str], *, limit: int = 6000) -> str:
     return "\n".join(compacted)[:limit].strip()
 
 
+def looks_like_blocked_or_login_page(
+    *,
+    url: str,
+    title: str,
+    description: str,
+    has_jobposting: bool,
+) -> bool:
+    host = urlparse(url).netloc.lower()
+    combined = f"{title} {description}".lower()
+    login_markers = (
+        "sign in",
+        "sign-in",
+        "login",
+        "log in",
+        "authwall",
+        "captcha",
+        "access denied",
+        "unusual traffic",
+        "verify you are human",
+    )
+    if has_jobposting:
+        return False
+    if "linkedin." in host and any(marker in combined for marker in login_markers):
+        return True
+    if len(description) < 400 and any(marker in combined for marker in login_markers):
+        return True
+    return False
+
+
 def preview_from_html(page_html: str, url: str) -> JobUrlPreview:
     parser = JobPageParser()
     parser.feed(page_html)
@@ -262,6 +291,13 @@ def preview_from_html(page_html: str, url: str) -> JobUrlPreview:
         value_to_text(jobposting.get("description"))
         or compact_description([meta.get("description", ""), meta.get("og:description", ""), *parser.text_parts])
     )
+    if looks_like_blocked_or_login_page(
+        url=url,
+        title=title,
+        description=description,
+        has_jobposting=bool(jobposting),
+    ):
+        raise JobUrlReadError("This site returned a login, captcha, or access-blocked page instead of the job post.")
 
     preview = JobUrlPreview(
         title=normalize_text(title)[:160],

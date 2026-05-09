@@ -371,6 +371,8 @@ type ManualJobForm = {
 };
 
 type JobUrlPreview = ManualJobForm & {
+  ok?: boolean;
+  detail?: string;
   source: string;
 };
 
@@ -524,6 +526,8 @@ function App() {
     if (rawMessage.includes("Resume index not found")) return t.resumeMissing;
     if (rawMessage.includes("Could not automatically read this job page")) return t.autoError;
     if (rawMessage.includes("Could not extract enough job information")) return t.autoError;
+    if (rawMessage.includes("login, captcha, or access-blocked")) return t.autoError;
+    if (rawMessage.includes("Use manual paste mode")) return t.autoError;
     if (rawMessage.includes("Invalid job URL")) return t.autoMissing;
     return rawMessage || fallback;
   };
@@ -650,6 +654,7 @@ function App() {
       });
       if (!response.ok) throw new Error(await parseApiError(response));
       const preview = (await response.json()) as JobUrlPreview;
+      if (preview.ok === false) throw new Error(preview.detail || t.autoError);
       setManualJob((current) => ({
         title: preview.title || current.title,
         company: preview.company || current.company,
