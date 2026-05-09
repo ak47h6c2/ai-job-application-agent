@@ -27,6 +27,7 @@ const RESUME_UPLOAD_TIMEOUT_MS = 45000;
 type Language = "en" | "zh";
 type LoadState = "loading" | "ready" | "empty" | "error";
 type AsyncStatus = "idle" | "running" | "success" | "error";
+type JobInputMode = "auto" | "manual";
 
 const translations = {
   en: {
@@ -39,7 +40,7 @@ const translations = {
     chinese: "中文",
     overview: "Overview",
     controls: "Controls",
-    manualJob: "Manual job",
+    manualJob: "Job source",
     history: "History",
     jobLeads: "Job leads",
     drafts: "Drafts",
@@ -76,13 +77,22 @@ const translations = {
     refresh: "Reload",
     scanSuccess: "New job analysis generated.",
     scanError: "Scan failed.",
-    manualTitle: "Paste a job post",
-    manualSubtitle: "Use this when the role comes from LinkedIn, Seek, a company site, or another platform.",
+    manualTitle: "Add a job post",
+    manualSubtitle: "Use automatic reading for public links, or paste the job description manually when a site blocks access.",
+    autoMode: "Auto read",
+    manualMode: "Manual paste",
+    autoFetch: "Read job link",
+    autoFetching: "Reading...",
+    autoSuccess: "Job details loaded. Check the fields, then generate materials.",
+    autoMissing: "Paste a job link first.",
+    autoError: "Could not read this link automatically. Some sites require login or block automated reading. Use manual paste mode.",
+    autoHint: "Best for public company career pages and job boards. LinkedIn may require manual paste.",
+    useSelectedJobLink: "Use selected job link",
     manualJobTitle: "Job title",
     manualCompany: "Company",
     manualLocation: "Location",
     manualUrl: "Job link",
-    manualDescription: "Job description",
+    manualDescription: "Job description / JD",
     manualDescriptionPlaceholder: "Paste responsibilities, requirements, and any useful job-post text here.",
     manualGenerate: "Generate materials",
     manualGenerating: "Generating...",
@@ -140,7 +150,7 @@ const translations = {
     chinese: "中文",
     overview: "总览",
     controls: "控制区",
-    manualJob: "手动岗位",
+    manualJob: "岗位来源",
     history: "历史记录",
     jobLeads: "职位线索",
     drafts: "申请草稿",
@@ -177,13 +187,22 @@ const translations = {
     refresh: "更新结果",
     scanSuccess: "分析完成，已生成新的求职材料。",
     scanError: "分析失败。",
-    manualTitle: "粘贴岗位 JD",
-    manualSubtitle: "适合 LinkedIn、Seek、公司官网、Boss、猎聘等非邮件来源的岗位。",
+    manualTitle: "添加岗位 JD",
+    manualSubtitle: "优先用自动读取链接；如果网站需要登录或阻止读取，再切换成手动粘贴。",
+    autoMode: "自动读取",
+    manualMode: "手动粘贴",
+    autoFetch: "读取岗位链接",
+    autoFetching: "读取中...",
+    autoSuccess: "岗位信息已读取，请检查字段后生成申请材料。",
+    autoMissing: "请先粘贴岗位链接。",
+    autoError: "这个链接暂时无法自动读取。部分网站需要登录或会阻止抓取，请切换到手动粘贴。",
+    autoHint: "公司官网和公开招聘页通常更容易读取；LinkedIn 可能需要手动粘贴。",
+    useSelectedJobLink: "使用当前职位链接",
     manualJobTitle: "岗位名称",
     manualCompany: "公司",
     manualLocation: "地点",
     manualUrl: "岗位链接",
-    manualDescription: "岗位描述",
+    manualDescription: "岗位描述 / JD",
     manualDescriptionPlaceholder: "把岗位职责、任职要求、技术栈和其他有用信息粘贴到这里。",
     manualGenerate: "生成申请材料",
     manualGenerating: "生成中...",
@@ -351,6 +370,10 @@ type ManualJobForm = {
   description: string;
 };
 
+type JobUrlPreview = ManualJobForm & {
+  source: string;
+};
+
 function formatLocalDate(date: Date) {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
@@ -433,6 +456,8 @@ function App() {
   const [runStatus, setRunStatus] = useState<AsyncStatus>("idle");
   const [uploadStatus, setUploadStatus] = useState<AsyncStatus>("idle");
   const [manualStatus, setManualStatus] = useState<AsyncStatus>("idle");
+  const [jobFetchStatus, setJobFetchStatus] = useState<AsyncStatus>("idle");
+  const [jobInputMode, setJobInputMode] = useState<JobInputMode>("auto");
   const [manualJob, setManualJob] = useState<ManualJobForm>({
     title: "",
     company: "",
@@ -497,6 +522,9 @@ function App() {
     if (rawMessage.includes("Could not read enough resume text")) return t.uploadTextError;
     if (rawMessage.includes("Could not read resume PDF")) return t.uploadTextError;
     if (rawMessage.includes("Resume index not found")) return t.resumeMissing;
+    if (rawMessage.includes("Could not automatically read this job page")) return t.autoError;
+    if (rawMessage.includes("Could not extract enough job information")) return t.autoError;
+    if (rawMessage.includes("Invalid job URL")) return t.autoMissing;
     return rawMessage || fallback;
   };
 
@@ -540,6 +568,7 @@ function App() {
     setUploadStatus("running");
     setRunStatus("idle");
     setManualStatus("idle");
+    setJobFetchStatus("idle");
     setMessage(t.uploadWorking);
     try {
       const body = new FormData();
@@ -574,6 +603,7 @@ function App() {
     setRunStatus("running");
     setUploadStatus("idle");
     setManualStatus("idle");
+    setJobFetchStatus("idle");
     setMessage("");
     try {
       const response = await fetch(`${API_BASE}/api/runs`, {
@@ -599,6 +629,57 @@ function App() {
     setManualJob((current) => ({ ...current, [key]: value }));
   }
 
+  async function fetchJobUrl(urlOverride?: string) {
+    const targetUrl = (urlOverride ?? manualJob.url).trim();
+    if (!targetUrl) {
+      setJobFetchStatus("error");
+      setMessage(t.autoMissing);
+      return;
+    }
+
+    setJobFetchStatus("running");
+    setManualStatus("idle");
+    setRunStatus("idle");
+    setUploadStatus("idle");
+    setMessage("");
+    try {
+      const response = await fetch(`${API_BASE}/api/job-url-preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: targetUrl })
+      });
+      if (!response.ok) throw new Error(await parseApiError(response));
+      const preview = (await response.json()) as JobUrlPreview;
+      setManualJob((current) => ({
+        title: preview.title || current.title,
+        company: preview.company || current.company,
+        location: preview.location || current.location,
+        url: preview.url || targetUrl,
+        description: preview.description || current.description
+      }));
+      setJobFetchStatus("success");
+      setMessage(t.autoSuccess);
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : t.autoError;
+      setJobFetchStatus("error");
+      setMessage(friendlyError(rawMessage, t.autoError));
+    }
+  }
+
+  function readSelectedJobUrl() {
+    const lead = selected?.scored_lead.lead;
+    if (!lead?.url) return;
+    setJobInputMode("auto");
+    setManualJob((current) => ({
+      title: lead.title || current.title,
+      company: lead.company || current.company,
+      location: lead.location || current.location,
+      url: lead.url,
+      description: current.description
+    }));
+    void fetchJobUrl(lead.url);
+  }
+
   async function runManualJob() {
     if (!resume?.exists) {
       setManualStatus("error");
@@ -614,6 +695,7 @@ function App() {
     setManualStatus("running");
     setRunStatus("idle");
     setUploadStatus("idle");
+    setJobFetchStatus("idle");
     setMessage("");
     try {
       const response = await fetch(`${API_BASE}/api/manual-jobs`, {
@@ -836,12 +918,53 @@ function App() {
               </button>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mb-4 inline-flex rounded-md border border-line bg-slate-50 p-1">
+              <ModeButton active={jobInputMode === "auto"} label={t.autoMode} onClick={() => setJobInputMode("auto")} />
+              <ModeButton active={jobInputMode === "manual"} label={t.manualMode} onClick={() => setJobInputMode("manual")} />
+            </div>
+
+            {jobInputMode === "auto" && (
+              <div className="mb-4 rounded-md border border-blue-100 bg-blue-50/70 p-3">
+                <div className="flex flex-col gap-2 lg:flex-row">
+                  <div className="flex-1">
+                    <TextField label={t.manualUrl} value={manualJob.url} onChange={(value) => updateManualJob("url", value)} />
+                  </div>
+                  {selected?.scored_lead.lead.url && (
+                    <button
+                      type="button"
+                      onClick={readSelectedJobUrl}
+                      disabled={jobFetchStatus === "running"}
+                      className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-md border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      {t.useSelectedJobLink}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void fetchJobUrl()}
+                    disabled={jobFetchStatus === "running"}
+                    className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-md border border-blue-200 bg-white px-4 text-sm font-semibold text-accent hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {jobFetchStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    {jobFetchStatus === "running" ? t.autoFetching : t.autoFetch}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted">{t.autoHint}</p>
+              </div>
+            )}
+
+            <div className="grid gap-3 md:grid-cols-3">
               <TextField label={t.manualJobTitle} value={manualJob.title} onChange={(value) => updateManualJob("title", value)} />
               <TextField label={t.manualCompany} value={manualJob.company} onChange={(value) => updateManualJob("company", value)} />
               <TextField label={t.manualLocation} value={manualJob.location} onChange={(value) => updateManualJob("location", value)} />
-              <TextField label={t.manualUrl} value={manualJob.url} onChange={(value) => updateManualJob("url", value)} />
             </div>
+
+            {jobInputMode === "manual" && (
+              <div className="mt-3">
+                <TextField label={t.manualUrl} value={manualJob.url} onChange={(value) => updateManualJob("url", value)} />
+              </div>
+            )}
 
             <label className="mt-3 block">
               <span className="mb-2 block text-sm font-semibold text-muted">{t.manualDescription}</span>
@@ -857,7 +980,7 @@ function App() {
           {message && (
             <div
               className={`rounded-md border px-3 py-2 text-sm ${
-                runStatus === "error" || uploadStatus === "error" || manualStatus === "error"
+                runStatus === "error" || uploadStatus === "error" || manualStatus === "error" || jobFetchStatus === "error"
                   ? "border-amber-200 bg-amber-50 text-amber-800"
                   : "border-emerald-200 bg-emerald-50 text-emerald-800"
               }`}
@@ -1097,6 +1220,21 @@ function LanguageButton({ active, label, onClick }: { active: boolean; label: st
       aria-pressed={active}
       onClick={onClick}
       className={`rounded-md px-2 py-1.5 text-sm font-semibold transition ${
+        active ? "bg-white text-accent shadow-sm ring-1 ring-line" : "text-muted hover:bg-white"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ModeButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`h-9 rounded-md px-3 text-sm font-semibold transition ${
         active ? "bg-white text-accent shadow-sm ring-1 ring-line" : "text-muted hover:bg-white"
       }`}
     >

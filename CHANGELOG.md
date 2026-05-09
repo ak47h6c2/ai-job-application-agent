@@ -4,6 +4,8 @@
 
 ### English
 
+- Upgraded the job-source workflow into two modes: automatic public-link reading and manual JD paste fallback.
+- Added `POST /api/job-url-preview` to extract title, company, location, and description from public job pages using HTML metadata and JSON-LD JobPosting data.
 - Reworked the GitHub README into a portfolio-style project page with background, usage instructions, version highlights, architecture diagram, and safety boundaries.
 - Added a manual job-post workflow in the Web UI for LinkedIn, Seek, company sites, and other non-email job sources.
 - Added `POST /api/manual-jobs`, which matches a pasted job description against the uploaded resume index and generates application materials with the same human approval gate.
@@ -11,6 +13,8 @@
 
 ### 中文
 
+- 岗位来源升级为双模式：优先自动读取公开岗位链接，读不到时再手动粘贴 JD。
+- 新增 `POST /api/job-url-preview`，可以从公开招聘页面的 HTML metadata 和 JSON-LD JobPosting 中提取岗位名称、公司、地点和岗位描述。
 - 重写 GitHub README，让首页更像作品展示页：包含项目背景、使用方法、版本摘要、架构图和安全边界。
 - Web UI 新增“手动岗位”入口，可以把 LinkedIn、Seek、公司官网、Boss、猎聘等平台上的岗位 JD 粘贴进来生成申请材料。
 - 新增 `POST /api/manual-jobs` 接口，会用已上传简历和粘贴的岗位描述做匹配，并生成简历修改建议、求职信和招聘方消息。

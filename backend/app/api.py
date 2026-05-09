@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from backend.app.rag.resume_index import build_resume_index, extract_pdf_text, load_resume_index, save_resume_index
+from backend.app.services.job_url_reader import JobUrlReadError, read_job_posting_from_url
 from backend.app.services.job_agent import default_agent_output_dir, run_job_application_agent
 from backend.app.services.manual_job import run_manual_job_application
 
@@ -51,6 +52,10 @@ class ManualJobRequest(BaseModel):
     url: str = Field(default="", max_length=500)
     description: str = Field(min_length=20, max_length=20000)
     language: Literal["en", "zh"] = "zh"
+
+
+class JobUrlPreviewRequest(BaseModel):
+    url: str = Field(min_length=8, max_length=500)
 
 
 def validate_since(value: str) -> str:
@@ -240,6 +245,22 @@ def start_manual_job_run(request: ManualJobRequest) -> dict[str, Any]:
         language=request.language,
     )
     return get_run(output_dir.name)
+
+
+@app.post("/api/job-url-preview")
+def preview_job_url(request: JobUrlPreviewRequest) -> dict[str, str]:
+    try:
+        return read_job_posting_from_url(request.url).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except JobUrlReadError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{exc} Some job sites require login or block automated reading. "
+                "Use manual paste mode for this link."
+            ),
+        ) from exc
 
 
 @app.get("/api/runs/latest")
