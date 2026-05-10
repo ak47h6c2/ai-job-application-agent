@@ -255,6 +255,12 @@ def looks_like_blocked_or_login_page(
         "access denied",
         "unusual traffic",
         "verify you are human",
+        "登录",
+        "登陆",
+        "验证码",
+        "访问受限",
+        "安全验证",
+        "请验证",
     )
     if has_jobposting:
         return False

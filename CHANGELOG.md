@@ -5,6 +5,7 @@
 ### English
 
 - Added a dedicated Playwright login browser with a persistent local profile, so blocked job links can be opened for manual login and then read from the current logged-in page without installing a browser extension.
+- Fixed the dedicated login browser flow so restored personal tabs are closed, closed Playwright sessions recover cleanly, and login or verification pages are not imported as job descriptions.
 - Added a direct post-email workflow in the selected job panel: users can now click "Read link and generate" to fetch the job link from the email lead and generate materials; blocked links fall back to the manual JD input with a clear prompt.
 - Reworked the logged-in browser import UI into a three-step card flow: drag the import button to the bookmarks bar, use it on a real job detail page, then return to the Web UI to load the imported role.
 - Added Windows quick-start scripts: `start-webui.bat` for double-click launch and `start-webui.ps1` for PowerShell launch, including backend/frontend readiness checks and browser opening.
@@ -22,6 +23,7 @@
 ### 中文
 
 - 新增 Playwright 专用登录浏览器：自动读取失败时可以打开本地浏览器让用户登录，然后直接读取当前已登录岗位页，不需要安装扩展。
+- 修复专用登录浏览器流程：自动关闭恢复出来的个人旧标签页，浏览器会话关闭后可自动恢复，并且不会再把登录页或验证页误导入成岗位 JD。
 - 优化邮件扫描后的主流程：推荐职位详情区新增“读取链接并生成材料”，优先自动读取邮件里的岗位链接并生成材料；如果网站拦截，再引导用户打开原网页并粘贴 JD。
 - 重构“登录后导入”界面：从说明文字改成三步操作卡片，明确告诉用户先拖按钮到书签栏，再去真实岗位页点击书签，最后回到 Web UI 读取岗位。
 - 新增 Windows 一键启动脚本：可以双击 `start-webui.bat`，也可以在 PowerShell 执行 `.\start-webui.ps1`，脚本会检查后端/前端是否启动并自动打开浏览器。

@@ -175,6 +175,7 @@ const translations = {
     loginBrowserOpenSuccess: "Login browser opened. Log in there if needed, open the job detail page, then return here and read the current page.",
     loginBrowserReadSuccess: "Read the logged-in browser page and generated materials.",
     loginBrowserInstallMissing: "Playwright is not installed. Run .\\start-webui.ps1 -Install, then restart the app.",
+    loginBrowserStillLogin: "The dedicated browser is still on a login or verification page. Log in, open the job detail page, then read again.",
     bookmarkletLabel: "Drag me to bookmarks",
     copyBookmarklet: "Copy script backup",
     bookmarkletCopied: "Bookmarklet copied",
@@ -316,6 +317,7 @@ const translations = {
     loginBrowserOpenSuccess: "登录浏览器已打开。如果页面要求登录，请在里面登录并打开岗位详情页，然后回到这里读取当前页面。",
     loginBrowserReadSuccess: "已读取登录浏览器里的岗位页面，并生成申请材料。",
     loginBrowserInstallMissing: "Playwright 尚未安装。请执行 .\\start-webui.ps1 -Install 后重启项目。",
+    loginBrowserStillLogin: "专用浏览器现在还停在登录或验证页面。请先在那个窗口完成登录，并打开岗位详情页，然后再回来读取。",
     bookmarkletLabel: "拖我到书签栏",
     copyBookmarklet: "复制脚本备用",
     bookmarkletCopied: "书签脚本已复制",
@@ -673,6 +675,8 @@ function App() {
   });
 
   const friendlyError = (rawMessage: string, fallback: string) => {
+    if (rawMessage.includes("Failed to fetch")) return t.apiError;
+    if (rawMessage.includes("login or verification page")) return t.loginBrowserStillLogin;
     if (rawMessage.includes("Could not read enough resume text")) return t.uploadTextError;
     if (rawMessage.includes("Could not read resume PDF")) return t.uploadTextError;
     if (rawMessage.includes("Resume index not found")) return t.resumeMissing;
@@ -920,7 +924,7 @@ function App() {
     } catch (error) {
       const rawMessage = error instanceof Error ? error.message : t.loginBrowserInstallMissing;
       setBrowserOpenStatus("error");
-      setMessage(rawMessage.includes("Playwright") ? t.loginBrowserInstallMissing : rawMessage);
+      setMessage(rawMessage.includes("Playwright") ? t.loginBrowserInstallMissing : friendlyError(rawMessage, t.loginBrowserInstallMissing));
       return false;
     }
   }
@@ -957,7 +961,7 @@ function App() {
     } catch (error) {
       const rawMessage = error instanceof Error ? error.message : t.importedEmpty;
       setImportStatus("error");
-      setMessage(rawMessage.includes("Playwright") ? t.loginBrowserInstallMissing : rawMessage);
+      setMessage(rawMessage.includes("Playwright") ? t.loginBrowserInstallMissing : friendlyError(rawMessage, t.importedEmpty));
     }
   }
 
