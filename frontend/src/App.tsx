@@ -23,6 +23,9 @@ import { ChangeEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useSta
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
 const RESUME_UPLOAD_TIMEOUT_MS = 45000;
+const JOB_URL_READ_TIMEOUT_MS = 18000;
+const LOGIN_BROWSER_OPEN_TIMEOUT_MS = 30000;
+const LOGIN_BROWSER_READ_TIMEOUT_MS = 20000;
 
 type Language = "en" | "zh";
 type LoadState = "loading" | "ready" | "empty" | "error";
@@ -176,6 +179,12 @@ const translations = {
     loginBrowserReadSuccess: "Read the logged-in browser page and generated materials.",
     loginBrowserInstallMissing: "Playwright is not installed. Run .\\start-webui.ps1 -Install, then restart the app.",
     loginBrowserStillLogin: "The dedicated browser is still on a login or verification page. Log in, open the job detail page, then read again.",
+    loginBrowserOpeningHint: "Opening the dedicated browser. This can take up to 30 seconds.",
+    loginBrowserReadingHint: "Reading the current dedicated browser page. Make sure it is on a real job detail page.",
+    requestTimeout: "This step took too long and was stopped. Check the dedicated browser window, then try again.",
+    loginBrowserPageNotReady: "The job page is open, but the JD has not loaded yet. Wait until the job description is visible, then read again.",
+    leadSnippetTitle: "Email lead only",
+    leadSnippetBody: "This is what the email mentioned, not the full JD. Read the job page or paste the real JD before generating materials.",
     bookmarkletLabel: "Drag me to bookmarks",
     copyBookmarklet: "Copy script backup",
     bookmarkletCopied: "Bookmarklet copied",
@@ -318,6 +327,12 @@ const translations = {
     loginBrowserReadSuccess: "已读取登录浏览器里的岗位页面，并生成申请材料。",
     loginBrowserInstallMissing: "Playwright 尚未安装。请执行 .\\start-webui.ps1 -Install 后重启项目。",
     loginBrowserStillLogin: "专用浏览器现在还停在登录或验证页面。请先在那个窗口完成登录，并打开岗位详情页，然后再回来读取。",
+    loginBrowserOpeningHint: "正在打开专用浏览器，最多等待 30 秒。打开后如果需要登录，就在新窗口里完成登录。",
+    loginBrowserReadingHint: "正在读取专用浏览器当前页面，最多等待 20 秒。请确认那个窗口停在岗位详情页。",
+    requestTimeout: "这一步等待时间过长，已自动停止。请确认专用浏览器是否打开，并停在岗位详情页，然后再点一次。",
+    loginBrowserPageNotReady: "岗位页已经打开，但 JD 还没加载出来。请等专用浏览器里出现完整岗位描述后，再回来读取。",
+    leadSnippetTitle: "邮件里提到的岗位线索",
+    leadSnippetBody: "这只是邮件摘要，不是完整 JD。用它确认岗位是否正确；真正生成材料前需要读取岗位页面，或手动粘贴完整 JD。",
     bookmarkletLabel: "拖我到书签栏",
     copyBookmarklet: "复制脚本备用",
     bookmarkletCopied: "书签脚本已复制",
@@ -583,6 +598,21 @@ async function parseApiError(response: Response) {
   return `API returned ${response.status}`;
 }
 
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Request timed out");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 function App() {
   const [language, setLanguage] = useState<Language>(getInitialLanguage);
   const [run, setRun] = useState<AgentRun | null>(null);
@@ -608,6 +638,7 @@ function App() {
     url: "",
     description: ""
   });
+  const [jobLeadNote, setJobLeadNote] = useState("");
   const [message, setMessage] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
   const uploadAbortRef = useRef<AbortController | null>(null);
@@ -676,7 +707,9 @@ function App() {
 
   const friendlyError = (rawMessage: string, fallback: string) => {
     if (rawMessage.includes("Failed to fetch")) return t.apiError;
+    if (rawMessage.includes("Request timed out") || rawMessage.includes("timed out")) return t.requestTimeout;
     if (rawMessage.includes("login or verification page")) return t.loginBrowserStillLogin;
+    if (rawMessage.includes("has not loaded the job description")) return t.loginBrowserPageNotReady;
     if (rawMessage.includes("Could not read enough resume text")) return t.uploadTextError;
     if (rawMessage.includes("Could not read resume PDF")) return t.uploadTextError;
     if (rawMessage.includes("Resume index not found")) return t.resumeMissing;
@@ -799,16 +832,20 @@ function App() {
       company: lead.company,
       location: lead.location || "",
       url: lead.url || "",
-      description: description || lead.raw_excerpt || ""
+      description
     };
   }
 
   async function readJobPreview(targetUrl: string) {
-    const response = await fetch(`${API_BASE}/api/job-url-preview`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: targetUrl })
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE}/api/job-url-preview`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: targetUrl })
+      },
+      JOB_URL_READ_TIMEOUT_MS
+    );
     if (!response.ok) throw new Error(await parseApiError(response));
     const preview = (await response.json()) as JobUrlPreview;
     if (preview.ok === false) throw new Error(preview.detail || t.autoError);
@@ -852,6 +889,7 @@ function App() {
         url: preview.url || targetUrl,
         description: preview.description || current.description
       }));
+      setJobLeadNote("");
       setJobFetchStatus("success");
       setMessage(t.autoSuccess);
     } catch (error) {
@@ -882,6 +920,7 @@ function App() {
         url: imported.url || current.url,
         description: imported.description || current.description
       }));
+      setJobLeadNote("");
       setImportStatus("success");
       setMessage(t.importedSuccess);
     } catch (error) {
@@ -907,13 +946,17 @@ function App() {
     setImportStatus("idle");
     setSelectedApplyStatus("idle");
     setJobInputMode("browser");
-    setMessage("");
+    setMessage(t.loginBrowserOpeningHint);
     try {
-      const response = await fetch(`${API_BASE}/api/browser-session/open`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: targetUrl })
-      });
+      const response = await fetchWithTimeout(
+        `${API_BASE}/api/browser-session/open`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: targetUrl })
+        },
+        LOGIN_BROWSER_OPEN_TIMEOUT_MS
+      );
       if (!response.ok) throw new Error(await parseApiError(response));
       const payload = (await response.json()) as { ok: boolean; detail?: string };
       if (!payload.ok) throw new Error(payload.detail || t.loginBrowserInstallMissing);
@@ -937,9 +980,13 @@ function App() {
     setUploadStatus("idle");
     setJobFetchStatus("idle");
     setSelectedApplyStatus("idle");
-    setMessage("");
+    setMessage(t.loginBrowserReadingHint);
     try {
-      const response = await fetch(`${API_BASE}/api/browser-session/import-current`, { method: "POST" });
+      const response = await fetchWithTimeout(
+        `${API_BASE}/api/browser-session/import-current`,
+        { method: "POST" },
+        LOGIN_BROWSER_READ_TIMEOUT_MS
+      );
       if (!response.ok) throw new Error(await parseApiError(response));
       const payload = (await response.json()) as { ok: boolean; detail?: string; job?: JobUrlPreview };
       if (!payload.ok || !payload.job) throw new Error(payload.detail || t.importedEmpty);
@@ -952,6 +999,7 @@ function App() {
         description: imported.description
       };
       setManualJob(job);
+      setJobLeadNote("");
       if (resume?.exists && job.description.trim().length >= 20) {
         await requestManualJobRun(job);
         setManualStatus("success");
@@ -969,6 +1017,7 @@ function App() {
     const lead = selected?.scored_lead.lead;
     if (!lead?.url) return;
     setJobInputMode("auto");
+    setJobLeadNote(lead.raw_excerpt || "");
     setManualJob((current) => ({
       title: lead.title || current.title,
       company: lead.company || current.company,
@@ -989,6 +1038,7 @@ function App() {
     }
 
     const baseJob = jobFromLead(lead);
+    setJobLeadNote(lead.raw_excerpt || "");
     setSelectedApplyStatus("running");
     setManualStatus("idle");
     setRunStatus("idle");
@@ -1018,6 +1068,7 @@ function App() {
         description: preview.description || baseJob.description
       };
       setManualJob(detailedJob);
+      setJobLeadNote("");
       await requestManualJobRun(detailedJob);
       setJobFetchStatus("success");
       setManualStatus("success");
@@ -1268,7 +1319,14 @@ function App() {
             <div className="mb-4 flex flex-wrap gap-1 rounded-md border border-line bg-slate-50 p-1 md:inline-flex">
               <ModeButton active={jobInputMode === "auto"} label={t.autoMode} onClick={() => setJobInputMode("auto")} />
               <ModeButton active={jobInputMode === "browser"} label={t.browserMode} onClick={() => setJobInputMode("browser")} />
-              <ModeButton active={jobInputMode === "manual"} label={t.manualMode} onClick={() => setJobInputMode("manual")} />
+              <ModeButton
+                active={jobInputMode === "manual"}
+                label={t.manualMode}
+                onClick={() => {
+                  setJobInputMode("manual");
+                  setJobLeadNote("");
+                }}
+              />
             </div>
 
             {jobInputMode === "auto" && (
@@ -1313,34 +1371,20 @@ function App() {
                     <h3 className="text-base font-semibold">{t.browserImportTitle}</h3>
                     <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">{t.browserImportBody}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2 lg:justify-end">
-                    <button
-                      type="button"
-                      onClick={() => void openLoginBrowser()}
-                      disabled={browserOpenStatus === "running"}
-                      className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {browserOpenStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-                      {browserOpenStatus === "running" ? t.openingLoginBrowser : t.openLoginBrowser}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void readLoginBrowserJob()}
-                      disabled={importStatus === "running"}
-                      className="primary-action inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {importStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      {importStatus === "running" ? t.readingLoginBrowser : t.readLoginBrowser}
-                    </button>
-                  </div>
                 </div>
+
+                {(browserOpenStatus === "running" || importStatus === "running") && (
+                  <div className="mb-4 rounded-md border border-blue-100 bg-white/85 px-3 py-2 text-sm font-semibold text-accent shadow-sm">
+                    {message || (importStatus === "running" ? t.loginBrowserReadingHint : t.loginBrowserOpeningHint)}
+                  </div>
+                )}
 
                 <div className="grid gap-3 lg:grid-cols-3">
                   <BrowserImportStep step="1" title={t.browserStep1Title} body={t.browserStep1Body}>
                     <button
                       type="button"
                       onClick={() => void openLoginBrowser()}
-                      disabled={browserOpenStatus === "running"}
+                      disabled={browserOpenStatus === "running" || importStatus === "running"}
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {browserOpenStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
@@ -1362,7 +1406,7 @@ function App() {
                     <button
                       type="button"
                       onClick={() => void readLoginBrowserJob()}
-                      disabled={importStatus === "running"}
+                      disabled={importStatus === "running" || browserOpenStatus === "running"}
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-3 text-sm font-semibold text-accent hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {importStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -1383,6 +1427,14 @@ function App() {
               <div className="mt-3">
                 <TextField label={t.manualUrl} value={manualJob.url} onChange={(value) => updateManualJob("url", value)} />
               </div>
+            )}
+
+            {jobLeadNote && (
+              <section className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                <div className="font-semibold">{t.leadSnippetTitle}</div>
+                <p className="mt-1 leading-5">{t.leadSnippetBody}</p>
+                <p className="mt-2 max-h-24 overflow-auto rounded-md bg-white/70 px-3 py-2 text-xs leading-5 text-amber-950">{jobLeadNote}</p>
+              </section>
             )}
 
             <label className="mt-3 block">

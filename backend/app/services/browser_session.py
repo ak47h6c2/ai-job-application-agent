@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -16,6 +17,31 @@ _lock = asyncio.Lock()
 _playwright: Any | None = None
 _context: Any | None = None
 _page: Any | None = None
+PAGE_TITLE_TIMEOUT_SECONDS = 3
+PAGE_READ_TIMEOUT_SECONDS = 8
+LINKEDIN_JOB_DETAIL_MARKERS = (
+    "about the job",
+    "description",
+    "key job responsibilities",
+    "basic qualifications",
+    "preferred qualifications",
+    "qualifications",
+    "关于职位",
+    "职位描述",
+    "职位详情",
+    "岗位职责",
+    "工作职责",
+    "任职资格",
+)
+LINKEDIN_SHELL_MARKERS = (
+    "LinkedIn Corporation",
+    "选择语言",
+    "公司简介",
+    "订阅相似职位",
+    "更多职位",
+    "Similar jobs",
+    "See more similar jobs",
+)
 
 
 EXTRACT_JOB_SCRIPT = """
@@ -146,12 +172,99 @@ def looks_like_login_or_blocked_browser_page(payload: dict[str, Any]) -> bool:
     return False
 
 
+def compact_text(value: Any) -> str:
+    return " ".join(str(value or "").replace("\x00", "").split())
+
+
+def trim_text_between_markers(text: str, start_markers: tuple[str, ...], end_markers: tuple[str, ...]) -> str:
+    lower_text = text.lower()
+    start_candidates: list[tuple[int, str]] = []
+    for marker in start_markers:
+        index = lower_text.find(marker.lower())
+        if index >= 0:
+            start_candidates.append((index, marker))
+    if not start_candidates:
+        return text
+
+    start_index, marker = min(start_candidates, key=lambda item: item[0])
+    if marker.lower() in {"about the job", "关于职位"}:
+        start_index += len(marker)
+    trimmed = text[start_index:].strip()
+    lower_trimmed = trimmed.lower()
+
+    end_candidates = [
+        lower_trimmed.find(marker.lower())
+        for marker in end_markers
+        if lower_trimmed.find(marker.lower()) > 80
+    ]
+    if end_candidates:
+        trimmed = trimmed[: min(end_candidates)].strip()
+    return trimmed or text
+
+
+def clean_browser_job_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    cleaned = dict(payload)
+    url = str(cleaned.get("url") or "")
+    host = urlparse(url).netloc.lower()
+    title = compact_text(cleaned.get("title"))
+    company = compact_text(cleaned.get("company"))
+    location = compact_text(cleaned.get("location"))
+    description = compact_text(cleaned.get("description"))
+    original_description = description
+
+    if "linkedin." in host:
+        lower_original_description = original_description.lower()
+        has_job_detail_marker = any(marker.lower() in lower_original_description for marker in LINKEDIN_JOB_DETAIL_MARKERS)
+        has_shell_marker = any(marker.lower() in lower_original_description for marker in LINKEDIN_SHELL_MARKERS)
+        title_parts = [part.strip() for part in title.split("|") if part.strip()]
+        if title_parts:
+            title = title_parts[0]
+            if len(title_parts) > 1 and (not company or company in {"linkedin.com", "www.linkedin.com", "linkedin"}):
+                company = title_parts[1]
+        if not location:
+            location_match = re.search(r"(?:Australia|澳洲)\s+([^·]+?)\s+·", original_description)
+            if location_match:
+                location = location_match.group(1).strip()
+        if not has_job_detail_marker and has_shell_marker:
+            cleaned["_readiness_error"] = (
+                "The dedicated browser has not loaded the job description yet. "
+                "Wait until the JD is visible in that browser, then read again."
+            )
+        description = trim_text_between_markers(
+            description,
+            start_markers=("About the job", "关于职位", "Description"),
+            end_markers=(
+                "Company - ",
+                "Company ID:",
+                "公司简介",
+                "About the company",
+                "订阅相似职位",
+                "更多职位",
+                "Similar jobs",
+                "See more similar jobs",
+                "在招人？",
+                "LinkedIn Corporation",
+                "选择语言",
+            ),
+        )
+
+    cleaned["title"] = title
+    cleaned["company"] = company
+    cleaned["location"] = location
+    cleaned["description"] = description
+    return cleaned
+
+
 def validate_browser_job_payload(payload: dict[str, Any]) -> dict[str, str]:
+    payload = clean_browser_job_payload(payload)
     if looks_like_login_or_blocked_browser_page(payload):
         raise BrowserSessionError(
             "The dedicated browser is still on a login or verification page. "
             "Log in, open the job detail page, then read again."
         )
+    readiness_error = str(payload.get("_readiness_error") or "")
+    if readiness_error:
+        raise BrowserSessionError(readiness_error)
     description = str(payload.get("description") or "").strip()
     if len(description) < 20:
         raise BrowserSessionError("Open a specific job detail page before importing.")
@@ -159,7 +272,7 @@ def validate_browser_job_payload(payload: dict[str, Any]) -> dict[str, str]:
     company = str(payload.get("company") or "").strip()
     if len(title) < 2 or len(company) < 1:
         raise BrowserSessionError("Could not read enough job information from the current browser page.")
-    return {key: str(value or "") for key, value in payload.items() if key != "hasJobPosting"}
+    return {key: str(value or "") for key, value in payload.items() if key != "hasJobPosting" and not key.startswith("_")}
 
 
 async def reset_browser_context() -> None:
@@ -252,7 +365,11 @@ async def open_login_browser(url: str, private_data_dir: Path) -> dict[str, str]
                         raise
                     # Login redirects and heavy job boards can time out while still opening correctly.
                     pass
-                return {"url": page.url, "title": await page.title()}
+                try:
+                    title = await asyncio.wait_for(page.title(), timeout=PAGE_TITLE_TIMEOUT_SECONDS)
+                except Exception:
+                    title = ""
+                return {"url": page.url, "title": title}
             except Exception as exc:
                 last_error = exc
                 if is_target_closed_error(exc):
@@ -275,7 +392,11 @@ async def import_current_browser_job(private_data_dir: Path) -> dict[str, str]:
         except Exception:
             pass
         try:
-            payload = await page.evaluate(EXTRACT_JOB_SCRIPT)
+            payload = await asyncio.wait_for(page.evaluate(EXTRACT_JOB_SCRIPT), timeout=PAGE_READ_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError as exc:
+            raise BrowserSessionError(
+                "Reading the current browser page timed out. Make sure it is a job detail page, then try again."
+            ) from exc
         except Exception as exc:
             if is_target_closed_error(exc):
                 await reset_browser_context()
