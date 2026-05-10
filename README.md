@@ -46,7 +46,33 @@ The project is designed as a portfolio-ready AI agent system rather than a blind
 
 ## 使用方法
 
-### 1. 启动后端
+### 1. 推荐：一键启动 Web UI
+
+Windows 用户可以直接双击项目根目录里的：
+
+```text
+start-webui.bat
+```
+
+它会自动启动本地后端、前端，并打开：
+
+```text
+http://127.0.0.1:5173/
+```
+
+如果想在 PowerShell 里启动：
+
+```powershell
+.\start-webui.ps1
+```
+
+第一次换电脑或依赖缺失时，可以执行：
+
+```powershell
+.\start-webui.ps1 -Install
+```
+
+### 2. 手动启动后端
 
 ```powershell
 python -m pip install -e .
@@ -59,7 +85,7 @@ python -m backend.app.api
 http://127.0.0.1:8000
 ```
 
-### 2. 启动前端
+### 3. 手动启动前端
 
 打开第二个 PowerShell：
 
@@ -75,7 +101,7 @@ npm run dev
 http://127.0.0.1:5173
 ```
 
-### 3. 在 Web UI 里使用
+### 4. 在 Web UI 里使用
 
 1. 上传 PDF 简历。
 2. 选择一种岗位来源：
@@ -87,14 +113,14 @@ http://127.0.0.1:5173
 4. 查看职位匹配结果、简历证据、缺失关键词和申请草稿。
 5. 人工确认后，再决定是否复制内容去投递或回复招聘方。
 
-### 4. 命令行备用流程
+### 5. 命令行备用流程
 
 ```powershell
 python -m backend.app.cli build-resume-index --resume-pdf "C:\path\to\resume.pdf"
 python -m backend.app.cli run-agent --since 2026-05-08 --top 3
 ```
 
-### 5. 运行测试
+### 6. 运行测试
 
 ```powershell
 python -m unittest discover -s tests
@@ -108,6 +134,7 @@ npm run build
 
 | 日期 | 更新重点 |
 | --- | --- |
+| 2026-05-10 | 新增 Windows 一键启动脚本：双击 `start-webui.bat` 或执行 `.\start-webui.ps1` 即可启动后端、前端并打开 Web UI。 |
 | 2026-05-10 | 新增网页登录导入模式：用户在 LinkedIn、Seek、Boss、猎聘或公司官网登录后，用书签按钮把当前岗位导入本地助手，账号密码不进入本项目。 |
 | 2026-05-10 | 岗位来源升级为自动/手动双模式：可以读取公开岗位链接，也可以粘贴非邮件来源 JD 并生成申请材料。 |
 | 2026-05-09 | 重构 Web UI，强化视觉引导；支持中文简历解析、中英文匹配、草稿语言判断和上传超时处理。 |
