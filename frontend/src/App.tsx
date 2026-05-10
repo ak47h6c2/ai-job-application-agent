@@ -177,6 +177,13 @@ const translations = {
     importedEmpty: "No imported job found yet. Open a job page and click the bookmarklet first.",
     credentialSafety: "Passwords stay on the official job site. This app only receives the job text you choose to import.",
     useSelectedJobLink: "Use selected job link",
+    applySelected: "Read link and generate",
+    applyingSelected: "Reading and generating...",
+    openOriginalJob: "Open job page",
+    quickApplySuccess: "Generated materials from the job link.",
+    quickApplyFallback: "This site needs login or blocks automatic reading. I filled the known fields below. Open the job page, copy the JD, paste it into the description box, then generate materials.",
+    quickApplyMissing: "This email lead does not include a job link. Paste the JD below to generate materials.",
+    selectedJobActionHint: "Best path: read the job link first. If the site blocks access, open the page and paste the JD.",
     manualJobTitle: "Job title",
     manualCompany: "Company",
     manualLocation: "Location",
@@ -304,6 +311,13 @@ const translations = {
     importedEmpty: "还没有导入岗位。请先打开岗位页面并点击书签。",
     credentialSafety: "账号密码只输入在招聘平台官网。本项目只接收你主动导入的岗位文字。",
     useSelectedJobLink: "使用当前职位链接",
+    applySelected: "读取链接并生成材料",
+    applyingSelected: "读取并生成中...",
+    openOriginalJob: "打开岗位网页",
+    quickApplySuccess: "已根据岗位链接生成申请材料。",
+    quickApplyFallback: "这个网站需要登录或阻止自动读取。我已经把岗位名称、公司和地点填到下方。请打开岗位网页，把 JD 复制到描述框，再生成材料。",
+    quickApplyMissing: "这封邮件里没有岗位链接。请把 JD 粘贴到下方后生成材料。",
+    selectedJobActionHint: "推荐流程：先自动读取岗位链接；读不到时，再打开网页复制 JD。",
     manualJobTitle: "岗位名称",
     manualCompany: "公司",
     manualLocation: "地点",
@@ -406,8 +420,10 @@ type Lead = {
   title: string;
   company: string;
   location: string;
+  source?: string;
   url: string;
   signals: string[];
+  raw_excerpt?: string;
 };
 
 type ScoredLead = {
@@ -566,6 +582,7 @@ function App() {
   const [manualStatus, setManualStatus] = useState<AsyncStatus>("idle");
   const [jobFetchStatus, setJobFetchStatus] = useState<AsyncStatus>("idle");
   const [importStatus, setImportStatus] = useState<AsyncStatus>("idle");
+  const [selectedApplyStatus, setSelectedApplyStatus] = useState<AsyncStatus>("idle");
   const [jobInputMode, setJobInputMode] = useState<JobInputMode>("auto");
   const [manualJob, setManualJob] = useState<ManualJobForm>({
     title: "",
@@ -694,6 +711,7 @@ function App() {
     setManualStatus("idle");
     setJobFetchStatus("idle");
     setImportStatus("idle");
+    setSelectedApplyStatus("idle");
     setMessage(t.uploadWorking);
     try {
       const body = new FormData();
@@ -730,6 +748,7 @@ function App() {
     setManualStatus("idle");
     setJobFetchStatus("idle");
     setImportStatus("idle");
+    setSelectedApplyStatus("idle");
     setMessage("");
     try {
       const response = await fetch(`${API_BASE}/api/runs`, {
@@ -755,6 +774,41 @@ function App() {
     setManualJob((current) => ({ ...current, [key]: value }));
   }
 
+  function jobFromLead(lead: Lead, description = ""): ManualJobForm {
+    return {
+      title: lead.title,
+      company: lead.company,
+      location: lead.location || "",
+      url: lead.url || "",
+      description: description || lead.raw_excerpt || ""
+    };
+  }
+
+  async function readJobPreview(targetUrl: string) {
+    const response = await fetch(`${API_BASE}/api/job-url-preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: targetUrl })
+    });
+    if (!response.ok) throw new Error(await parseApiError(response));
+    const preview = (await response.json()) as JobUrlPreview;
+    if (preview.ok === false) throw new Error(preview.detail || t.autoError);
+    return preview;
+  }
+
+  async function requestManualJobRun(job: ManualJobForm) {
+    const response = await fetch(`${API_BASE}/api/manual-jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...job, language })
+    });
+    if (!response.ok) throw new Error(await parseApiError(response));
+    setRun((await response.json()) as AgentRun);
+    setSelectedIndex(0);
+    setState("ready");
+    await loadRuns();
+  }
+
   async function fetchJobUrl(urlOverride?: string) {
     const targetUrl = (urlOverride ?? manualJob.url).trim();
     if (!targetUrl) {
@@ -768,16 +822,10 @@ function App() {
     setRunStatus("idle");
     setUploadStatus("idle");
     setImportStatus("idle");
+    setSelectedApplyStatus("idle");
     setMessage("");
     try {
-      const response = await fetch(`${API_BASE}/api/job-url-preview`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: targetUrl })
-      });
-      if (!response.ok) throw new Error(await parseApiError(response));
-      const preview = (await response.json()) as JobUrlPreview;
-      if (preview.ok === false) throw new Error(preview.detail || t.autoError);
+      const preview = await readJobPreview(targetUrl);
       setManualJob((current) => ({
         title: preview.title || current.title,
         company: preview.company || current.company,
@@ -800,6 +848,7 @@ function App() {
     setRunStatus("idle");
     setUploadStatus("idle");
     setJobFetchStatus("idle");
+    setSelectedApplyStatus("idle");
     setMessage("");
     try {
       const response = await fetch(`${API_BASE}/api/imported-jobs/latest`);
@@ -837,6 +886,61 @@ function App() {
     void fetchJobUrl(lead.url);
   }
 
+  async function applySelectedJob() {
+    const lead = selected?.scored_lead.lead;
+    if (!lead) return;
+    if (!resume?.exists) {
+      setSelectedApplyStatus("error");
+      setMessage(t.resumeMissing);
+      return;
+    }
+
+    const baseJob = jobFromLead(lead);
+    setSelectedApplyStatus("running");
+    setManualStatus("idle");
+    setRunStatus("idle");
+    setUploadStatus("idle");
+    setJobFetchStatus("running");
+    setImportStatus("idle");
+    setJobInputMode("auto");
+    setManualJob(baseJob);
+    setMessage("");
+
+    if (!lead.url) {
+      setSelectedApplyStatus("error");
+      setJobFetchStatus("error");
+      setJobInputMode("manual");
+      setMessage(t.quickApplyMissing);
+      document.getElementById("manual")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    try {
+      const preview = await readJobPreview(lead.url);
+      const detailedJob = {
+        title: preview.title || baseJob.title,
+        company: preview.company || baseJob.company,
+        location: preview.location || baseJob.location,
+        url: preview.url || baseJob.url,
+        description: preview.description || baseJob.description
+      };
+      setManualJob(detailedJob);
+      await requestManualJobRun(detailedJob);
+      setJobFetchStatus("success");
+      setManualStatus("success");
+      setSelectedApplyStatus("success");
+      setMessage(t.quickApplySuccess);
+    } catch (error) {
+      setJobFetchStatus("error");
+      setSelectedApplyStatus("error");
+      setJobInputMode("manual");
+      setManualJob(baseJob);
+      window.open(lead.url, "_blank", "noopener,noreferrer");
+      document.getElementById("manual")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setMessage(t.quickApplyFallback);
+    }
+  }
+
   async function runManualJob() {
     if (!resume?.exists) {
       setManualStatus("error");
@@ -854,18 +958,10 @@ function App() {
     setUploadStatus("idle");
     setJobFetchStatus("idle");
     setImportStatus("idle");
+    setSelectedApplyStatus("idle");
     setMessage("");
     try {
-      const response = await fetch(`${API_BASE}/api/manual-jobs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...manualJob, language })
-      });
-      if (!response.ok) throw new Error(await parseApiError(response));
-      setRun((await response.json()) as AgentRun);
-      setSelectedIndex(0);
-      setState("ready");
-      await loadRuns();
+      await requestManualJobRun(manualJob);
       setManualStatus("success");
       setMessage(t.manualSuccess);
     } catch (error) {
@@ -1209,7 +1305,12 @@ function App() {
           {message && (
             <div
               className={`rounded-md border px-3 py-2 text-sm ${
-                runStatus === "error" || uploadStatus === "error" || manualStatus === "error" || jobFetchStatus === "error" || importStatus === "error"
+                runStatus === "error" ||
+                uploadStatus === "error" ||
+                manualStatus === "error" ||
+                jobFetchStatus === "error" ||
+                importStatus === "error" ||
+                selectedApplyStatus === "error"
                   ? "border-amber-200 bg-amber-50 text-amber-800"
                   : "border-emerald-200 bg-emerald-50 text-emerald-800"
               }`}
@@ -1333,22 +1434,34 @@ function App() {
                 <section className="space-y-5">
                   {selected && (
                     <section className="surface-panel rounded-md p-4">
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
                           <p className="text-sm font-medium text-accent">{selected.scored_lead.lead.company}</p>
                           <h2 className="mt-1 text-xl font-semibold">{selected.scored_lead.lead.title}</h2>
                           <p className="mt-1 text-sm text-muted">{selected.scored_lead.lead.location}</p>
+                          <p className="mt-2 max-w-xl text-xs leading-5 text-muted">{t.selectedJobActionHint}</p>
                         </div>
-                        {selected.scored_lead.lead.url && (
-                          <a
-                            className="inline-flex h-9 items-center gap-2 rounded-md border border-line px-3 text-sm font-semibold hover:border-blue-200 hover:bg-blue-50"
-                            href={selected.scored_lead.lead.url}
-                            target="_blank"
-                            rel="noreferrer"
+                        <div className="flex flex-wrap gap-2 lg:justify-end">
+                          <button
+                            type="button"
+                            onClick={() => void applySelectedJob()}
+                            disabled={selectedApplyStatus === "running" || !resume?.exists || !selected.scored_lead.lead.url}
+                            className="primary-action inline-flex h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            {t.open} <ExternalLink className="h-4 w-4" />
-                          </a>
-                        )}
+                            {selectedApplyStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                            {selectedApplyStatus === "running" ? t.applyingSelected : t.applySelected}
+                          </button>
+                          {selected.scored_lead.lead.url && (
+                            <a
+                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-white/80 px-3 text-sm font-semibold hover:border-blue-200 hover:bg-blue-50"
+                              href={selected.scored_lead.lead.url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {t.openOriginalJob} <ExternalLink className="h-4 w-4" />
+                            </a>
+                          )}
+                        </div>
                       </div>
 
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
