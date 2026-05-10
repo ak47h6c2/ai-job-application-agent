@@ -107,7 +107,8 @@ http://127.0.0.1:5173
 2. 选择一种岗位来源：
    - 扫描 QQ 邮箱里的求职邮件。
    - 或在“岗位来源”里用自动模式读取岗位链接。
-   - 如果网站需要登录，用“登录后导入”：先把导入按钮拖到浏览器书签栏，再到招聘平台官网登录并打开岗位详情页，点击书签栏里的导入按钮，最后回到 Web UI 读取岗位。
+   - 如果网站需要登录，推荐安装一次 `browser-extension` Chrome 扩展。之后在招聘平台官网登录并打开岗位详情页，点击扩展图标即可导入岗位。
+   - 如果暂时不想安装扩展，可以使用“登录后导入”里的书签备用方案。
    - 如果自动读取和登录后导入都不方便，再切换到手动模式粘贴 JD。
 3. 点击生成或分析。
 4. 在推荐职位里选择一个岗位，优先点击“读取链接并生成材料”。
@@ -185,6 +186,8 @@ docs/
   architecture.md          # Architecture notes
 frontend/
   src/App.tsx              # Bilingual React Web UI
+browser-extension/
+  manifest.json            # Chrome extension for logged-in job page import
 tests/
 ```
 

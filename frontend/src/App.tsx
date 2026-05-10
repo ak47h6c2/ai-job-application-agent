@@ -161,13 +161,16 @@ const translations = {
     autoError: "Could not read this link automatically. Some sites require login or block automated reading. Use manual paste mode.",
     autoHint: "Best for public company career pages and job boards. LinkedIn may require manual paste.",
     browserImportTitle: "Use this when a job site requires login",
-    browserImportBody: "Do not click the import button here. Drag it to the browser bookmarks bar first, then use it on the real job page.",
-    browserStep1Title: "Drag the import button",
+    browserImportBody: "Recommended: install the Chrome extension once. If you do not want to install it, use the bookmark fallback below.",
+    browserStep1Title: "Backup: drag the bookmark button",
     browserStep1Body: "Hold the green button and drag it to the bookmarks bar. If the bookmarks bar is hidden, press Ctrl + Shift + B.",
     browserStep2Title: "Open a job detail page",
     browserStep2Body: "Log in on the official job site and open one specific job page. Do not import a search results list.",
     browserStep3Title: "Import, then read it here",
     browserStep3Body: "Click the saved bookmark on the job page. A new local tab opens. Come back here and load the imported job.",
+    extensionTitle: "Better login flow: Chrome extension",
+    extensionBody: "Install the local browser-extension folder once. After that, open any logged-in job page and click the extension icon; it imports the page using your current browser session.",
+    extensionPath: "Extension folder: browser-extension",
     bookmarkletLabel: "Drag me to bookmarks",
     copyBookmarklet: "Copy script backup",
     bookmarkletCopied: "Bookmarklet copied",
@@ -181,7 +184,7 @@ const translations = {
     applyingSelected: "Reading and generating...",
     openOriginalJob: "Open job page",
     quickApplySuccess: "Generated materials from the job link.",
-    quickApplyFallback: "This site needs login or blocks automatic reading. I filled the known fields below. Open the job page, copy the JD, paste it into the description box, then generate materials.",
+    quickApplyFallback: "This site needs login or blocks automatic reading. I opened the job page. After logging in, use the Chrome extension to import it, or copy the JD into the description box below.",
     quickApplyMissing: "This email lead does not include a job link. Paste the JD below to generate materials.",
     selectedJobActionHint: "Best path: read the job link first. If the site blocks access, open the page and paste the JD.",
     manualJobTitle: "Job title",
@@ -295,13 +298,16 @@ const translations = {
     autoError: "这个链接暂时无法自动读取。部分网站需要登录或会阻止抓取，请切换到手动粘贴。",
     autoHint: "公司官网和公开招聘页通常更容易读取；LinkedIn 可能需要手动粘贴。",
     browserImportTitle: "适合 LinkedIn / Seek / Boss / 猎聘这类需要登录的网站",
-    browserImportBody: "不要直接点下面的绿色按钮。先把它拖到浏览器书签栏，之后在真实岗位页面上点击这个书签。",
-    browserStep1Title: "把导入按钮拖到书签栏",
+    browserImportBody: "推荐先安装 Chrome 扩展，只需要一次。暂时不想安装扩展时，再用下面的书签备用方案。",
+    browserStep1Title: "备用：把书签按钮拖到书签栏",
     browserStep1Body: "按住绿色按钮，拖到浏览器顶部书签栏。看不到书签栏就按 Ctrl + Shift + B。",
     browserStep2Title: "打开一个具体岗位页",
     browserStep2Body: "去招聘平台官网登录，打开某一个岗位详情页。不要在搜索列表页导入。",
     browserStep3Title: "点书签，再回这里读取",
     browserStep3Body: "在岗位页面点击书签栏里的导入按钮。它会打开本地页面，然后回到这里读取岗位。",
+    extensionTitle: "更顺的登录方案：Chrome 扩展",
+    extensionBody: "把项目里的 browser-extension 文件夹作为 Chrome 扩展安装一次。之后打开任何已登录的岗位页，点扩展图标，就会用当前浏览器登录态导入岗位。",
+    extensionPath: "扩展文件夹：browser-extension",
     bookmarkletLabel: "拖我到书签栏",
     copyBookmarklet: "复制脚本备用",
     bookmarkletCopied: "书签脚本已复制",
@@ -315,7 +321,7 @@ const translations = {
     applyingSelected: "读取并生成中...",
     openOriginalJob: "打开岗位网页",
     quickApplySuccess: "已根据岗位链接生成申请材料。",
-    quickApplyFallback: "这个网站需要登录或阻止自动读取。我已经把岗位名称、公司和地点填到下方。请打开岗位网页，把 JD 复制到描述框，再生成材料。",
+    quickApplyFallback: "这个网站需要登录或阻止自动读取。我已经打开岗位网页。登录后可以用 Chrome 扩展一键导入；如果没装扩展，就把 JD 复制到下方描述框再生成材料。",
     quickApplyMissing: "这封邮件里没有岗位链接。请把 JD 粘贴到下方后生成材料。",
     selectedJobActionHint: "推荐流程：先自动读取岗位链接；读不到时，再打开网页复制 JD。",
     manualJobTitle: "岗位名称",
@@ -1232,6 +1238,17 @@ function App() {
                 </div>
 
                 <div className="grid gap-3 lg:grid-cols-3">
+                  <div className="rounded-md border border-emerald-200 bg-white/90 p-3 shadow-sm lg:col-span-3">
+                    <div className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                      <ShieldCheck className="h-4 w-4" />
+                      {t.extensionTitle}
+                    </div>
+                    <p className="text-sm leading-6 text-muted">{t.extensionBody}</p>
+                    <div className="mt-2 inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                      {t.extensionPath}
+                    </div>
+                  </div>
+
                   <BrowserImportStep step="1" title={t.browserStep1Title} body={t.browserStep1Body}>
                     <div className="flex flex-wrap gap-2">
                       <a
