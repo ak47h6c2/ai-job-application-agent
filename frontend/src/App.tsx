@@ -150,7 +150,7 @@ const translations = {
     scanSuccess: "New job analysis generated.",
     scanError: "Scan failed.",
     manualTitle: "Add a job post",
-    manualSubtitle: "Choose how to bring in a job post. For logged-in sites, use the browser import flow below.",
+    manualSubtitle: "Choose how to bring in a job post. For logged-in sites, open the dedicated login browser below.",
     autoMode: "Auto read",
     browserMode: "Logged-in import",
     manualMode: "Manual paste",
@@ -160,17 +160,21 @@ const translations = {
     autoMissing: "Paste a job link first.",
     autoError: "Could not read this link automatically. Some sites require login or block automated reading. Use manual paste mode.",
     autoHint: "Best for public company career pages and job boards. LinkedIn may require manual paste.",
-    browserImportTitle: "Use this when a job site requires login",
-    browserImportBody: "Recommended: install the Chrome extension once. If you do not want to install it, use the bookmark fallback below.",
-    browserStep1Title: "Backup: drag the bookmark button",
-    browserStep1Body: "Hold the green button and drag it to the bookmarks bar. If the bookmarks bar is hidden, press Ctrl + Shift + B.",
-    browserStep2Title: "Open a job detail page",
-    browserStep2Body: "Log in on the official job site and open one specific job page. Do not import a search results list.",
-    browserStep3Title: "Import, then read it here",
-    browserStep3Body: "Click the saved bookmark on the job page. A new local tab opens. Come back here and load the imported job.",
-    extensionTitle: "Better login flow: Chrome extension",
-    extensionBody: "Install the local browser-extension folder once. After that, open any logged-in job page and click the extension icon; it imports the page using your current browser session.",
-    extensionPath: "Extension folder: browser-extension",
+    browserImportTitle: "Open a dedicated login browser",
+    browserImportBody: "No extension needed. The app opens a browser window, you log in there once, and the login state is stored locally for future reads.",
+    browserStep1Title: "Open the job link",
+    browserStep1Body: "Click the button below. The app opens the job page in a dedicated browser window.",
+    browserStep2Title: "Log in if needed",
+    browserStep2Body: "If LinkedIn, Seek, Boss, or Liepin asks for login, log in inside that browser and stay on the job detail page.",
+    browserStep3Title: "Read current page",
+    browserStep3Body: "Come back here and read the current browser page. If your resume is ready, materials will be generated automatically.",
+    openLoginBrowser: "Open login browser",
+    openingLoginBrowser: "Opening...",
+    readLoginBrowser: "Read current page and generate",
+    readingLoginBrowser: "Reading...",
+    loginBrowserOpenSuccess: "Login browser opened. Log in there if needed, open the job detail page, then return here and read the current page.",
+    loginBrowserReadSuccess: "Read the logged-in browser page and generated materials.",
+    loginBrowserInstallMissing: "Playwright is not installed. Run .\\start-webui.ps1 -Install, then restart the app.",
     bookmarkletLabel: "Drag me to bookmarks",
     copyBookmarklet: "Copy script backup",
     bookmarkletCopied: "Bookmarklet copied",
@@ -184,9 +188,9 @@ const translations = {
     applyingSelected: "Reading and generating...",
     openOriginalJob: "Open job page",
     quickApplySuccess: "Generated materials from the job link.",
-    quickApplyFallback: "This site needs login or blocks automatic reading. I opened the job page. After logging in, use the Chrome extension to import it, or copy the JD into the description box below.",
+    quickApplyFallback: "This site needs login or blocks automatic reading. I opened it in the dedicated login browser. Log in there, stay on the job detail page, then return here and read the current page.",
     quickApplyMissing: "This email lead does not include a job link. Paste the JD below to generate materials.",
-    selectedJobActionHint: "Best path: read the job link first. If the site blocks access, open the page and paste the JD.",
+    selectedJobActionHint: "Best path: read the job link first. If login is required, the app opens a dedicated login browser.",
     manualJobTitle: "Job title",
     manualCompany: "Company",
     manualLocation: "Location",
@@ -287,7 +291,7 @@ const translations = {
     scanSuccess: "分析完成，已生成新的求职材料。",
     scanError: "分析失败。",
     manualTitle: "添加岗位 JD",
-    manualSubtitle: "选择岗位从哪里来。需要登录的网站，用下面的“登录后导入”流程。",
+    manualSubtitle: "选择岗位从哪里来。需要登录的网站，用下面的专用登录浏览器读取。",
     autoMode: "自动读取",
     browserMode: "登录后导入",
     manualMode: "手动粘贴",
@@ -297,17 +301,21 @@ const translations = {
     autoMissing: "请先粘贴岗位链接。",
     autoError: "这个链接暂时无法自动读取。部分网站需要登录或会阻止抓取，请切换到手动粘贴。",
     autoHint: "公司官网和公开招聘页通常更容易读取；LinkedIn 可能需要手动粘贴。",
-    browserImportTitle: "适合 LinkedIn / Seek / Boss / 猎聘这类需要登录的网站",
-    browserImportBody: "推荐先安装 Chrome 扩展，只需要一次。暂时不想安装扩展时，再用下面的书签备用方案。",
-    browserStep1Title: "备用：把书签按钮拖到书签栏",
-    browserStep1Body: "按住绿色按钮，拖到浏览器顶部书签栏。看不到书签栏就按 Ctrl + Shift + B。",
-    browserStep2Title: "打开一个具体岗位页",
-    browserStep2Body: "去招聘平台官网登录，打开某一个岗位详情页。不要在搜索列表页导入。",
-    browserStep3Title: "点书签，再回这里读取",
-    browserStep3Body: "在岗位页面点击书签栏里的导入按钮。它会打开本地页面，然后回到这里读取岗位。",
-    extensionTitle: "更顺的登录方案：Chrome 扩展",
-    extensionBody: "把项目里的 browser-extension 文件夹作为 Chrome 扩展安装一次。之后打开任何已登录的岗位页，点扩展图标，就会用当前浏览器登录态导入岗位。",
-    extensionPath: "扩展文件夹：browser-extension",
+    browserImportTitle: "打开专用登录浏览器",
+    browserImportBody: "不需要安装扩展。系统会打开一个浏览器窗口，你在里面登录一次，登录状态会保存在本地，之后同平台可以继续复用。",
+    browserStep1Title: "打开岗位链接",
+    browserStep1Body: "点击下面按钮，系统会把岗位页打开到专用浏览器里。",
+    browserStep2Title: "如果需要，就在里面登录",
+    browserStep2Body: "LinkedIn、Seek、Boss、猎聘要求登录时，只在这个浏览器窗口里登录，并停留在岗位详情页。",
+    browserStep3Title: "回到这里读取当前页面",
+    browserStep3Body: "点读取后会抓取专用浏览器当前页面。如果简历已准备好，会直接生成申请材料。",
+    openLoginBrowser: "打开登录浏览器",
+    openingLoginBrowser: "打开中...",
+    readLoginBrowser: "读取当前页面并生成",
+    readingLoginBrowser: "读取中...",
+    loginBrowserOpenSuccess: "登录浏览器已打开。如果页面要求登录，请在里面登录并打开岗位详情页，然后回到这里读取当前页面。",
+    loginBrowserReadSuccess: "已读取登录浏览器里的岗位页面，并生成申请材料。",
+    loginBrowserInstallMissing: "Playwright 尚未安装。请执行 .\\start-webui.ps1 -Install 后重启项目。",
     bookmarkletLabel: "拖我到书签栏",
     copyBookmarklet: "复制脚本备用",
     bookmarkletCopied: "书签脚本已复制",
@@ -321,9 +329,9 @@ const translations = {
     applyingSelected: "读取并生成中...",
     openOriginalJob: "打开岗位网页",
     quickApplySuccess: "已根据岗位链接生成申请材料。",
-    quickApplyFallback: "这个网站需要登录或阻止自动读取。我已经打开岗位网页。登录后可以用 Chrome 扩展一键导入；如果没装扩展，就把 JD 复制到下方描述框再生成材料。",
+    quickApplyFallback: "这个网站需要登录或阻止自动读取。我已经用专用登录浏览器打开它。请在那个窗口登录并停留在岗位详情页，然后回到这里读取当前页面。",
     quickApplyMissing: "这封邮件里没有岗位链接。请把 JD 粘贴到下方后生成材料。",
-    selectedJobActionHint: "推荐流程：先自动读取岗位链接；读不到时，再打开网页复制 JD。",
+    selectedJobActionHint: "推荐流程：先自动读取岗位链接；如果需要登录，系统会打开专用登录浏览器。",
     manualJobTitle: "岗位名称",
     manualCompany: "公司",
     manualLocation: "地点",
@@ -589,6 +597,7 @@ function App() {
   const [jobFetchStatus, setJobFetchStatus] = useState<AsyncStatus>("idle");
   const [importStatus, setImportStatus] = useState<AsyncStatus>("idle");
   const [selectedApplyStatus, setSelectedApplyStatus] = useState<AsyncStatus>("idle");
+  const [browserOpenStatus, setBrowserOpenStatus] = useState<AsyncStatus>("idle");
   const [jobInputMode, setJobInputMode] = useState<JobInputMode>("auto");
   const [manualJob, setManualJob] = useState<ManualJobForm>({
     title: "",
@@ -878,6 +887,80 @@ function App() {
     }
   }
 
+  async function openLoginBrowser(urlOverride?: string, successMessage: string = t.loginBrowserOpenSuccess) {
+    const targetUrl = (urlOverride ?? manualJob.url).trim();
+    if (!targetUrl) {
+      setBrowserOpenStatus("error");
+      setMessage(t.autoMissing);
+      return false;
+    }
+
+    setBrowserOpenStatus("running");
+    setManualStatus("idle");
+    setRunStatus("idle");
+    setUploadStatus("idle");
+    setJobFetchStatus("idle");
+    setImportStatus("idle");
+    setSelectedApplyStatus("idle");
+    setJobInputMode("browser");
+    setMessage("");
+    try {
+      const response = await fetch(`${API_BASE}/api/browser-session/open`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: targetUrl })
+      });
+      if (!response.ok) throw new Error(await parseApiError(response));
+      const payload = (await response.json()) as { ok: boolean; detail?: string };
+      if (!payload.ok) throw new Error(payload.detail || t.loginBrowserInstallMissing);
+      setManualJob((current) => ({ ...current, url: targetUrl }));
+      setBrowserOpenStatus("success");
+      setMessage(successMessage);
+      return true;
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : t.loginBrowserInstallMissing;
+      setBrowserOpenStatus("error");
+      setMessage(rawMessage.includes("Playwright") ? t.loginBrowserInstallMissing : rawMessage);
+      return false;
+    }
+  }
+
+  async function readLoginBrowserJob() {
+    setImportStatus("running");
+    setBrowserOpenStatus("idle");
+    setManualStatus("idle");
+    setRunStatus("idle");
+    setUploadStatus("idle");
+    setJobFetchStatus("idle");
+    setSelectedApplyStatus("idle");
+    setMessage("");
+    try {
+      const response = await fetch(`${API_BASE}/api/browser-session/import-current`, { method: "POST" });
+      if (!response.ok) throw new Error(await parseApiError(response));
+      const payload = (await response.json()) as { ok: boolean; detail?: string; job?: JobUrlPreview };
+      if (!payload.ok || !payload.job) throw new Error(payload.detail || t.importedEmpty);
+      const imported = payload.job;
+      const job = {
+        title: imported.title,
+        company: imported.company,
+        location: imported.location,
+        url: imported.url,
+        description: imported.description
+      };
+      setManualJob(job);
+      if (resume?.exists && job.description.trim().length >= 20) {
+        await requestManualJobRun(job);
+        setManualStatus("success");
+      }
+      setImportStatus("success");
+      setMessage(t.loginBrowserReadSuccess);
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : t.importedEmpty;
+      setImportStatus("error");
+      setMessage(rawMessage.includes("Playwright") ? t.loginBrowserInstallMissing : rawMessage);
+    }
+  }
+
   function readSelectedJobUrl() {
     const lead = selected?.scored_lead.lead;
     if (!lead?.url) return;
@@ -939,11 +1022,10 @@ function App() {
     } catch (error) {
       setJobFetchStatus("error");
       setSelectedApplyStatus("error");
-      setJobInputMode("manual");
+      setJobInputMode("browser");
       setManualJob(baseJob);
-      window.open(lead.url, "_blank", "noopener,noreferrer");
+      await openLoginBrowser(lead.url, t.quickApplyFallback);
       document.getElementById("manual")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      setMessage(t.quickApplyFallback);
     }
   }
 
@@ -965,6 +1047,7 @@ function App() {
     setJobFetchStatus("idle");
     setImportStatus("idle");
     setSelectedApplyStatus("idle");
+    setBrowserOpenStatus("idle");
     setMessage("");
     try {
       await requestManualJobRun(manualJob);
@@ -1226,49 +1309,39 @@ function App() {
                     <h3 className="text-base font-semibold">{t.browserImportTitle}</h3>
                     <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">{t.browserImportBody}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void loadImportedJob()}
-                    disabled={importStatus === "running"}
-                    className="primary-action inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {importStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    {importStatus === "running" ? t.loadingImported : t.loadImported}
-                  </button>
+                  <div className="flex flex-wrap gap-2 lg:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => void openLoginBrowser()}
+                      disabled={browserOpenStatus === "running"}
+                      className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {browserOpenStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                      {browserOpenStatus === "running" ? t.openingLoginBrowser : t.openLoginBrowser}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void readLoginBrowserJob()}
+                      disabled={importStatus === "running"}
+                      className="primary-action inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {importStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                      {importStatus === "running" ? t.readingLoginBrowser : t.readLoginBrowser}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid gap-3 lg:grid-cols-3">
-                  <div className="rounded-md border border-emerald-200 bg-white/90 p-3 shadow-sm lg:col-span-3">
-                    <div className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700">
-                      <ShieldCheck className="h-4 w-4" />
-                      {t.extensionTitle}
-                    </div>
-                    <p className="text-sm leading-6 text-muted">{t.extensionBody}</p>
-                    <div className="mt-2 inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-                      {t.extensionPath}
-                    </div>
-                  </div>
-
                   <BrowserImportStep step="1" title={t.browserStep1Title} body={t.browserStep1Body}>
-                    <div className="flex flex-wrap gap-2">
-                      <a
-                        ref={bookmarkletRef}
-                        href="#manual"
-                        onClick={(event) => event.preventDefault()}
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        {t.bookmarkletLabel}
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => void copyText("bookmarklet", JOB_IMPORT_BOOKMARKLET_HREF)}
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-blue-200 hover:bg-blue-50"
-                      >
-                        {copiedKey === "bookmarklet" ? <Check className="h-4 w-4 text-success" /> : <Clipboard className="h-4 w-4" />}
-                        {copiedKey === "bookmarklet" ? t.bookmarkletCopied : t.copyBookmarklet}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void openLoginBrowser()}
+                      disabled={browserOpenStatus === "running"}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {browserOpenStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                      {browserOpenStatus === "running" ? t.openingLoginBrowser : t.openLoginBrowser}
+                    </button>
                   </BrowserImportStep>
 
                   <BrowserImportStep step="2" title={t.browserStep2Title} body={t.browserStep2Body}>
@@ -1284,12 +1357,12 @@ function App() {
                   <BrowserImportStep step="3" title={t.browserStep3Title} body={t.browserStep3Body}>
                     <button
                       type="button"
-                      onClick={() => void loadImportedJob()}
+                      onClick={() => void readLoginBrowserJob()}
                       disabled={importStatus === "running"}
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-3 text-sm font-semibold text-accent hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {importStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      {importStatus === "running" ? t.loadingImported : t.loadImported}
+                      {importStatus === "running" ? t.readingLoginBrowser : t.readLoginBrowser}
                     </button>
                   </BrowserImportStep>
                 </div>
@@ -1302,7 +1375,7 @@ function App() {
               <TextField label={t.manualLocation} value={manualJob.location} onChange={(value) => updateManualJob("location", value)} />
             </div>
 
-            {jobInputMode === "manual" && (
+            {(jobInputMode === "manual" || jobInputMode === "browser") && (
               <div className="mt-3">
                 <TextField label={t.manualUrl} value={manualJob.url} onChange={(value) => updateManualJob("url", value)} />
               </div>
@@ -1327,7 +1400,8 @@ function App() {
                 manualStatus === "error" ||
                 jobFetchStatus === "error" ||
                 importStatus === "error" ||
-                selectedApplyStatus === "error"
+                selectedApplyStatus === "error" ||
+                browserOpenStatus === "error"
                   ? "border-amber-200 bg-amber-50 text-amber-800"
                   : "border-emerald-200 bg-emerald-50 text-emerald-800"
               }`}

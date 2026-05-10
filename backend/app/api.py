@@ -13,6 +13,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from backend.app.rag.resume_index import build_resume_index, extract_pdf_text, load_resume_index, save_resume_index
+from backend.app.services.browser_session import BrowserSessionError, import_current_browser_job, open_login_browser
 from backend.app.services.imported_jobs import load_latest_imported_job, save_imported_job
 from backend.app.services.job_url_reader import JobUrlReadError, read_job_posting_from_url
 from backend.app.services.job_agent import default_agent_output_dir, run_job_application_agent
@@ -58,6 +59,10 @@ class ManualJobRequest(BaseModel):
 
 
 class JobUrlPreviewRequest(BaseModel):
+    url: str = Field(min_length=8, max_length=500)
+
+
+class BrowserOpenRequest(BaseModel):
     url: str = Field(min_length=8, max_length=500)
 
 
@@ -302,6 +307,27 @@ def latest_imported_job() -> dict[str, Any]:
     if not imported:
         return {"ok": False, "detail": "No imported job found"}
     return {"ok": True, "job": imported}
+
+
+@app.post("/api/browser-session/open")
+async def open_browser_session(request: BrowserOpenRequest) -> dict[str, Any]:
+    try:
+        page = await open_login_browser(request.url, PRIVATE_DATA_DIR)
+        return {"ok": True, "page": page}
+    except ValueError as exc:
+        return {"ok": False, "detail": str(exc)}
+    except BrowserSessionError as exc:
+        return {"ok": False, "detail": str(exc)}
+
+
+@app.post("/api/browser-session/import-current")
+async def import_current_browser_page() -> dict[str, Any]:
+    try:
+        payload = await import_current_browser_job(PRIVATE_DATA_DIR)
+        imported = save_imported_job(payload, PRIVATE_DATA_DIR)
+        return {"ok": True, "job": imported}
+    except BrowserSessionError as exc:
+        return {"ok": False, "detail": str(exc)}
 
 
 @app.get("/api/runs/latest")

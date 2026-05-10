@@ -107,8 +107,7 @@ http://127.0.0.1:5173
 2. 选择一种岗位来源：
    - 扫描 QQ 邮箱里的求职邮件。
    - 或在“岗位来源”里用自动模式读取岗位链接。
-   - 如果网站需要登录，推荐安装一次 `browser-extension` Chrome 扩展。之后在招聘平台官网登录并打开岗位详情页，点击扩展图标即可导入岗位。
-   - 如果暂时不想安装扩展，可以使用“登录后导入”里的书签备用方案。
+   - 如果网站需要登录，用“登录后导入”：系统会打开一个专用登录浏览器。你在里面登录一次，打开岗位详情页，再回 Web UI 点“读取当前页面并生成”。
    - 如果自动读取和登录后导入都不方便，再切换到手动模式粘贴 JD。
 3. 点击生成或分析。
 4. 在推荐职位里选择一个岗位，优先点击“读取链接并生成材料”。
@@ -137,6 +136,7 @@ npm run build
 
 | 日期 | 更新重点 |
 | --- | --- |
+| 2026-05-10 | 新增专用登录浏览器：自动读取岗位链接失败时，可以打开一个本地浏览器让用户登录，再读取当前岗位页并生成材料，不需要安装扩展。 |
 | 2026-05-10 | 优化邮件扫描后的主流程：推荐职位详情页新增“读取链接并生成材料”，优先自动读取邮件里的岗位链接；失败时再引导用户打开原网页并粘贴 JD。 |
 | 2026-05-10 | 重构“登录后导入”界面：改成三步操作卡片，明确提示“先拖到书签栏、再去岗位页点击、最后回本页读取”。 |
 | 2026-05-10 | 新增 Windows 一键启动脚本：双击 `start-webui.bat` 或执行 `.\start-webui.ps1` 即可启动后端、前端并打开 Web UI。 |
@@ -166,6 +166,7 @@ flowchart LR
 
 - Backend: Python, FastAPI, local file storage.
 - Frontend: React, TypeScript, Vite.
+- Logged-in page reading: Playwright persistent browser profile stored under `data/private/`.
 - Resume parsing: PDF text extraction and local evidence indexing.
 - Matching: rule-based resume-job scoring with cross-language keyword support.
 - Agent workflow: input collection, structured parsing, retrieval, drafting, and human approval.
@@ -186,8 +187,6 @@ docs/
   architecture.md          # Architecture notes
 frontend/
   src/App.tsx              # Bilingual React Web UI
-browser-extension/
-  manifest.json            # Chrome extension for logged-in job page import
 tests/
 ```
 

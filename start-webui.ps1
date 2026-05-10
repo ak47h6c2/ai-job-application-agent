@@ -47,6 +47,13 @@ Set-Location -LiteralPath $Root
 Write-Host "AI Job Application Agent quick start" -ForegroundColor Cyan
 Write-Host "Project: $Root"
 
+if ($Install) {
+    Write-Host "Installing backend dependencies..." -ForegroundColor Yellow
+    python -m pip install -e .
+    Write-Host "Installing Playwright browser runtime..." -ForegroundColor Yellow
+    python -m playwright install chromium
+}
+
 if ($Install -or -not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
     Write-Host "Installing frontend dependencies..." -ForegroundColor Yellow
     Push-Location $FrontendDir
