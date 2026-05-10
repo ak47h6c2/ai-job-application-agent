@@ -150,9 +150,9 @@ const translations = {
     scanSuccess: "New job analysis generated.",
     scanError: "Scan failed.",
     manualTitle: "Add a job post",
-    manualSubtitle: "Choose the least manual route: read a public link, import from a logged-in browser page, or paste the JD yourself.",
+    manualSubtitle: "Choose how to bring in a job post. For logged-in sites, use the browser import flow below.",
     autoMode: "Auto read",
-    browserMode: "Browser import",
+    browserMode: "Logged-in import",
     manualMode: "Manual paste",
     autoFetch: "Read job link",
     autoFetching: "Reading...",
@@ -160,12 +160,18 @@ const translations = {
     autoMissing: "Paste a job link first.",
     autoError: "Could not read this link automatically. Some sites require login or block automated reading. Use manual paste mode.",
     autoHint: "Best for public company career pages and job boards. LinkedIn may require manual paste.",
-    browserImportTitle: "Login on the official site",
-    browserImportBody: "Drag the bookmarklet to your bookmarks bar. Log in on LinkedIn, Seek, Boss, Liepin, or a company career site, open a job page, then click the bookmarklet.",
-    bookmarkletLabel: "Import job to agent",
-    copyBookmarklet: "Copy bookmarklet",
+    browserImportTitle: "Use this when a job site requires login",
+    browserImportBody: "Do not click the import button here. Drag it to the browser bookmarks bar first, then use it on the real job page.",
+    browserStep1Title: "Drag the import button",
+    browserStep1Body: "Hold the green button and drag it to the bookmarks bar. If the bookmarks bar is hidden, press Ctrl + Shift + B.",
+    browserStep2Title: "Open a job detail page",
+    browserStep2Body: "Log in on the official job site and open one specific job page. Do not import a search results list.",
+    browserStep3Title: "Import, then read it here",
+    browserStep3Body: "Click the saved bookmark on the job page. A new local tab opens. Come back here and load the imported job.",
+    bookmarkletLabel: "Drag me to bookmarks",
+    copyBookmarklet: "Copy script backup",
     bookmarkletCopied: "Bookmarklet copied",
-    loadImported: "Load latest import",
+    loadImported: "I imported it, load job",
     loadingImported: "Loading import...",
     importedSuccess: "Imported job loaded. Check the fields, then generate materials.",
     importedEmpty: "No imported job found yet. Open a job page and click the bookmarklet first.",
@@ -271,9 +277,9 @@ const translations = {
     scanSuccess: "分析完成，已生成新的求职材料。",
     scanError: "分析失败。",
     manualTitle: "添加岗位 JD",
-    manualSubtitle: "尽量减少手动操作：公开链接直接读，需要登录的网页用书签导入，实在不行再手动粘贴。",
+    manualSubtitle: "选择岗位从哪里来。需要登录的网站，用下面的“登录后导入”流程。",
     autoMode: "自动读取",
-    browserMode: "网页登录导入",
+    browserMode: "登录后导入",
     manualMode: "手动粘贴",
     autoFetch: "读取岗位链接",
     autoFetching: "读取中...",
@@ -281,12 +287,18 @@ const translations = {
     autoMissing: "请先粘贴岗位链接。",
     autoError: "这个链接暂时无法自动读取。部分网站需要登录或会阻止抓取，请切换到手动粘贴。",
     autoHint: "公司官网和公开招聘页通常更容易读取；LinkedIn 可能需要手动粘贴。",
-    browserImportTitle: "在招聘平台官网登录后导入",
-    browserImportBody: "把下面的书签按钮拖到浏览器书签栏。然后在 LinkedIn、Seek、Boss、猎聘或公司官网登录，打开岗位页面，再点击这个书签。",
-    bookmarkletLabel: "导入岗位到助手",
-    copyBookmarklet: "复制书签脚本",
+    browserImportTitle: "适合 LinkedIn / Seek / Boss / 猎聘这类需要登录的网站",
+    browserImportBody: "不要直接点下面的绿色按钮。先把它拖到浏览器书签栏，之后在真实岗位页面上点击这个书签。",
+    browserStep1Title: "把导入按钮拖到书签栏",
+    browserStep1Body: "按住绿色按钮，拖到浏览器顶部书签栏。看不到书签栏就按 Ctrl + Shift + B。",
+    browserStep2Title: "打开一个具体岗位页",
+    browserStep2Body: "去招聘平台官网登录，打开某一个岗位详情页。不要在搜索列表页导入。",
+    browserStep3Title: "点书签，再回这里读取",
+    browserStep3Body: "在岗位页面点击书签栏里的导入按钮。它会打开本地页面，然后回到这里读取岗位。",
+    bookmarkletLabel: "拖我到书签栏",
+    copyBookmarklet: "复制脚本备用",
     bookmarkletCopied: "书签脚本已复制",
-    loadImported: "读取最近导入",
+    loadImported: "我已导入，读取岗位",
     loadingImported: "读取中...",
     importedSuccess: "已读取最近导入的岗位，请检查字段后生成申请材料。",
     importedEmpty: "还没有导入岗位。请先打开岗位页面并点击书签。",
@@ -1102,34 +1114,61 @@ function App() {
             )}
 
             {jobInputMode === "browser" && (
-              <div className="mb-4 rounded-md border border-emerald-100 bg-emerald-50/70 p-3">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="max-w-3xl">
-                    <div className="mb-2 inline-flex items-center gap-2 rounded-md bg-white/80 px-2 py-1 text-xs font-semibold text-emerald-700">
+              <div className="mb-4 rounded-md border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-4">
+                <div className="mb-4 flex flex-col gap-3 border-b border-emerald-100 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="mb-2 inline-flex items-center gap-2 rounded-md bg-white px-2 py-1 text-xs font-semibold text-emerald-700 shadow-sm ring-1 ring-emerald-100">
                       <ShieldCheck className="h-3.5 w-3.5" />
                       {t.credentialSafety}
                     </div>
-                    <h3 className="text-sm font-semibold">{t.browserImportTitle}</h3>
-                    <p className="mt-1 text-sm leading-6 text-muted">{t.browserImportBody}</p>
+                    <h3 className="text-base font-semibold">{t.browserImportTitle}</h3>
+                    <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">{t.browserImportBody}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2 lg:justify-end">
-                    <a
-                      ref={bookmarkletRef}
-                      href="#manual"
-                      onClick={(event) => event.preventDefault()}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-emerald-200 bg-white px-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      {t.bookmarkletLabel}
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => void copyText("bookmarklet", JOB_IMPORT_BOOKMARKLET_HREF)}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-blue-200 hover:bg-blue-50"
-                    >
-                      {copiedKey === "bookmarklet" ? <Check className="h-4 w-4 text-success" /> : <Clipboard className="h-4 w-4" />}
-                      {copiedKey === "bookmarklet" ? t.bookmarkletCopied : t.copyBookmarklet}
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => void loadImportedJob()}
+                    disabled={importStatus === "running"}
+                    className="primary-action inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {importStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    {importStatus === "running" ? t.loadingImported : t.loadImported}
+                  </button>
+                </div>
+
+                <div className="grid gap-3 lg:grid-cols-3">
+                  <BrowserImportStep step="1" title={t.browserStep1Title} body={t.browserStep1Body}>
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        ref={bookmarkletRef}
+                        href="#manual"
+                        onClick={(event) => event.preventDefault()}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        {t.bookmarkletLabel}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => void copyText("bookmarklet", JOB_IMPORT_BOOKMARKLET_HREF)}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-blue-200 hover:bg-blue-50"
+                      >
+                        {copiedKey === "bookmarklet" ? <Check className="h-4 w-4 text-success" /> : <Clipboard className="h-4 w-4" />}
+                        {copiedKey === "bookmarklet" ? t.bookmarkletCopied : t.copyBookmarklet}
+                      </button>
+                    </div>
+                  </BrowserImportStep>
+
+                  <BrowserImportStep step="2" title={t.browserStep2Title} body={t.browserStep2Body}>
+                    <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">LinkedIn</span>
+                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">Seek</span>
+                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">Boss</span>
+                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">猎聘</span>
+                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">{language === "zh" ? "公司官网" : "Company site"}</span>
+                    </div>
+                  </BrowserImportStep>
+
+                  <BrowserImportStep step="3" title={t.browserStep3Title} body={t.browserStep3Body}>
                     <button
                       type="button"
                       onClick={() => void loadImportedJob()}
@@ -1139,7 +1178,7 @@ function App() {
                       {importStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                       {importStatus === "running" ? t.loadingImported : t.loadImported}
                     </button>
-                  </div>
+                  </BrowserImportStep>
                 </div>
               </div>
             )}
@@ -1430,6 +1469,21 @@ function ModeButton({ active, label, onClick }: { active: boolean; label: string
     >
       {label}
     </button>
+  );
+}
+
+function BrowserImportStep({ step, title, body, children }: { step: string; title: string; body: string; children: ReactNode }) {
+  return (
+    <section className="rounded-md border border-white/80 bg-white/80 p-3 shadow-sm">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-600 text-sm font-bold text-white">
+          {step}
+        </div>
+        <h4 className="text-sm font-semibold">{title}</h4>
+      </div>
+      <p className="mb-3 text-sm leading-6 text-muted">{body}</p>
+      {children}
+    </section>
   );
 }
 

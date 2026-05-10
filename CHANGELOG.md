@@ -4,6 +4,7 @@
 
 ### English
 
+- Reworked the logged-in browser import UI into a three-step card flow: drag the import button to the bookmarks bar, use it on a real job detail page, then return to the Web UI to load the imported role.
 - Added Windows quick-start scripts: `start-webui.bat` for double-click launch and `start-webui.ps1` for PowerShell launch, including backend/frontend readiness checks and browser opening.
 - Added a logged-in browser import mode for job descriptions: users log in on LinkedIn, Seek, Boss, Liepin, or a company career site, open a job page, and use a bookmarklet to send the current job text to the local agent.
 - Added `POST /api/imported-jobs` and `POST /api/imported-jobs/form` for saving browser-imported job posts locally without storing platform credentials.
@@ -18,6 +19,7 @@
 
 ### 中文
 
+- 重构“登录后导入”界面：从说明文字改成三步操作卡片，明确告诉用户先拖按钮到书签栏，再去真实岗位页点击书签，最后回到 Web UI 读取岗位。
 - 新增 Windows 一键启动脚本：可以双击 `start-webui.bat`，也可以在 PowerShell 执行 `.\start-webui.ps1`，脚本会检查后端/前端是否启动并自动打开浏览器。
 - 新增“网页登录导入”模式：用户在 LinkedIn、Seek、Boss、猎聘或公司官网登录后，打开岗位页面，通过书签按钮把当前岗位文本发送到本地助手。
 - 新增 `POST /api/imported-jobs` 和 `POST /api/imported-jobs/form`，用于保存浏览器导入的岗位信息，不保存招聘平台账号密码。
