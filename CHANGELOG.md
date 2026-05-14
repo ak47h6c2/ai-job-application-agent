@@ -10,6 +10,7 @@
 - Renamed the two confusing "generate materials" actions into separate "create draft from this JD" and "read job details" tasks.
 - Added a three-path entry panel for scanning email jobs, creating a draft from one JD, and reviewing drafts.
 - Added a current-result summary with next-step links so users land on the active report before browsing history.
+- Moved run history below the active report so the main reading order stays focused on the current result.
 - Fixed a React duplicate-key warning when two job leads share the same company and title.
 
 ### 中文
@@ -20,6 +21,7 @@
 - 将两个容易混淆的“生成申请材料”入口拆成“按当前 JD 生成草稿”和“读取岗位详情”两个任务。
 - 增加“三条主路径”入口：扫描邮箱找岗位、单个 JD 生成草稿、查看申请草稿。
 - 增加“当前结果”摘要和下一步入口，让用户先看本次报告，再按需打开历史记录。
+- 将历史记录下移到当前报告之后，避免旧报告打断主流程。
 - 修复当两个岗位线索公司和标题相同时可能出现的 React key 警告。
 
 ## 2026-05-10

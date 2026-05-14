@@ -1576,46 +1576,7 @@ function App() {
             </section>
           )}
 
-          <section id="history" className="surface-panel fade-lift rounded-md p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold">{t.recentRuns}</h2>
-                <p className="mt-1 text-xs leading-5 text-muted">{t.historyHint}</p>
-              </div>
-              <span className="text-xs font-semibold text-muted">
-                {runs.length} {t.runsCount}
-              </span>
-            </div>
-            {visibleRuns.length ? (
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                {visibleRuns.map((item) => (
-                  <button
-                    type="button"
-                    key={item.id}
-                    onClick={() => void loadRun(item.id)}
-                    className={`rounded-md border p-3 text-left transition ${
-                      run?.id === item.id ? "border-accent bg-blue-50" : "border-line bg-white/80 hover:border-blue-200 hover:bg-blue-50/60"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold" title={item.id}>
-                        {displayRunId(item.id)}
-                      </span>
-                      {run?.id === item.id && <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-accent">{t.selected}</span>}
-                    </div>
-                    <p className="mt-1 text-xs text-muted">
-                      {t.updated} {formatModified(item.modified_at, language)}
-                    </p>
-                    <p className="mt-2 text-xs text-muted">
-                      {item.selected_job_count} {t.jobs} · {item.draft_count} {t.drafts}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="rounded-md border border-line bg-white/70 p-3 text-sm text-muted">{t.emptyBody}</p>
-            )}
-          </section>
+
 
           {state === "loading" && !run && <StatePanel title={t.loading} body="" loading />}
           {state === "error" && !run && <StatePanel title={t.apiError} body={t.emptyBody} />}
@@ -1799,6 +1760,47 @@ function App() {
               </section>
             </>
           )}
+
+          <section id="history" className="surface-panel fade-lift rounded-md p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold">{t.recentRuns}</h2>
+                <p className="mt-1 text-xs leading-5 text-muted">{t.historyHint}</p>
+              </div>
+              <span className="text-xs font-semibold text-muted">
+                {runs.length} {t.runsCount}
+              </span>
+            </div>
+            {visibleRuns.length ? (
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                {visibleRuns.map((item) => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onClick={() => void loadRun(item.id)}
+                    className={`rounded-md border p-3 text-left transition ${
+                      run?.id === item.id ? "border-accent bg-blue-50" : "border-line bg-white/80 hover:border-blue-200 hover:bg-blue-50/60"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold" title={item.id}>
+                        {displayRunId(item.id)}
+                      </span>
+                      {run?.id === item.id && <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-accent">{t.selected}</span>}
+                    </div>
+                    <p className="mt-1 text-xs text-muted">
+                      {t.updated} {formatModified(item.modified_at, language)}
+                    </p>
+                    <p className="mt-2 text-xs text-muted">
+                      {item.selected_job_count} {t.jobs} · {item.draft_count} {t.drafts}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-md border border-line bg-white/70 p-3 text-sm text-muted">{t.emptyBody}</p>
+            )}
+          </section>
         </section>
       </div>
     </main>
