@@ -257,8 +257,10 @@ const translations = {
     apiError: "API is not available. Check that the FastAPI server is running.",
     timeline: "Workflow",
     selectedJobs: "Shortlist",
+    selectedJobsHint: "Click a job to show its details and matching materials.",
     selectedJobDetail: "Selected job details",
     selectedJobDetailBody: "Confirm the full JD here before reviewing or copying drafts.",
+    viewJobDetail: "View details",
     shortlistCount: "shortlisted",
     open: "Open",
     resumeEvidence: "Evidence",
@@ -433,8 +435,10 @@ const translations = {
     apiError: "本地服务未连接，请确认后端正在运行。",
     timeline: "处理进度",
     selectedJobs: "推荐职位",
+    selectedJobsHint: "点击岗位查看详情和对应材料。",
     selectedJobDetail: "当前岗位详情",
     selectedJobDetailBody: "先确认这里是完整 JD，再去检查和复制草稿。",
+    viewJobDetail: "查看详情",
     shortlistCount: "个推荐",
     open: "打开",
     resumeEvidence: "简历依据",
@@ -1605,8 +1609,11 @@ function App() {
             <>
               <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(420px,1.15fr)]">
                 <div id="jobs" className="surface-panel rounded-md p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h2 className="text-base font-semibold">{t.selectedJobs}</h2>
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-base font-semibold">{t.selectedJobs}</h2>
+                      <p className="mt-1 text-xs leading-5 text-muted">{t.selectedJobsHint}</p>
+                    </div>
                     <span className="text-xs text-muted">
                       {run.selected_jobs.length} {language === "zh" ? t.shortlistCount : t.shortlistCount}
                     </span>
@@ -1620,6 +1627,7 @@ function App() {
                           <button
                             key={`${lead.company}-${lead.title}-${index}`}
                             type="button"
+                            aria-pressed={isSelected}
                             onClick={() => setSelectedIndex(index)}
                             className={`w-full rounded-md border p-3 text-left transition ${
                               isSelected ? "job-card-selected border-accent bg-blue-50" : "job-card border-line bg-white/85 hover:border-blue-200"
@@ -1627,6 +1635,12 @@ function App() {
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div>
+                                {isSelected && (
+                                  <span className="mb-2 inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs font-semibold text-accent ring-1 ring-blue-100">
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    {t.selected}
+                                  </span>
+                                )}
                                 <p className="text-sm font-semibold">{lead.title}</p>
                                 <p className="mt-1 text-xs text-muted">{lead.company}</p>
                                 <p className="mt-1 text-xs text-muted">{lead.location}</p>
@@ -1641,6 +1655,10 @@ function App() {
                                   {reasonName(reason, language)}
                                 </span>
                               ))}
+                            </div>
+                            <div className="mt-3 flex items-center justify-end text-xs font-semibold text-accent">
+                              {t.viewJobDetail}
+                              <ArrowRight className="ml-1 h-3.5 w-3.5" />
                             </div>
                           </button>
                         );
