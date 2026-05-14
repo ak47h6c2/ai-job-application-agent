@@ -12,6 +12,7 @@ import {
   Languages,
   Mail,
   Play,
+  ArrowRight,
   RefreshCw,
   ShieldCheck,
   SlidersHorizontal,
@@ -110,14 +111,14 @@ const translations = {
     productName: "AI Job Application Agent",
     headline: "Application workbench",
     subline: "Upload a resume, choose one path, then review drafts.",
-    pathPickerTitle: "Choose your path",
-    pathPickerBody: "Most users only need one path at a time.",
+    pathPickerTitle: "What do you want to do now?",
+    pathPickerBody: "Pick one entry and the page moves to that workspace.",
     pathMailTitle: "Scan email jobs",
-    pathMailBody: "Use this for QQ Mail job alerts and recruiter emails.",
-    pathJobTitle: "Single job JD",
-    pathJobBody: "Paste or read one job link, then create drafts.",
+    pathMailBody: "Find roles from QQ Mail",
+    pathJobTitle: "One job post",
+    pathJobBody: "Paste a link or JD",
     pathDraftTitle: "Review drafts",
-    pathDraftBody: "Check match evidence, cover letter, and recruiter message.",
+    pathDraftBody: "Check generated materials",
     pathOpen: "Go",
     mailPathTitle: "Scan emails for jobs",
     mailPathBody: "Find recent job leads from email, rank them, then draft for the best matches.",
@@ -285,14 +286,14 @@ const translations = {
     productName: "AI 求职申请助手",
     headline: "求职申请工作台",
     subline: "上传简历后，选择邮件扫描或单个 JD 路径，最后检查草稿。",
-    pathPickerTitle: "先选你要做什么",
-    pathPickerBody: "大多数时候只需要走其中一条路径，不必把所有按钮都点一遍。",
-    pathMailTitle: "扫描邮箱找岗位",
-    pathMailBody: "适合 QQ 邮箱里的岗位提醒、招聘邮件。",
-    pathJobTitle: "单个 JD 生成草稿",
-    pathJobBody: "适合已经有岗位链接或完整 JD 的情况。",
-    pathDraftTitle: "查看申请草稿",
-    pathDraftBody: "检查匹配依据、求职信和招聘方消息。",
+    pathPickerTitle: "你现在要做什么？",
+    pathPickerBody: "点一个入口，页面会直接跳到对应操作区。",
+    pathMailTitle: "扫描邮箱",
+    pathMailBody: "从 QQ 邮箱找岗位线索",
+    pathJobTitle: "单个岗位",
+    pathJobBody: "粘贴链接或 JD",
+    pathDraftTitle: "看申请草稿",
+    pathDraftBody: "检查已生成材料",
     pathOpen: "进入",
     mailPathTitle: "扫描邮箱找岗位",
     mailPathBody: "从近期邮件里找岗位线索，排序后给匹配度高的岗位生成草稿。",
@@ -1255,18 +1256,18 @@ function App() {
             </div>
           </header>
 
-          <section className="route-panel fade-lift rounded-md p-4" aria-label={t.pathPickerTitle}>
-            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <section className="route-panel flow-panel fade-lift rounded-md p-3" aria-label={t.pathPickerTitle}>
+            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.controls}</p>
-                <h2 className="mt-1 text-lg font-semibold">{t.pathPickerTitle}</h2>
+                <h2 className="mt-1 text-base font-semibold">{t.pathPickerTitle}</h2>
               </div>
-              <p className="max-w-xl text-sm leading-6 text-muted">{t.pathPickerBody}</p>
+              <p className="max-w-xl text-xs leading-5 text-muted">{t.pathPickerBody}</p>
             </div>
             <div className="grid gap-2 lg:grid-cols-3">
-              <PathLink href="#setup" icon={<Mail className="h-4 w-4" />} title={t.pathMailTitle} body={t.pathMailBody} action={t.pathOpen} />
-              <PathLink href="#manual" icon={<FileText className="h-4 w-4" />} title={t.pathJobTitle} body={t.pathJobBody} action={t.pathOpen} />
-              <PathLink href="#drafts" icon={<Clipboard className="h-4 w-4" />} title={t.pathDraftTitle} body={t.pathDraftBody} action={t.pathOpen} />
+              <PathLink step="1" href="#setup" icon={<Mail className="h-4 w-4" />} title={t.pathMailTitle} body={t.pathMailBody} />
+              <PathLink step="2" href="#manual" icon={<FileText className="h-4 w-4" />} title={t.pathJobTitle} body={t.pathJobBody} />
+              <PathLink step="3" href="#drafts" icon={<Clipboard className="h-4 w-4" />} title={t.pathDraftTitle} body={t.pathDraftBody} />
             </div>
           </section>
 
@@ -1276,35 +1277,6 @@ function App() {
                 <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.controls}</p>
                 <h2 className="mt-1 text-xl font-semibold">{t.headline}</h2>
                 <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">{t.subline}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <label
-                  aria-disabled={uploadStatus === "running"}
-                  className={`inline-flex h-10 items-center gap-2 rounded-md border border-line px-3 text-sm font-semibold text-ink transition ${
-                    uploadStatus === "running"
-                      ? "cursor-not-allowed bg-white/60 opacity-80"
-                      : "cursor-pointer bg-white/85 hover:border-blue-200 hover:bg-blue-50"
-                  }`}
-                >
-                  {uploadStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  {uploadStatus === "running" ? t.uploading : t.uploadResume}
-                  <input
-                    className="hidden"
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    disabled={uploadStatus === "running"}
-                    onChange={uploadResume}
-                  />
-                </label>
-                {uploadStatus === "running" && (
-                  <button
-                    type="button"
-                    onClick={cancelUpload}
-                    className="inline-flex h-10 items-center rounded-md border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800 hover:bg-amber-100"
-                  >
-                    {t.cancelUpload}
-                  </button>
-                )}
               </div>
             </div>
 
@@ -1330,14 +1302,44 @@ function App() {
                           : t.resumeMissing}
                       </p>
                     </div>
-                    <span
-                      className={`inline-flex w-fit rounded-md px-2 py-1 text-xs font-semibold ${
-                        resume?.exists ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : "bg-amber-50 text-amber-800 ring-1 ring-amber-100"
+                  <span
+                    className={`inline-flex w-fit rounded-md px-2 py-1 text-xs font-semibold ${
+                      resume?.exists ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : "bg-amber-50 text-amber-800 ring-1 ring-amber-100"
+                    }`}
+                  >
+                    {resume?.exists ? (language === "zh" ? "已准备" : "Ready") : language === "zh" ? "待上传" : "Missing"}
+                  </span>
+                </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <label
+                      aria-disabled={uploadStatus === "running"}
+                      className={`inline-flex h-10 items-center gap-2 rounded-md border border-line px-3 text-sm font-semibold text-ink transition ${
+                        uploadStatus === "running"
+                          ? "cursor-not-allowed bg-white/60 opacity-80"
+                          : "cursor-pointer bg-white hover:border-blue-200 hover:bg-blue-50"
                       }`}
                     >
-                      {resume?.exists ? (language === "zh" ? "已准备" : "Ready") : language === "zh" ? "待上传" : "Missing"}
-                    </span>
+                      {uploadStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      {uploadStatus === "running" ? t.uploading : t.uploadResume}
+                      <input
+                        className="hidden"
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        disabled={uploadStatus === "running"}
+                        onChange={uploadResume}
+                      />
+                    </label>
+                    {uploadStatus === "running" && (
+                      <button
+                        type="button"
+                        onClick={cancelUpload}
+                        className="inline-flex h-10 items-center rounded-md border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+                      >
+                        {t.cancelUpload}
+                      </button>
+                    )}
                   </div>
+                  {uploadStatus === "running" && <p className="mt-2 text-xs leading-5 text-muted">{t.uploadWorking}</p>}
                   {resume?.exists && Boolean(resume.keywords?.length) && (
                     <p className="mt-2 text-xs leading-5 text-muted">
                       {t.resumeKeywordsLabel}: <span className="text-ink">{joinList(resume.keywords?.slice(0, 6), language)}</span>
@@ -1858,28 +1860,29 @@ function ModeButton({ active, label, onClick }: { active: boolean; label: string
 }
 
 function PathLink({
+  step,
   href,
   icon,
   title,
-  body,
-  action
+  body
 }: {
+  step: string;
   href: string;
   icon: ReactNode;
   title: string;
   body: string;
-  action: string;
 }) {
   return (
-    <a href={href} className="path-link rounded-md px-3 py-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white text-accent shadow-sm ring-1 ring-line">
+    <a href={href} className="path-link rounded-md px-3 py-2.5">
+      <span className="path-step-number">{step}</span>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-accent shadow-sm ring-1 ring-line">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold text-ink">{title}</span>
-        <span className="mt-1 block text-xs leading-5 text-muted">{body}</span>
+        <span className="block truncate text-xs text-muted">{body}</span>
       </span>
-      <span className="shrink-0 text-xs font-semibold text-accent">{action}</span>
+      <ArrowRight className="h-4 w-4 shrink-0 text-accent" />
     </a>
   );
 }
