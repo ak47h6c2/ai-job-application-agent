@@ -23,6 +23,20 @@ body {
   min-width: 320px;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+#overview,
+#setup,
+#manual,
+#jobs,
+#job-detail,
+#drafts,
+#history {
+  scroll-margin-top: 24px;
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;
@@ -64,9 +78,10 @@ textarea:focus-visible {
   color: #ffffff;
 }
 
-.sidebar-panel nav a:first-child {
+.sidebar-panel nav a.nav-link-active {
   background: rgba(125, 211, 252, 0.16);
   color: #ffffff;
+  font-weight: 700;
 }
 
 .hero-panel {

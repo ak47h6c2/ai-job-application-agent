@@ -32,6 +32,16 @@ type Language = "en" | "zh";
 type LoadState = "loading" | "ready" | "empty" | "error";
 type AsyncStatus = "idle" | "running" | "success" | "error";
 type JobInputMode = "auto" | "browser" | "manual";
+type NavSection = "overview" | "setup" | "manual" | "jobs" | "drafts" | "history";
+
+const NAV_SECTIONS: NavSection[] = ["overview", "setup", "manual", "jobs", "drafts", "history"];
+const OBSERVED_SECTION_IDS = [...NAV_SECTIONS, "job-detail"];
+
+function navSectionFromId(value: string): NavSection | undefined {
+  if ((NAV_SECTIONS as string[]).includes(value)) return value as NavSection;
+  if (value === "job-detail") return "jobs";
+  return undefined;
+}
 
 const JOB_IMPORT_BOOKMARKLET_SOURCE = `
 (async () => {
@@ -144,6 +154,7 @@ const translations = {
     resumeStepTitle: "Upload resume PDF",
     resumeReady: "Resume index ready",
     resumeMissing: "Upload a PDF before generating materials",
+    resumeRequiredHint: "Upload a resume first to unlock scanning and draft generation.",
     resumePrivate: "Stored locally as a private evidence index.",
     resumeSectionsLabel: "Detected sections",
     resumeKeywordsLabel: "Detected keywords",
@@ -217,6 +228,8 @@ const translations = {
     applySelected: "Read job details",
     applyingSelected: "Reading job details...",
     openOriginalJob: "Open job page",
+    reviewApplicationPackage: "Review application package",
+    jobLinkRequiredHint: "This lead has no job link. Paste the full JD in One job.",
     quickApplySuccess: "Job details read and drafts refreshed.",
     quickApplyFallback: "This site needs login or blocks automatic reading. I opened it in the dedicated login browser. Log in there, stay on the job detail page, then return here and read the current page.",
     quickApplyMissing: "This email lead does not include a job link. Paste the JD below to generate materials.",
@@ -329,6 +342,7 @@ const translations = {
     resumeStepTitle: "上传 PDF 简历",
     resumeReady: "简历已准备好",
     resumeMissing: "请先上传一份 PDF 简历",
+    resumeRequiredHint: "先上传简历，才能扫描邮箱或生成申请材料。",
     resumePrivate: "简历只用于本地分析，不会提交到 GitHub。",
     resumeSectionsLabel: "已识别模块",
     resumeKeywordsLabel: "已识别关键词",
@@ -402,6 +416,8 @@ const translations = {
     applySelected: "读取岗位详情",
     applyingSelected: "读取岗位中...",
     openOriginalJob: "打开岗位网页",
+    reviewApplicationPackage: "查看申请包",
+    jobLinkRequiredHint: "这条线索没有岗位链接，请到“单个岗位”粘贴完整 JD。",
     quickApplySuccess: "已读取岗位详情并更新草稿。",
     quickApplyFallback: "这个网站需要登录或阻止自动读取。我已经用专用登录浏览器打开它。请在那个窗口登录并停留在岗位详情页，然后回到这里读取当前页面。",
     quickApplyMissing: "这封邮件里没有岗位链接。请把 JD 粘贴到下方后生成材料。",
@@ -719,6 +735,7 @@ function App() {
   const [jobLeadNote, setJobLeadNote] = useState("");
   const [message, setMessage] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
+  const [activeSection, setActiveSection] = useState<NavSection>("overview");
   const uploadAbortRef = useRef<AbortController | null>(null);
   const uploadRequestIdRef = useRef(0);
   const bookmarkletRef = useRef<HTMLAnchorElement | null>(null);
@@ -782,6 +799,33 @@ function App() {
   useEffect(() => {
     bookmarkletRef.current?.setAttribute("href", JOB_IMPORT_BOOKMARKLET_HREF);
   });
+
+  useEffect(() => {
+    const updateFromHash = () => {
+      const section = navSectionFromId(window.location.hash.replace("#", ""));
+      if (section) setActiveSection(section);
+    };
+
+    updateFromHash();
+    const elements = OBSERVED_SECTION_IDS.map((id) => document.getElementById(id)).filter((element): element is HTMLElement => Boolean(element));
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        const section = visible ? navSectionFromId(visible.target.id) : undefined;
+        if (section) setActiveSection(section);
+      },
+      { rootMargin: "-24% 0px -62% 0px", threshold: [0, 0.2, 0.5, 0.8] }
+    );
+
+    elements.forEach((element) => observer.observe(element));
+    window.addEventListener("hashchange", updateFromHash);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("hashchange", updateFromHash);
+    };
+  }, [run, state]);
 
   const friendlyError = (rawMessage: string, fallback: string) => {
     if (rawMessage.includes("Failed to fetch")) return t.apiError;
@@ -1253,12 +1297,12 @@ function App() {
           </div>
 
           <nav className="mt-5 space-y-1 text-sm">
-            <NavItem href="#overview" active icon={<BriefcaseBusiness className="h-4 w-4" />} label={t.overview} />
-            <NavItem href="#setup" icon={<SlidersHorizontal className="h-4 w-4" />} label={t.navStart} />
-            <NavItem href="#manual" icon={<Clipboard className="h-4 w-4" />} label={t.navOneJob} />
-            <NavItem href="#jobs" icon={<Mail className="h-4 w-4" />} label={t.navShortlist} />
-            <NavItem href="#drafts" icon={<FileText className="h-4 w-4" />} label={t.navDrafts} />
-            <NavItem href="#history" icon={<History className="h-4 w-4" />} label={t.navHistory} />
+            <NavItem href="#overview" active={activeSection === "overview"} icon={<BriefcaseBusiness className="h-4 w-4" />} label={t.overview} />
+            <NavItem href="#setup" active={activeSection === "setup"} icon={<SlidersHorizontal className="h-4 w-4" />} label={t.navStart} />
+            <NavItem href="#manual" active={activeSection === "manual"} icon={<Clipboard className="h-4 w-4" />} label={t.navOneJob} />
+            <NavItem href="#jobs" active={activeSection === "jobs"} icon={<Mail className="h-4 w-4" />} label={t.navShortlist} />
+            <NavItem href="#drafts" active={activeSection === "drafts"} icon={<FileText className="h-4 w-4" />} label={t.navDrafts} />
+            <NavItem href="#history" active={activeSection === "history"} icon={<History className="h-4 w-4" />} label={t.navHistory} />
           </nav>
 
           <div className="mt-6 rounded-md border border-emerald-300/30 bg-emerald-400/12 p-3 text-sm text-emerald-50">
@@ -1416,6 +1460,7 @@ function App() {
                     {runStatus === "running" ? t.scanning : t.startScan}
                   </button>
                 </div>
+                {!resume?.exists && <p className="mt-2 text-xs leading-5 text-amber-700">{t.resumeRequiredHint}</p>}
               </section>
 
               <section id="manual" className="workflow-card rounded-md p-4">
@@ -1552,6 +1597,7 @@ function App() {
                     {manualStatus === "running" ? t.manualGenerating : t.manualGenerate}
                   </button>
                 </div>
+                {!resume?.exists && <p className="mt-2 text-right text-xs leading-5 text-amber-700">{t.resumeRequiredHint}</p>}
               </section>
             </div>
           </section>
@@ -1706,7 +1752,7 @@ function App() {
                           <p className="mt-1 text-sm text-muted">{selected.scored_lead.lead.location}</p>
                           <p className="mt-2 max-w-xl text-xs leading-5 text-muted">{t.selectedJobDetailBody}</p>
                         </div>
-                        <div className="flex flex-wrap gap-2 lg:justify-end">
+                        <div className="flex flex-wrap gap-2 lg:max-w-xs lg:justify-end">
                           <button
                             type="button"
                             onClick={() => void applySelectedJob()}
@@ -1716,6 +1762,14 @@ function App() {
                             {selectedApplyStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                             {selectedApplyStatus === "running" ? t.applyingSelected : t.applySelected}
                           </button>
+                          {selectedDraft && (
+                            <a
+                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-accent hover:bg-blue-100"
+                              href="#drafts"
+                            >
+                              {t.reviewApplicationPackage} <ArrowRight className="h-4 w-4" />
+                            </a>
+                          )}
                           {selected.scored_lead.lead.url && (
                             <a
                               className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-white/80 px-3 text-sm font-semibold hover:border-blue-200 hover:bg-blue-50"
@@ -1725,6 +1779,10 @@ function App() {
                             >
                               {t.openOriginalJob} <ExternalLink className="h-4 w-4" />
                             </a>
+                          )}
+                          {!resume?.exists && <p className="w-full text-xs leading-5 text-amber-700 lg:text-right">{t.resumeRequiredHint}</p>}
+                          {resume?.exists && !selected.scored_lead.lead.url && (
+                            <p className="w-full text-xs leading-5 text-amber-700 lg:text-right">{t.jobLinkRequiredHint}</p>
                           )}
                         </div>
                       </div>
@@ -1860,7 +1918,7 @@ function App() {
 function NavItem({ href, icon, label, active = false }: { href: string; icon: ReactNode; label: string; active?: boolean }) {
   return (
     <a
-      className={`flex items-center gap-2 rounded-md px-3 py-2 ${active ? "bg-blue-50 font-medium text-accent" : "text-muted hover:bg-slate-50"}`}
+      className={`flex items-center gap-2 rounded-md px-3 py-2 ${active ? "nav-link-active" : ""}`}
       href={href}
     >
       {icon}

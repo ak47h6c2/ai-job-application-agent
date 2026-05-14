@@ -19,6 +19,7 @@
 - Clarified the shortlisted-job list with a click hint, selected-state badge, and per-card "View details" action.
 - Improved narrow-screen job selection by scrolling from a selected job card to its detail panel.
 - Reordered the sidebar navigation to follow the main workflow and clarified scan controls with helper text.
+- Added dynamic sidebar highlighting, smoother anchor positioning, disabled-action helper text, and a direct job-detail link to the application package.
 - Fixed a React duplicate-key warning when two job leads share the same company and title.
 
 ### 中文
@@ -38,6 +39,7 @@
 - 优化推荐职位列表：增加点击提示、当前选中标记，以及每张岗位卡片的“查看详情”入口。
 - 优化窄屏操作：点击推荐岗位后自动滚到对应的岗位详情区。
 - 将侧边栏改成主流程顺序，并给草稿数量和匹配度门槛增加更直观的说明。
+- 增加侧边栏动态高亮、锚点滚动边距、按钮不可用原因提示，以及从岗位详情直达申请包的入口。
 - 修复当两个岗位线索公司和标题相同时可能出现的 React key 警告。
 
 ## 2026-05-10
