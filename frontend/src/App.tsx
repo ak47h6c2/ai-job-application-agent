@@ -1552,6 +1552,14 @@ function App() {
                   <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.currentResult}</p>
                   <h2 className="mt-1 text-lg font-semibold">{displayRunId(run.id, language)}</h2>
                   <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{t.currentResultBody}</p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {run.steps.map((step) => (
+                      <span key={step.name} className="result-step-chip">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        {stepLabels[language][step.name] ?? step.name}
+                      </span>
+                    ))}
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <ResultMetric label={t.resultJobs} value={run.selected_jobs.length.toString()} />
@@ -1593,25 +1601,6 @@ function App() {
 
           {run && (
             <>
-              <section className="surface-panel fade-lift rounded-md p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-base font-semibold">{t.timeline}</h2>
-                  <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                    {t.safeMode}
-                  </span>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-5">
-                  {run.steps.map((step) => (
-                    <div key={step.name} className="step-card rounded-md border border-line p-3">
-                      <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-accent">
-                        <CheckCircle2 className="h-4 w-4" />
-                      </div>
-                      <p className="text-sm font-semibold">{stepLabels[language][step.name] ?? step.name}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
               <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(420px,1.15fr)]">
                 <div id="jobs" className="surface-panel rounded-md p-4">
                   <div className="mb-3 flex items-center justify-between">

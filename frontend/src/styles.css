@@ -183,6 +183,19 @@ textarea:focus-visible {
   font-weight: 700;
 }
 
+.result-step-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 5px 9px;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 .workflow-card {
   position: relative;
   overflow: hidden;
@@ -266,10 +279,6 @@ textarea:focus-visible {
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.13);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
-}
-
-.step-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(246, 250, 250, 0.86));
 }
 
 .job-card,
