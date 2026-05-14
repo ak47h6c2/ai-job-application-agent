@@ -266,6 +266,7 @@ const translations = {
     noKeywordGap: "No obvious gaps",
     noEvidence: "No strong resume evidence found.",
     applicationDraft: "Draft",
+    draftReviewHint: "Review in order: resume edits first, then copy the message that matches the employer language.",
     reviewRequired: "review required",
     resumeFocus: "Resume focus",
     coverLetter: "Cover letter",
@@ -441,6 +442,7 @@ const translations = {
     noKeywordGap: "暂无明显缺口",
     noEvidence: "暂未找到强匹配的简历内容。",
     applicationDraft: "申请草稿",
+    draftReviewHint: "按顺序检查：先改简历，再复制符合招聘方语言的草稿。",
     reviewRequired: "待你确认",
     resumeFocus: "简历修改重点",
     coverLetter: "求职信草稿",
@@ -1724,29 +1726,37 @@ function App() {
 
                   {selectedDraft && (
                     <section id="drafts" className="surface-panel rounded-md p-4">
-                      <div className="mb-4 flex items-center justify-between">
-                        <h2 className="text-base font-semibold">{t.applicationDraft}</h2>
-                        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                          <UserCheck className="h-3.5 w-3.5" /> {t.reviewRequired}
-                        </span>
+                      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <h2 className="text-base font-semibold">{t.applicationDraft}</h2>
+                          <p className="mt-1 text-xs leading-5 text-muted">{t.draftReviewHint}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 md:justify-end">
+                          <span className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-accent">
+                            {t.draftLanguage}: {draftLanguageName(selectedDraft.communication_language, language)}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                            <UserCheck className="h-3.5 w-3.5" /> {t.reviewRequired}
+                          </span>
+                        </div>
                       </div>
 
-                      <DraftSection title={t.resumeFocus} items={selectedDraft.resume_focus} />
+                      <DraftSection step="1" title={t.resumeFocus} items={selectedDraft.resume_focus} />
                       <TextBlock
+                        step="2"
                         title={t.coverLetter}
                         text={selectedDraft.cover_letter}
-                        metaLabel={`${t.draftLanguage}: ${draftLanguageName(selectedDraft.communication_language, language)}`}
                         copyLabel={copiedKey === "cover" ? t.copied : t.copy}
                         onCopy={() => void copyText("cover", selectedDraft.cover_letter)}
                       />
                       <TextBlock
+                        step="3"
                         title={t.recruiterMessage}
                         text={selectedDraft.recruiter_message}
-                        metaLabel={`${t.draftLanguage}: ${draftLanguageName(selectedDraft.communication_language, language)}`}
                         copyLabel={copiedKey === "recruiter" ? t.copied : t.copy}
                         onCopy={() => void copyText("recruiter", selectedDraft.recruiter_message)}
                       />
-                      <DraftSection title={t.notes} items={selectedDraft.application_notes} />
+                      <DraftSection step="4" title={t.notes} items={selectedDraft.application_notes} />
                     </section>
                   )}
                   {!selectedDraft && (
@@ -1977,13 +1987,16 @@ function InfoBlock({ title, children }: { title: string; children: React.ReactNo
   );
 }
 
-function DraftSection({ title, items }: { title: string; items: string[] }) {
+function DraftSection({ step, title, items }: { step: string; title: string; items: string[] }) {
   return (
-    <section className="mb-4">
-      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
+    <section className="draft-card mb-3 rounded-md p-3">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="draft-step">{step}</span>
+        <h3 className="text-sm font-semibold">{title}</h3>
+      </div>
       <ul className="grid gap-2 md:grid-cols-2">
         {items.map((item, index) => (
-          <li key={`${item}-${index}`} className="rounded-md border border-line bg-slate-50 px-3 py-2 text-sm leading-5">
+          <li key={`${item}-${index}`} className="rounded-md border border-line bg-white/80 px-3 py-2 text-sm leading-5">
             {item}
           </li>
         ))}
@@ -1993,36 +2006,36 @@ function DraftSection({ title, items }: { title: string; items: string[] }) {
 }
 
 function TextBlock({
+  step,
   title,
   text,
   copyLabel,
-  metaLabel,
   onCopy
 }: {
+  step: string;
   title: string;
   text: string;
   copyLabel: string;
-  metaLabel?: string;
   onCopy: () => void;
 }) {
   const copied = copyLabel === translations.en.copied || copyLabel === translations.zh.copied;
   return (
-    <section className="mb-4">
+    <section className="draft-card mb-3 rounded-md p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
+          <span className="draft-step">{step}</span>
           <h3 className="text-sm font-semibold">{title}</h3>
-          {metaLabel && <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{metaLabel}</span>}
         </div>
         <button
           type="button"
           onClick={onCopy}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line px-2.5 text-xs font-semibold hover:border-blue-200 hover:bg-blue-50"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-blue-200 bg-white px-2.5 text-xs font-semibold text-accent hover:bg-blue-50"
         >
           {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Clipboard className="h-3.5 w-3.5" />}
           {copyLabel}
         </button>
       </div>
-      <div className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-line bg-slate-50 p-3 text-sm leading-6">
+      <div className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-line bg-white/80 p-3 text-sm leading-6">
         {text}
       </div>
     </section>

@@ -196,6 +196,27 @@ textarea:focus-visible {
   font-weight: 700;
 }
 
+.draft-card {
+  border: 1px solid rgba(125, 141, 163, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 252, 251, 0.82)),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.05), transparent);
+}
+
+.draft-step {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #2563eb;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 .workflow-card {
   position: relative;
   overflow: hidden;
