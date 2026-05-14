@@ -1,5 +1,21 @@
 # Changelog / 更新日志
 
+## 2026-05-14
+
+### English
+
+- Simplified the Web UI into one application workbench instead of separate setup and job-source panels.
+- Moved resume status, mail range, match threshold, job-source modes, JD fields, and generation actions into a clearer two-column workflow.
+- Reduced repeated buttons and long instructional blocks while keeping automatic link reading, logged-in import, manual paste, resume upload, and mail scanning behavior unchanged.
+- Fixed a React duplicate-key warning when two job leads share the same company and title.
+
+### 中文
+
+- 将 Web UI 简化成一个求职申请工作台，不再把上传简历、扫描邮件、岗位来源和生成材料拆得太散。
+- 把简历状态、邮件范围、匹配度阈值、岗位来源模式、JD 表单和生成按钮整合为左右两栏流程。
+- 减少重复按钮和大段说明文字，但保留自动读取链接、登录后导入、手动粘贴、上传简历和读取邮件的原有功能。
+- 修复当两个岗位线索公司和标题相同时可能出现的 React key 警告。
+
 ## 2026-05-10
 
 ### English

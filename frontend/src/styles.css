@@ -94,6 +94,32 @@ a {
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
+.workflow-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(125, 141, 163, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 251, 250, 0.86)),
+    radial-gradient(circle at top right, rgba(15, 138, 122, 0.1), transparent 34%);
+  box-shadow: 0 18px 45px rgba(25, 45, 65, 0.08);
+  backdrop-filter: blur(16px);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.workflow-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, #2563eb, #0f8a7a, #e2a33a);
+}
+
+.workflow-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(37, 99, 235, 0.2);
+  box-shadow: 0 22px 50px rgba(25, 45, 65, 0.12);
+}
+
 .action-panel::before {
   content: "";
   position: absolute;

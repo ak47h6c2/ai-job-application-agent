@@ -1200,37 +1200,20 @@ function App() {
             </div>
           </header>
 
-          <section id="setup" className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_1.35fr_0.85fr]">
-            <ActionPanel step="1" eyebrow={t.resumeStep} title={resume?.exists ? t.resumeReady : t.resumeStepTitle}>
-              <p className="text-sm text-muted">
-                {resume?.exists
-                  ? `${resume.chunk_count} ${language === "zh" ? "个模块" : "sections"} · ${formatModified(resume.modified_at, language)}`
-                  : t.resumeMissing}
-              </p>
-              {resume?.exists && Boolean(resume.sections?.length) && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs font-semibold text-muted">{t.resumeSectionsLabel}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {resume.sections?.slice(0, 5).map((section) => (
-                      <span key={section} className="rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-xs font-semibold text-accent">
-                        {section}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {resume?.exists && Boolean(resume.keywords?.length) && (
-                <p className="mt-2 text-xs leading-5 text-muted">
-                  {t.resumeKeywordsLabel}: <span className="text-ink">{joinList(resume.keywords?.slice(0, 6), language)}</span>
-                </p>
-              )}
-              <div className="mt-4 flex flex-wrap gap-2">
+          <section id="setup" className="fade-lift space-y-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.controls}</p>
+                <h2 className="mt-1 text-xl font-semibold">{t.headline}</h2>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">{t.subline}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <label
                   aria-disabled={uploadStatus === "running"}
                   className={`inline-flex h-10 items-center gap-2 rounded-md border border-line px-3 text-sm font-semibold text-ink transition ${
                     uploadStatus === "running"
                       ? "cursor-not-allowed bg-white/60 opacity-80"
-                      : "cursor-pointer hover:border-blue-200 hover:bg-blue-50"
+                      : "cursor-pointer bg-white/85 hover:border-blue-200 hover:bg-blue-50"
                   }`}
                 >
                   {uploadStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
@@ -1253,202 +1236,220 @@ function App() {
                   </button>
                 )}
               </div>
-              <p className="mt-3 text-xs leading-5 text-muted">{t.resumePrivate}</p>
-            </ActionPanel>
-
-            <ActionPanel step="2" eyebrow={t.mailStep} title={t.mailStepTitle}>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <RangeButton active={sinceDate === dateOffset(0)} label={t.today} onClick={() => setSinceDate(dateOffset(0))} />
-                <RangeButton active={sinceDate === dateOffset(1)} label={t.yesterday} onClick={() => setSinceDate(dateOffset(1))} />
-                <RangeButton active={sinceDate === dateOffset(2)} label={t.last3Days} onClick={() => setSinceDate(dateOffset(2))} />
-                <RangeButton active={sinceDate === dateOffset(6)} label={t.last7Days} onClick={() => setSinceDate(dateOffset(6))} />
-              </div>
-              <input
-                aria-label={t.customDate}
-                className="mt-2 h-10 w-full rounded-md border border-line bg-white px-3 text-sm font-medium outline-none focus:border-accent"
-                type="date"
-                value={sinceDate}
-                onChange={(event) => setSinceDate(event.target.value)}
-              />
-              <p className="mt-3 text-xs font-semibold text-muted">
-                {t.readSince}: <span className="text-ink">{sinceDate}</span>
-              </p>
-            </ActionPanel>
-
-            <ActionPanel step="3" eyebrow={t.agentStep} title={t.agentStepTitle}>
-              <div className="grid grid-cols-2 gap-2">
-                <NumberField label={t.topDrafts} value={topDrafts} min={1} max={10} onChange={setTopDrafts} />
-                <NumberField label={t.minScore} value={minScore} min={0} max={100} onChange={setMinScore} />
-              </div>
-              <div className="mt-4 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => void loadLatest()}
-                  className="inline-flex h-10 items-center gap-2 rounded-md border border-line px-3 text-sm font-semibold hover:border-blue-200 hover:bg-blue-50"
-                >
-                  <RefreshCw className="h-4 w-4" /> {t.refresh}
-                </button>
-                <button
-                  type="button"
-                  onClick={runAgent}
-                  disabled={runStatus === "running" || !resume?.exists}
-                  className="primary-action inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 sm:whitespace-nowrap"
-                >
-                  {runStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                  {runStatus === "running" ? t.scanning : t.startScan}
-                </button>
-              </div>
-            </ActionPanel>
-          </section>
-
-          <section id="manual" className="surface-panel fade-lift rounded-md p-4">
-            <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.manualJob}</p>
-                <h2 className="mt-1 text-lg font-semibold">{t.manualTitle}</h2>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{t.manualSubtitle}</p>
-              </div>
-              <button
-                type="button"
-                onClick={runManualJob}
-                disabled={manualStatus === "running" || !resume?.exists}
-                className="primary-action inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {manualStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                {manualStatus === "running" ? t.manualGenerating : t.manualGenerate}
-              </button>
             </div>
 
-            <div className="mb-4 flex flex-wrap gap-1 rounded-md border border-line bg-slate-50 p-1 md:inline-flex">
-              <ModeButton active={jobInputMode === "auto"} label={t.autoMode} onClick={() => setJobInputMode("auto")} />
-              <ModeButton active={jobInputMode === "browser"} label={t.browserMode} onClick={() => setJobInputMode("browser")} />
-              <ModeButton
-                active={jobInputMode === "manual"}
-                label={t.manualMode}
-                onClick={() => {
-                  setJobInputMode("manual");
-                  setJobLeadNote("");
-                }}
-              />
-            </div>
-
-            {jobInputMode === "auto" && (
-              <div className="mb-4 rounded-md border border-blue-100 bg-blue-50/70 p-3">
-                <div className="flex flex-col gap-2 lg:flex-row">
-                  <div className="flex-1">
-                    <TextField label={t.manualUrl} value={manualJob.url} onChange={(value) => updateManualJob("url", value)} />
+            <div className="grid gap-4 xl:grid-cols-[0.92fr_1.28fr]">
+              <section className="workflow-card rounded-md p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-600 text-sm font-bold text-white">1</div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.mailStep}</p>
+                    <h3 className="mt-1 text-lg font-semibold">{t.agentStepTitle}</h3>
+                    <p className="mt-1 text-sm leading-6 text-muted">{t.mailStepTitle}</p>
                   </div>
-                  {selected?.scored_lead.lead.url && (
-                    <button
-                      type="button"
-                      onClick={readSelectedJobUrl}
-                      disabled={jobFetchStatus === "running"}
-                      className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-md border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                </div>
+
+                <div className="mt-4 rounded-md border border-line bg-white/80 px-3 py-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-muted">{t.resumeStep}</p>
+                      <p className="mt-1 text-sm font-semibold text-ink">{resume?.exists ? t.resumeReady : t.resumeStepTitle}</p>
+                      <p className="mt-1 text-xs leading-5 text-muted">
+                        {resume?.exists
+                          ? `${resume.chunk_count} ${language === "zh" ? "段简历内容" : "resume sections"} · ${formatModified(resume.modified_at, language)}`
+                          : t.resumeMissing}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex w-fit rounded-md px-2 py-1 text-xs font-semibold ${
+                        resume?.exists ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : "bg-amber-50 text-amber-800 ring-1 ring-amber-100"
+                      }`}
                     >
-                      <ExternalLink className="h-4 w-4" />
-                      {t.useSelectedJobLink}
-                    </button>
+                      {resume?.exists ? (language === "zh" ? "已准备" : "Ready") : language === "zh" ? "待上传" : "Missing"}
+                    </span>
+                  </div>
+                  {resume?.exists && Boolean(resume.keywords?.length) && (
+                    <p className="mt-2 text-xs leading-5 text-muted">
+                      {t.resumeKeywordsLabel}: <span className="text-ink">{joinList(resume.keywords?.slice(0, 6), language)}</span>
+                    </p>
                   )}
+                </div>
+
+                <div className="mt-4">
+                  <p className="mb-2 text-sm font-semibold text-muted">{t.readSince}</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <RangeButton active={sinceDate === dateOffset(0)} label={t.today} onClick={() => setSinceDate(dateOffset(0))} />
+                    <RangeButton active={sinceDate === dateOffset(1)} label={t.yesterday} onClick={() => setSinceDate(dateOffset(1))} />
+                    <RangeButton active={sinceDate === dateOffset(2)} label={t.last3Days} onClick={() => setSinceDate(dateOffset(2))} />
+                    <RangeButton active={sinceDate === dateOffset(6)} label={t.last7Days} onClick={() => setSinceDate(dateOffset(6))} />
+                  </div>
+                  <input
+                    aria-label={t.customDate}
+                    className="mt-2 h-10 w-full rounded-md border border-line bg-white px-3 text-sm font-medium outline-none focus:border-accent"
+                    type="date"
+                    value={sinceDate}
+                    onChange={(event) => setSinceDate(event.target.value)}
+                  />
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <NumberField label={t.topDrafts} value={topDrafts} min={1} max={10} onChange={setTopDrafts} />
+                  <NumberField label={language === "zh" ? "最低匹配度" : "Minimum match"} value={minScore} min={0} max={100} onChange={setMinScore} />
+                </div>
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                   <button
                     type="button"
-                    onClick={() => void fetchJobUrl()}
-                    disabled={jobFetchStatus === "running"}
-                    className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-md border border-blue-200 bg-white px-4 text-sm font-semibold text-accent hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => void loadLatest()}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-white/85 px-3 text-sm font-semibold hover:border-blue-200 hover:bg-blue-50"
                   >
-                    {jobFetchStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    {jobFetchStatus === "running" ? t.autoFetching : t.autoFetch}
+                    <RefreshCw className="h-4 w-4" /> {t.refresh}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={runAgent}
+                    disabled={runStatus === "running" || !resume?.exists}
+                    className="primary-action inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {runStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                    {runStatus === "running" ? t.scanning : t.startScan}
                   </button>
                 </div>
-                <p className="mt-2 text-xs leading-5 text-muted">{t.autoHint}</p>
-              </div>
-            )}
+              </section>
 
-            {jobInputMode === "browser" && (
-              <div className="mb-4 rounded-md border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-4">
-                <div className="mb-4 flex flex-col gap-3 border-b border-emerald-100 pb-4 lg:flex-row lg:items-start lg:justify-between">
+              <section id="manual" className="workflow-card rounded-md p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <div className="mb-2 inline-flex items-center gap-2 rounded-md bg-white px-2 py-1 text-xs font-semibold text-emerald-700 shadow-sm ring-1 ring-emerald-100">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      {t.credentialSafety}
-                    </div>
-                    <h3 className="text-base font-semibold">{t.browserImportTitle}</h3>
-                    <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">{t.browserImportBody}</p>
+                    <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.manualJob}</p>
+                    <h3 className="mt-1 text-lg font-semibold">{t.manualTitle}</h3>
+                    <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{t.manualSubtitle}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1 rounded-md border border-line bg-slate-50 p-1">
+                    <ModeButton active={jobInputMode === "auto"} label={t.autoMode} onClick={() => setJobInputMode("auto")} />
+                    <ModeButton active={jobInputMode === "browser"} label={t.browserMode} onClick={() => setJobInputMode("browser")} />
+                    <ModeButton
+                      active={jobInputMode === "manual"}
+                      label={t.manualMode}
+                      onClick={() => {
+                        setJobInputMode("manual");
+                        setJobLeadNote("");
+                      }}
+                    />
                   </div>
                 </div>
 
-                {(browserOpenStatus === "running" || importStatus === "running") && (
-                  <div className="mb-4 rounded-md border border-blue-100 bg-white/85 px-3 py-2 text-sm font-semibold text-accent shadow-sm">
-                    {message || (importStatus === "running" ? t.loginBrowserReadingHint : t.loginBrowserOpeningHint)}
+                {jobInputMode === "auto" && (
+                  <div className="mt-4 rounded-md border border-blue-100 bg-blue-50/70 p-3">
+                    <div className="grid gap-2 lg:grid-cols-[1fr_auto_auto]">
+                      <TextField label={t.manualUrl} value={manualJob.url} onChange={(value) => updateManualJob("url", value)} />
+                      {selected?.scored_lead.lead.url && (
+                        <button
+                          type="button"
+                          onClick={readSelectedJobUrl}
+                          disabled={jobFetchStatus === "running"}
+                          className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-md border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          {t.useSelectedJobLink}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => void fetchJobUrl()}
+                        disabled={jobFetchStatus === "running"}
+                        className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-md border border-blue-200 bg-white px-4 text-sm font-semibold text-accent hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {jobFetchStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        {jobFetchStatus === "running" ? t.autoFetching : t.autoFetch}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-muted">{t.autoHint}</p>
                   </div>
                 )}
 
-                <div className="grid gap-3 lg:grid-cols-3">
-                  <BrowserImportStep step="1" title={t.browserStep1Title} body={t.browserStep1Body}>
-                    <button
-                      type="button"
-                      onClick={() => void openLoginBrowser()}
-                      disabled={browserOpenStatus === "running" || importStatus === "running"}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {browserOpenStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-                      {browserOpenStatus === "running" ? t.openingLoginBrowser : t.openLoginBrowser}
-                    </button>
-                  </BrowserImportStep>
-
-                  <BrowserImportStep step="2" title={t.browserStep2Title} body={t.browserStep2Body}>
-                    <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">LinkedIn</span>
-                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">Seek</span>
-                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">Boss</span>
-                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">猎聘</span>
-                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">{language === "zh" ? "公司官网" : "Company site"}</span>
+                {jobInputMode === "browser" && (
+                  <div className="mt-4 rounded-md border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-3">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <div className="mb-2 inline-flex items-center gap-2 rounded-md bg-white px-2 py-1 text-xs font-semibold text-emerald-700 shadow-sm ring-1 ring-emerald-100">
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          {t.credentialSafety}
+                        </div>
+                        <h4 className="text-sm font-semibold">{t.browserImportTitle}</h4>
+                        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{t.browserImportBody}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 lg:justify-end">
+                        <button
+                          type="button"
+                          onClick={() => void openLoginBrowser()}
+                          disabled={browserOpenStatus === "running" || importStatus === "running"}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {browserOpenStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                          {browserOpenStatus === "running" ? t.openingLoginBrowser : t.openLoginBrowser}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void readLoginBrowserJob()}
+                          disabled={importStatus === "running" || browserOpenStatus === "running"}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-3 text-sm font-semibold text-accent hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {importStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                          {importStatus === "running" ? t.readingLoginBrowser : t.readLoginBrowser}
+                        </button>
+                      </div>
                     </div>
-                  </BrowserImportStep>
+                    {(browserOpenStatus === "running" || importStatus === "running") && (
+                      <div className="mt-3 rounded-md border border-blue-100 bg-white/85 px-3 py-2 text-sm font-semibold text-accent shadow-sm">
+                        {message || (importStatus === "running" ? t.loginBrowserReadingHint : t.loginBrowserOpeningHint)}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                  <BrowserImportStep step="3" title={t.browserStep3Title} body={t.browserStep3Body}>
-                    <button
-                      type="button"
-                      onClick={() => void readLoginBrowserJob()}
-                      disabled={importStatus === "running" || browserOpenStatus === "running"}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-3 text-sm font-semibold text-accent hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {importStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      {importStatus === "running" ? t.readingLoginBrowser : t.readLoginBrowser}
-                    </button>
-                  </BrowserImportStep>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <TextField label={t.manualJobTitle} value={manualJob.title} onChange={(value) => updateManualJob("title", value)} />
+                  <TextField label={t.manualCompany} value={manualJob.company} onChange={(value) => updateManualJob("company", value)} />
+                  <TextField label={t.manualLocation} value={manualJob.location} onChange={(value) => updateManualJob("location", value)} />
                 </div>
-              </div>
-            )}
 
-            <div className="grid gap-3 md:grid-cols-3">
-              <TextField label={t.manualJobTitle} value={manualJob.title} onChange={(value) => updateManualJob("title", value)} />
-              <TextField label={t.manualCompany} value={manualJob.company} onChange={(value) => updateManualJob("company", value)} />
-              <TextField label={t.manualLocation} value={manualJob.location} onChange={(value) => updateManualJob("location", value)} />
-            </div>
+                {(jobInputMode === "manual" || jobInputMode === "browser") && (
+                  <div className="mt-3">
+                    <TextField label={t.manualUrl} value={manualJob.url} onChange={(value) => updateManualJob("url", value)} />
+                  </div>
+                )}
 
-            {(jobInputMode === "manual" || jobInputMode === "browser") && (
-              <div className="mt-3">
-                <TextField label={t.manualUrl} value={manualJob.url} onChange={(value) => updateManualJob("url", value)} />
-              </div>
-            )}
+                {jobLeadNote && (
+                  <section className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                    <div className="font-semibold">{t.leadSnippetTitle}</div>
+                    <p className="mt-1 leading-5">{t.leadSnippetBody}</p>
+                    <p className="mt-2 max-h-24 overflow-auto rounded-md bg-white/70 px-3 py-2 text-xs leading-5 text-amber-950">{jobLeadNote}</p>
+                  </section>
+                )}
 
-            {jobLeadNote && (
-              <section className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
-                <div className="font-semibold">{t.leadSnippetTitle}</div>
-                <p className="mt-1 leading-5">{t.leadSnippetBody}</p>
-                <p className="mt-2 max-h-24 overflow-auto rounded-md bg-white/70 px-3 py-2 text-xs leading-5 text-amber-950">{jobLeadNote}</p>
+                <label className="mt-3 block">
+                  <span className="mb-2 block text-sm font-semibold text-muted">{t.manualDescription}</span>
+                  <textarea
+                    value={manualJob.description}
+                    onChange={(event) => updateManualJob("description", event.target.value)}
+                    placeholder={t.manualDescriptionPlaceholder}
+                    className="min-h-40 w-full resize-y rounded-md border border-line bg-white/85 px-3 py-3 text-sm leading-6 outline-none transition focus:border-accent focus:bg-white"
+                  />
+                </label>
+
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={runManualJob}
+                    disabled={manualStatus === "running" || !resume?.exists}
+                    className="primary-action inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {manualStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                    {manualStatus === "running" ? t.manualGenerating : t.manualGenerate}
+                  </button>
+                </div>
               </section>
-            )}
-
-            <label className="mt-3 block">
-              <span className="mb-2 block text-sm font-semibold text-muted">{t.manualDescription}</span>
-              <textarea
-                value={manualJob.description}
-                onChange={(event) => updateManualJob("description", event.target.value)}
-                placeholder={t.manualDescriptionPlaceholder}
-                className="min-h-40 w-full resize-y rounded-md border border-line bg-white/85 px-3 py-3 text-sm leading-6 outline-none transition focus:border-accent focus:bg-white"
-              />
-            </label>
+            </div>
           </section>
 
           {message && (
@@ -1545,7 +1546,7 @@ function App() {
                         const isSelected = selectedIndex === index;
                         return (
                           <button
-                            key={`${lead.company}-${lead.title}`}
+                            key={`${lead.company}-${lead.title}-${index}`}
                             type="button"
                             onClick={() => setSelectedIndex(index)}
                             className={`w-full rounded-md border p-3 text-left transition ${
