@@ -622,11 +622,14 @@ function formatModified(value: number | null, language: Language) {
   }).format(new Date(value * 1000));
 }
 
-function displayRunId(id: string) {
+function displayRunId(id: string, language: Language) {
   if (id === "latest_test") return id;
-  const match = id.match(/^(\d{4}-\d{2}-\d{2})_(\d{8})T(\d{2})(\d{2})(\d{2})Z$/);
+  const manualMatch = id.match(/^manual-(\d{4}-\d{2}-\d{2})_(\d{8})T(\d{2})(\d{2})(\d{2})Z$/);
+  const mailMatch = id.match(/^(\d{4}-\d{2}-\d{2})_(\d{8})T(\d{2})(\d{2})(\d{2})Z$/);
+  const match = manualMatch ?? mailMatch;
   if (!match) return id;
-  return `${match[1]} ${match[3]}:${match[4]} UTC`;
+  const label = manualMatch ? (language === "zh" ? "手动岗位" : "Manual JD") : language === "zh" ? "邮箱扫描" : "Email scan";
+  return `${label} · ${match[1]} ${match[3]}:${match[4]} UTC`;
 }
 
 function reasonName(reason: string, language: Language) {
@@ -1203,7 +1206,7 @@ function App() {
             <div>
               <p className="text-sm font-semibold">{t.appName}</p>
               <p className="text-xs text-muted">
-                {run ? `${t.run} ${displayRunId(run.id)}` : isInitialLoading ? t.loading : t.noRun}
+                {run ? `${t.run} ${displayRunId(run.id, language)}` : isInitialLoading ? t.loading : t.noRun}
               </p>
             </div>
           </div>
@@ -1545,7 +1548,7 @@ function App() {
               <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-center">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.currentResult}</p>
-                  <h2 className="mt-1 text-lg font-semibold">{displayRunId(run.id)}</h2>
+                  <h2 className="mt-1 text-lg font-semibold">{displayRunId(run.id, language)}</h2>
                   <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{t.currentResultBody}</p>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
@@ -1788,8 +1791,8 @@ function App() {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold" title={item.id}>
-                        {displayRunId(item.id)}
+                      <span className="text-sm font-semibold" title={displayRunId(item.id, language)}>
+                        {displayRunId(item.id, language)}
                       </span>
                       {run?.id === item.id && <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-accent">{t.selected}</span>}
                     </div>

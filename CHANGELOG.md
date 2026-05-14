@@ -12,6 +12,7 @@
 - Added a current-result summary with next-step links so users land on the active report before browsing history.
 - Moved run history below the active report so the main reading order stays focused on the current result.
 - Added a dedicated selected-job detail anchor so the next-step links map to job list, job details, and draft review.
+- Replaced internal run ids in the current result and history cards with readable Email scan / Manual JD labels.
 - Fixed a React duplicate-key warning when two job leads share the same company and title.
 
 ### 中文
@@ -24,6 +25,7 @@
 - 增加“当前结果”摘要和下一步入口，让用户先看本次报告，再按需打开历史记录。
 - 将历史记录下移到当前报告之后，避免旧报告打断主流程。
 - 增加独立的“当前岗位详情”锚点，让下一步入口分别对应推荐岗位、岗位详情和申请草稿。
+- 将当前结果和历史记录里的内部编号改成“邮箱扫描 / 手动岗位”这类可读标签。
 - 修复当两个岗位线索公司和标题相同时可能出现的 React key 警告。
 
 ## 2026-05-10
