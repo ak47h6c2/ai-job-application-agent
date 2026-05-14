@@ -244,6 +244,12 @@ const translations = {
     manualGenerating: "Creating draft...",
     manualSuccess: "Drafts created from this job post.",
     manualMissing: "Fill in the title, company, and job description first.",
+    manualReadyTitle: "Before generating",
+    manualReadyResume: "Resume uploaded",
+    manualReadyTitleField: "Job title filled",
+    manualReadyCompany: "Company filled",
+    manualReadyDescription: "JD has enough detail",
+    manualReadyHint: "Complete these checks to unlock draft generation.",
     readSince: "Read mail since",
     topDrafts: "Drafts to prepare",
     topDraftsHint: "How many roles should get drafts.",
@@ -299,6 +305,7 @@ const translations = {
     draftLanguageEnglish: "English",
     draftLanguageChinese: "Chinese",
     notes: "Notes",
+    copyPackage: "Copy package",
     copy: "Copy",
     copied: "Copied",
     points: "pts",
@@ -434,6 +441,12 @@ const translations = {
     manualGenerating: "生成草稿中...",
     manualSuccess: "已根据当前岗位生成草稿。",
     manualMissing: "请先填写岗位名称、公司和岗位描述。",
+    manualReadyTitle: "生成前检查",
+    manualReadyResume: "已上传简历",
+    manualReadyTitleField: "已填写岗位名称",
+    manualReadyCompany: "已填写公司",
+    manualReadyDescription: "岗位描述内容足够",
+    manualReadyHint: "完成这些检查后，才可以生成草稿。",
     readSince: "读取邮件日期",
     topDrafts: "准备几份草稿",
     topDraftsHint: "控制本次最多给几个岗位生成材料。",
@@ -489,6 +502,7 @@ const translations = {
     draftLanguageEnglish: "英文",
     draftLanguageChinese: "中文",
     notes: "投递提醒",
+    copyPackage: "复制整套材料",
     copy: "复制",
     copied: "已复制",
     points: "分",
@@ -642,6 +656,21 @@ function getInitialLanguage(): Language {
   return saved === "en" || saved === "zh" ? saved : "zh";
 }
 
+function getInitialSinceDate() {
+  const saved = window.localStorage.getItem("job-agent-since-date");
+  return saved && /^\d{4}-\d{2}-\d{2}$/.test(saved) ? saved : dateOffset(0);
+}
+
+function getSavedNumber(key: string, fallback: number, min: number, max: number) {
+  const saved = Number(window.localStorage.getItem(key));
+  return Number.isFinite(saved) ? Math.min(max, Math.max(min, saved)) : fallback;
+}
+
+function getInitialJobInputMode(): JobInputMode {
+  const saved = window.localStorage.getItem("job-agent-job-input-mode");
+  return saved === "auto" || saved === "browser" || saved === "manual" ? saved : "auto";
+}
+
 function scoreTone(score: number) {
   if (score >= 80) return "bg-emerald-50 text-emerald-700 border-emerald-200";
   if (score >= 65) return "bg-blue-50 text-blue-700 border-blue-200";
@@ -718,9 +747,9 @@ function App() {
   const [resume, setResume] = useState<ResumeStatus | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [sinceDate, setSinceDate] = useState(dateOffset(0));
-  const [topDrafts, setTopDrafts] = useState(3);
-  const [minScore, setMinScore] = useState(70);
+  const [sinceDate, setSinceDate] = useState(getInitialSinceDate);
+  const [topDrafts, setTopDrafts] = useState(() => getSavedNumber("job-agent-top-drafts", 3, 1, 10));
+  const [minScore, setMinScore] = useState(() => getSavedNumber("job-agent-min-score", 70, 0, 100));
   const [runStatus, setRunStatus] = useState<AsyncStatus>("idle");
   const [uploadStatus, setUploadStatus] = useState<AsyncStatus>("idle");
   const [manualStatus, setManualStatus] = useState<AsyncStatus>("idle");
@@ -728,7 +757,7 @@ function App() {
   const [importStatus, setImportStatus] = useState<AsyncStatus>("idle");
   const [selectedApplyStatus, setSelectedApplyStatus] = useState<AsyncStatus>("idle");
   const [browserOpenStatus, setBrowserOpenStatus] = useState<AsyncStatus>("idle");
-  const [jobInputMode, setJobInputMode] = useState<JobInputMode>("auto");
+  const [jobInputMode, setJobInputMode] = useState<JobInputMode>(getInitialJobInputMode);
   const [manualJob, setManualJob] = useState<ManualJobForm>({
     title: "",
     company: "",
@@ -745,6 +774,10 @@ function App() {
   const uploadRequestIdRef = useRef(0);
   const bookmarkletRef = useRef<HTMLAnchorElement | null>(null);
   const t = translations[language];
+  const manualTitleReady = Boolean(manualJob.title.trim());
+  const manualCompanyReady = Boolean(manualJob.company.trim());
+  const manualDescriptionReady = manualJob.description.trim().length >= 20;
+  const manualCanGenerate = Boolean(resume?.exists) && manualTitleReady && manualCompanyReady && manualDescriptionReady;
 
   const loadResume = useCallback(async () => {
     const response = await fetch(`${API_BASE}/api/resume-index`);
@@ -788,6 +821,13 @@ function App() {
     window.localStorage.setItem("job-agent-language", language);
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
   }, [language]);
+
+  useEffect(() => {
+    window.localStorage.setItem("job-agent-since-date", sinceDate);
+    window.localStorage.setItem("job-agent-top-drafts", String(topDrafts));
+    window.localStorage.setItem("job-agent-min-score", String(minScore));
+    window.localStorage.setItem("job-agent-job-input-mode", jobInputMode);
+  }, [sinceDate, topDrafts, minScore, jobInputMode]);
 
   useEffect(() => {
     void loadLatest();
@@ -1261,6 +1301,20 @@ function App() {
       )
     );
   }, [run, selected, selectedIndex]);
+  const selectedDraftPackage = useMemo(() => {
+    if (!selectedDraft) return "";
+    return [
+      `# ${t.applicationDraft}`,
+      `## ${t.resumeFocus}`,
+      ...selectedDraft.resume_focus.map((item) => `- ${item}`),
+      `## ${t.coverLetter}`,
+      selectedDraft.cover_letter,
+      `## ${t.recruiterMessage}`,
+      selectedDraft.recruiter_message,
+      `## ${t.notes}`,
+      ...selectedDraft.application_notes.map((item) => `- ${item}`)
+    ].join("\n\n");
+  }, [selectedDraft, t.applicationDraft, t.resumeFocus, t.coverLetter, t.recruiterMessage, t.notes]);
 
   function selectJob(index: number) {
     setSelectedIndex(index);
@@ -1591,11 +1645,24 @@ function App() {
                   />
                 </label>
 
+                <section className="mt-3 rounded-md border border-line bg-white/75 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <h4 className="text-sm font-semibold">{t.manualReadyTitle}</h4>
+                    <span className="text-xs text-muted">{t.manualReadyHint}</span>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <ReadinessItem ok={Boolean(resume?.exists)} label={t.manualReadyResume} />
+                    <ReadinessItem ok={manualTitleReady} label={t.manualReadyTitleField} />
+                    <ReadinessItem ok={manualCompanyReady} label={t.manualReadyCompany} />
+                    <ReadinessItem ok={manualDescriptionReady} label={t.manualReadyDescription} />
+                  </div>
+                </section>
+
                 <div className="mt-4 flex justify-end">
                   <button
                     type="button"
                     onClick={runManualJob}
-                    disabled={manualStatus === "running" || !resume?.exists}
+                    disabled={manualStatus === "running" || !manualCanGenerate}
                     className="primary-action inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {manualStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
@@ -1836,6 +1903,14 @@ function App() {
                           <p className="mt-1 text-xs leading-5 text-muted">{t.draftReviewHint}</p>
                         </div>
                         <div className="flex flex-wrap gap-2 md:justify-end">
+                          <button
+                            type="button"
+                            onClick={() => void copyText("package", selectedDraftPackage)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-blue-200 bg-white px-2.5 text-xs font-semibold text-accent hover:bg-blue-50"
+                          >
+                            {copiedKey === "package" ? <Check className="h-3.5 w-3.5 text-success" /> : <Clipboard className="h-3.5 w-3.5" />}
+                            {copiedKey === "package" ? t.copied : t.copyPackage}
+                          </button>
                           <span className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-accent">
                             {t.draftLanguage}: {draftLanguageName(selectedDraft.communication_language, language)}
                           </span>
@@ -2074,6 +2149,17 @@ function NumberField({
       />
       {hint && <span className="mt-1 block text-xs leading-5 text-muted">{hint}</span>}
     </label>
+  );
+}
+
+function ReadinessItem({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <div className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold ${
+      ok ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"
+    }`}>
+      {ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+      {label}
+    </div>
   );
 }
 
