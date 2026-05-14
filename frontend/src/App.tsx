@@ -256,6 +256,8 @@ const translations = {
     apiError: "API is not available. Check that the FastAPI server is running.",
     timeline: "Workflow",
     selectedJobs: "Shortlist",
+    selectedJobDetail: "Selected job details",
+    selectedJobDetailBody: "Confirm the full JD here before reviewing or copying drafts.",
     shortlistCount: "shortlisted",
     open: "Open",
     resumeEvidence: "Evidence",
@@ -429,6 +431,8 @@ const translations = {
     apiError: "本地服务未连接，请确认后端正在运行。",
     timeline: "处理进度",
     selectedJobs: "推荐职位",
+    selectedJobDetail: "当前岗位详情",
+    selectedJobDetailBody: "先确认这里是完整 JD，再去检查和复制草稿。",
     shortlistCount: "个推荐",
     open: "打开",
     resumeEvidence: "简历依据",
@@ -1558,7 +1562,7 @@ function App() {
                     <span className="text-xs text-muted">{t.selectedJobs}</span>
                   </span>
                 </a>
-                <a className="next-step-link rounded-md px-3 py-2" href="#jobs">
+                <a className="next-step-link rounded-md px-3 py-2" href="#job-detail">
                   <span className="next-step-number">2</span>
                   <span>
                     <span className="block text-sm font-semibold">{t.nextStepRead}</span>
@@ -1656,13 +1660,14 @@ function App() {
 
                 <section className="space-y-5">
                   {selected && (
-                    <section className="surface-panel rounded-md p-4">
+                    <section id="job-detail" className="surface-panel rounded-md p-4">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
+                          <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.selectedJobDetail}</p>
                           <p className="text-sm font-medium text-accent">{selected.scored_lead.lead.company}</p>
                           <h2 className="mt-1 text-xl font-semibold">{selected.scored_lead.lead.title}</h2>
                           <p className="mt-1 text-sm text-muted">{selected.scored_lead.lead.location}</p>
-                          <p className="mt-2 max-w-xl text-xs leading-5 text-muted">{t.selectedJobActionHint}</p>
+                          <p className="mt-2 max-w-xl text-xs leading-5 text-muted">{t.selectedJobDetailBody}</p>
                         </div>
                         <div className="flex flex-wrap gap-2 lg:justify-end">
                           <button
