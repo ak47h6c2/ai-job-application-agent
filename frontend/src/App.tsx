@@ -253,6 +253,8 @@ const translations = {
     steps: "Steps",
     recentRuns: "Recent runs",
     runsCount: "runs",
+    showAllRuns: "Show all history",
+    showLessRuns: "Show less",
     currentResult: "Current result",
     currentResultBody: "This is the active report. Start with the job list, then read details and review drafts.",
     resultJobs: "Shortlisted jobs",
@@ -441,6 +443,8 @@ const translations = {
     steps: "流程",
     recentRuns: "历史结果",
     runsCount: "条记录",
+    showAllRuns: "展开全部历史",
+    showLessRuns: "收起历史",
     currentResult: "当前结果",
     currentResultBody: "这是当前正在查看的报告。先看推荐岗位，再读取岗位详情，最后检查草稿。",
     resultJobs: "推荐岗位",
@@ -736,6 +740,7 @@ function App() {
   const [message, setMessage] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
   const [activeSection, setActiveSection] = useState<NavSection>("overview");
+  const [showAllRuns, setShowAllRuns] = useState(false);
   const uploadAbortRef = useRef<AbortController | null>(null);
   const uploadRequestIdRef = useRef(0);
   const bookmarkletRef = useRef<HTMLAnchorElement | null>(null);
@@ -1266,7 +1271,7 @@ function App() {
     }
   }
 
-  const visibleRuns = runs.slice(0, 4);
+  const visibleRuns = showAllRuns ? runs : runs.slice(0, 4);
   const isInitialLoading = state === "loading" && !run;
 
   return (
@@ -1907,6 +1912,17 @@ function App() {
               </div>
             ) : (
               <p className="rounded-md border border-line bg-white/70 p-3 text-sm text-muted">{t.emptyBody}</p>
+            )}
+            {runs.length > 4 && (
+              <div className="mt-3 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowAllRuns((value) => !value)}
+                  className="inline-flex h-9 items-center rounded-md border border-line bg-white/80 px-3 text-sm font-semibold text-accent hover:border-blue-200 hover:bg-blue-50"
+                >
+                  {showAllRuns ? t.showLessRuns : t.showAllRuns}
+                </button>
+              </div>
             )}
           </section>
         </section>

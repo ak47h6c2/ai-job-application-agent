@@ -20,6 +20,7 @@
 - Improved narrow-screen job selection by scrolling from a selected job card to its detail panel.
 - Reordered the sidebar navigation to follow the main workflow and clarified scan controls with helper text.
 - Added dynamic sidebar highlighting, smoother anchor positioning, disabled-action helper text, and a direct job-detail link to the application package.
+- Added expandable run history so older reports can be reopened without cluttering the default view.
 - Fixed a React duplicate-key warning when two job leads share the same company and title.
 
 ### 中文
@@ -40,6 +41,7 @@
 - 优化窄屏操作：点击推荐岗位后自动滚到对应的岗位详情区。
 - 将侧边栏改成主流程顺序，并给草稿数量和匹配度门槛增加更直观的说明。
 - 增加侧边栏动态高亮、锚点滚动边距、按钮不可用原因提示，以及从岗位详情直达申请包的入口。
+- 历史结果支持展开全部和收起，默认保持简洁，同时旧报告也能重新打开。
 - 修复当两个岗位线索公司和标题相同时可能出现的 React key 警告。
 
 ## 2026-05-10
