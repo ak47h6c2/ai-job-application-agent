@@ -18,6 +18,7 @@
 - Reworked the draft review area into a numbered application package: resume edits, cover letter, recruiter message, and application notes.
 - Clarified the shortlisted-job list with a click hint, selected-state badge, and per-card "View details" action.
 - Improved narrow-screen job selection by scrolling from a selected job card to its detail panel.
+- Reordered the sidebar navigation to follow the main workflow and clarified scan controls with helper text.
 - Fixed a React duplicate-key warning when two job leads share the same company and title.
 
 ### 中文
@@ -36,6 +37,7 @@
 - 将申请草稿区改成编号式“申请包”：简历修改点、求职信、招聘方消息和投递提醒分开阅读。
 - 优化推荐职位列表：增加点击提示、当前选中标记，以及每张岗位卡片的“查看详情”入口。
 - 优化窄屏操作：点击推荐岗位后自动滚到对应的岗位详情区。
+- 将侧边栏改成主流程顺序，并给草稿数量和匹配度门槛增加更直观的说明。
 - 修复当两个岗位线索公司和标题相同时可能出现的 React key 警告。
 
 ## 2026-05-10

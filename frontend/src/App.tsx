@@ -133,6 +133,11 @@ const translations = {
     history: "History",
     jobLeads: "Job leads",
     drafts: "Drafts",
+    navStart: "Start",
+    navOneJob: "One job",
+    navShortlist: "Shortlist",
+    navDrafts: "Application package",
+    navHistory: "History",
     safeTitle: "Human approval on",
     safeBody: "No email or application is sent automatically.",
     resumeStep: "Resume",
@@ -227,8 +232,10 @@ const translations = {
     manualSuccess: "Drafts created from this job post.",
     manualMissing: "Fill in the title, company, and job description first.",
     readSince: "Read mail since",
-    topDrafts: "Max drafts",
-    minScore: "Min match",
+    topDrafts: "Drafts to prepare",
+    topDraftsHint: "How many roles should get drafts.",
+    minScore: "Match threshold",
+    minScoreHint: "Lower it to include more roles.",
     jobs: "Jobs",
     steps: "Steps",
     recentRuns: "Recent runs",
@@ -311,6 +318,11 @@ const translations = {
     history: "历史记录",
     jobLeads: "职位线索",
     drafts: "申请草稿",
+    navStart: "开始",
+    navOneJob: "单个岗位",
+    navShortlist: "推荐职位",
+    navDrafts: "申请包",
+    navHistory: "历史记录",
     safeTitle: "人工确认",
     safeBody: "这里只生成建议和草稿，不会自动发送或投递。",
     resumeStep: "简历",
@@ -405,8 +417,10 @@ const translations = {
     manualSuccess: "已根据当前岗位生成草稿。",
     manualMissing: "请先填写岗位名称、公司和岗位描述。",
     readSince: "读取邮件日期",
-    topDrafts: "最多生成",
-    minScore: "最低匹配度",
+    topDrafts: "准备几份草稿",
+    topDraftsHint: "控制本次最多给几个岗位生成材料。",
+    minScore: "匹配度门槛",
+    minScoreHint: "调低会看到更多岗位，调高会更严格。",
     jobs: "职位",
     steps: "流程",
     recentRuns: "历史结果",
@@ -1240,11 +1254,11 @@ function App() {
 
           <nav className="mt-5 space-y-1 text-sm">
             <NavItem href="#overview" active icon={<BriefcaseBusiness className="h-4 w-4" />} label={t.overview} />
-            <NavItem href="#setup" icon={<SlidersHorizontal className="h-4 w-4" />} label={t.controls} />
-            <NavItem href="#manual" icon={<Clipboard className="h-4 w-4" />} label={t.manualJob} />
-            <NavItem href="#history" icon={<History className="h-4 w-4" />} label={t.history} />
-            <NavItem href="#jobs" icon={<Mail className="h-4 w-4" />} label={t.jobLeads} />
-            <NavItem href="#drafts" icon={<FileText className="h-4 w-4" />} label={t.drafts} />
+            <NavItem href="#setup" icon={<SlidersHorizontal className="h-4 w-4" />} label={t.navStart} />
+            <NavItem href="#manual" icon={<Clipboard className="h-4 w-4" />} label={t.navOneJob} />
+            <NavItem href="#jobs" icon={<Mail className="h-4 w-4" />} label={t.navShortlist} />
+            <NavItem href="#drafts" icon={<FileText className="h-4 w-4" />} label={t.navDrafts} />
+            <NavItem href="#history" icon={<History className="h-4 w-4" />} label={t.navHistory} />
           </nav>
 
           <div className="mt-6 rounded-md border border-emerald-300/30 bg-emerald-400/12 p-3 text-sm text-emerald-50">
@@ -1380,8 +1394,8 @@ function App() {
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <NumberField label={t.topDrafts} value={topDrafts} min={1} max={10} onChange={setTopDrafts} />
-                  <NumberField label={language === "zh" ? "最低匹配度" : "Minimum match"} value={minScore} min={0} max={100} onChange={setMinScore} />
+                  <NumberField label={t.topDrafts} hint={t.topDraftsHint} value={topDrafts} min={1} max={10} onChange={setTopDrafts} />
+                  <NumberField label={t.minScore} hint={t.minScoreHint} value={minScore} min={0} max={100} onChange={setMinScore} />
                 </div>
 
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -1958,7 +1972,21 @@ function RangeButton({ active, label, onClick }: { active: boolean; label: strin
   );
 }
 
-function NumberField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) {
+function NumberField({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  onChange
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
   return (
     <label>
       <span className="mb-2 block text-sm font-semibold text-muted">{label}</span>
@@ -1970,6 +1998,7 @@ function NumberField({ label, value, min, max, onChange }: { label: string; valu
         onChange={(event) => onChange(Math.min(max, Math.max(min, Number(event.target.value))))}
         className="h-12 w-full rounded-md border border-line bg-white px-3 text-xl font-semibold outline-none focus:border-accent"
       />
+      {hint && <span className="mt-1 block text-xs leading-5 text-muted">{hint}</span>}
     </label>
   );
 }
