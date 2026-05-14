@@ -28,6 +28,14 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.45);
+  outline-offset: 2px;
+}
+
 .app-backdrop {
   background:
     linear-gradient(135deg, #e7f2f1 0%, #f6f8fb 44%, #eef5ea 100%),
@@ -157,6 +165,20 @@ a {
   filter: brightness(1.04);
   transform: translateY(-1px);
   box-shadow: 0 16px 30px rgba(37, 99, 235, 0.27);
+}
+
+.secondary-action {
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.1);
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.secondary-action:hover {
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.14);
 }
 
 .metric-card {

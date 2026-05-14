@@ -5,7 +5,7 @@ export default {
     extend: {
       colors: {
         ink: "#172033",
-        muted: "#647084",
+        muted: "#4F5F74",
         line: "#D7DEE8",
         panel: "#FFFFFF",
         canvas: "#F4F7FA",
