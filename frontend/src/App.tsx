@@ -232,6 +232,16 @@ const translations = {
     steps: "Steps",
     recentRuns: "Recent runs",
     runsCount: "runs",
+    currentResult: "Current result",
+    currentResultBody: "This is the active report. Start with the job list, then read details and review drafts.",
+    resultJobs: "Shortlisted jobs",
+    resultDrafts: "Drafts ready",
+    resultSteps: "Completed steps",
+    nextStep: "Next step",
+    nextStepPick: "Pick a job",
+    nextStepRead: "Read details",
+    nextStepReview: "Review draft",
+    historyHint: "Older reports are kept below for comparison or reopening.",
     updated: "Updated",
     selected: "selected",
     run: "Run",
@@ -395,6 +405,16 @@ const translations = {
     steps: "流程",
     recentRuns: "历史结果",
     runsCount: "条记录",
+    currentResult: "当前结果",
+    currentResultBody: "这是当前正在查看的报告。先看推荐岗位，再读取岗位详情，最后检查草稿。",
+    resultJobs: "推荐岗位",
+    resultDrafts: "已生成草稿",
+    resultSteps: "已完成步骤",
+    nextStep: "下一步",
+    nextStepPick: "选择岗位",
+    nextStepRead: "读取详情",
+    nextStepReview: "检查草稿",
+    historyHint: "历史结果放在下面，需要对比或打开旧报告时再看。",
     updated: "更新于",
     selected: "当前",
     run: "结果",
@@ -1516,9 +1536,52 @@ function App() {
             </div>
           )}
 
+          {run && (
+            <section className="result-summary-panel fade-lift rounded-md p-4">
+              <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-center">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.currentResult}</p>
+                  <h2 className="mt-1 text-lg font-semibold">{displayRunId(run.id)}</h2>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{t.currentResultBody}</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <ResultMetric label={t.resultJobs} value={run.selected_jobs.length.toString()} />
+                  <ResultMetric label={t.resultDrafts} value={run.drafts.length.toString()} />
+                  <ResultMetric label={t.resultSteps} value={run.steps.length.toString()} />
+                </div>
+              </div>
+              <div className="mt-4 grid gap-2 md:grid-cols-3">
+                <a className="next-step-link rounded-md px-3 py-2" href="#jobs">
+                  <span className="next-step-number">1</span>
+                  <span>
+                    <span className="block text-sm font-semibold">{t.nextStepPick}</span>
+                    <span className="text-xs text-muted">{t.selectedJobs}</span>
+                  </span>
+                </a>
+                <a className="next-step-link rounded-md px-3 py-2" href="#jobs">
+                  <span className="next-step-number">2</span>
+                  <span>
+                    <span className="block text-sm font-semibold">{t.nextStepRead}</span>
+                    <span className="text-xs text-muted">{t.applySelected}</span>
+                  </span>
+                </a>
+                <a className="next-step-link rounded-md px-3 py-2" href="#drafts">
+                  <span className="next-step-number">3</span>
+                  <span>
+                    <span className="block text-sm font-semibold">{t.nextStepReview}</span>
+                    <span className="text-xs text-muted">{t.applicationDraft}</span>
+                  </span>
+                </a>
+              </div>
+            </section>
+          )}
+
           <section id="history" className="surface-panel fade-lift rounded-md p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold">{t.recentRuns}</h2>
+              <div>
+                <h2 className="text-base font-semibold">{t.recentRuns}</h2>
+                <p className="mt-1 text-xs leading-5 text-muted">{t.historyHint}</p>
+              </div>
               <span className="text-xs font-semibold text-muted">
                 {runs.length} {t.runsCount}
               </span>
@@ -1890,6 +1953,15 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className="metric-card min-w-20 rounded-md px-4 py-3">
       <div className="text-xl font-semibold text-white">{value}</div>
       <div className="mt-1 text-xs font-medium text-blue-50">{label}</div>
+    </div>
+  );
+}
+
+function ResultMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-line bg-white/85 px-3 py-3">
+      <div className="text-xl font-semibold text-ink">{value}</div>
+      <div className="mt-1 text-xs font-semibold text-muted">{label}</div>
     </div>
   );
 }

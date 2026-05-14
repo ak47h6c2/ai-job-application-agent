@@ -125,6 +125,44 @@ textarea:focus-visible {
   box-shadow: 0 12px 26px rgba(37, 99, 235, 0.1);
 }
 
+.result-summary-panel {
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  background:
+    linear-gradient(135deg, rgba(239, 246, 255, 0.9), rgba(240, 253, 250, 0.88)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 252, 251, 0.82));
+  box-shadow: 0 16px 38px rgba(25, 45, 65, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.next-step-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(125, 141, 163, 0.22);
+  background: rgba(255, 255, 255, 0.78);
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.next-step-link:hover {
+  border-color: rgba(37, 99, 235, 0.3);
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.1);
+}
+
+.next-step-number {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #2563eb;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .workflow-card {
   position: relative;
   overflow: hidden;
