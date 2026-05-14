@@ -8,6 +8,7 @@
 - Moved resume status, mail range, match threshold, job-source modes, JD fields, and generation actions into a clearer two-column workflow.
 - Reduced repeated buttons and long instructional blocks while keeping automatic link reading, logged-in import, manual paste, resume upload, and mail scanning behavior unchanged.
 - Renamed the two confusing "generate materials" actions into separate "create draft from this JD" and "read job details" tasks.
+- Added a three-path entry panel for scanning email jobs, creating a draft from one JD, and reviewing drafts.
 - Fixed a React duplicate-key warning when two job leads share the same company and title.
 
 ### 中文
@@ -16,6 +17,7 @@
 - 把简历状态、邮件范围、匹配度阈值、岗位来源模式、JD 表单和生成按钮整合为左右两栏流程。
 - 减少重复按钮和大段说明文字，但保留自动读取链接、登录后导入、手动粘贴、上传简历和读取邮件的原有功能。
 - 将两个容易混淆的“生成申请材料”入口拆成“按当前 JD 生成草稿”和“读取岗位详情”两个任务。
+- 增加“三条主路径”入口：扫描邮箱找岗位、单个 JD 生成草稿、查看申请草稿。
 - 修复当两个岗位线索公司和标题相同时可能出现的 React key 警告。
 
 ## 2026-05-10

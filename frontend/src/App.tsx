@@ -110,6 +110,19 @@ const translations = {
     productName: "AI Job Application Agent",
     headline: "Application workbench",
     subline: "Upload a resume, choose one path, then review drafts.",
+    pathPickerTitle: "Choose your path",
+    pathPickerBody: "Most users only need one path at a time.",
+    pathMailTitle: "Scan email jobs",
+    pathMailBody: "Use this for QQ Mail job alerts and recruiter emails.",
+    pathJobTitle: "Single job JD",
+    pathJobBody: "Paste or read one job link, then create drafts.",
+    pathDraftTitle: "Review drafts",
+    pathDraftBody: "Check match evidence, cover letter, and recruiter message.",
+    pathOpen: "Go",
+    mailPathTitle: "Scan emails for jobs",
+    mailPathBody: "Find recent job leads from email, rank them, then draft for the best matches.",
+    singleJobPathTitle: "Create draft from one JD",
+    singleJobPathBody: "Use a public link, logged-in page, or pasted JD when you already know the role.",
     language: "Language",
     english: "EN",
     chinese: "中文",
@@ -218,6 +231,7 @@ const translations = {
     jobs: "Jobs",
     steps: "Steps",
     recentRuns: "Recent runs",
+    runsCount: "runs",
     updated: "Updated",
     selected: "selected",
     run: "Run",
@@ -259,6 +273,19 @@ const translations = {
     productName: "AI 求职申请助手",
     headline: "求职申请工作台",
     subline: "上传简历后，选择邮件扫描或单个 JD 路径，最后检查草稿。",
+    pathPickerTitle: "先选你要做什么",
+    pathPickerBody: "大多数时候只需要走其中一条路径，不必把所有按钮都点一遍。",
+    pathMailTitle: "扫描邮箱找岗位",
+    pathMailBody: "适合 QQ 邮箱里的岗位提醒、招聘邮件。",
+    pathJobTitle: "单个 JD 生成草稿",
+    pathJobBody: "适合已经有岗位链接或完整 JD 的情况。",
+    pathDraftTitle: "查看申请草稿",
+    pathDraftBody: "检查匹配依据、求职信和招聘方消息。",
+    pathOpen: "进入",
+    mailPathTitle: "扫描邮箱找岗位",
+    mailPathBody: "从近期邮件里找岗位线索，排序后给匹配度高的岗位生成草稿。",
+    singleJobPathTitle: "单个 JD 生成草稿",
+    singleJobPathBody: "已经知道目标岗位时，用公开链接、登录页面或手动粘贴 JD 生成草稿。",
     language: "语言",
     english: "EN",
     chinese: "中文",
@@ -367,6 +394,7 @@ const translations = {
     jobs: "职位",
     steps: "流程",
     recentRuns: "历史结果",
+    runsCount: "条记录",
     updated: "更新于",
     selected: "当前",
     run: "结果",
@@ -1200,6 +1228,21 @@ function App() {
             </div>
           </header>
 
+          <section className="route-panel fade-lift rounded-md p-4" aria-label={t.pathPickerTitle}>
+            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.controls}</p>
+                <h2 className="mt-1 text-lg font-semibold">{t.pathPickerTitle}</h2>
+              </div>
+              <p className="max-w-xl text-sm leading-6 text-muted">{t.pathPickerBody}</p>
+            </div>
+            <div className="grid gap-2 lg:grid-cols-3">
+              <PathLink href="#setup" icon={<Mail className="h-4 w-4" />} title={t.pathMailTitle} body={t.pathMailBody} action={t.pathOpen} />
+              <PathLink href="#manual" icon={<FileText className="h-4 w-4" />} title={t.pathJobTitle} body={t.pathJobBody} action={t.pathOpen} />
+              <PathLink href="#drafts" icon={<Clipboard className="h-4 w-4" />} title={t.pathDraftTitle} body={t.pathDraftBody} action={t.pathOpen} />
+            </div>
+          </section>
+
           <section id="setup" className="fade-lift space-y-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -1243,9 +1286,9 @@ function App() {
                 <div className="flex items-start gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-600 text-sm font-bold text-white">1</div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.mailStep}</p>
+                    <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.mailPathTitle}</p>
                     <h3 className="mt-1 text-lg font-semibold">{t.agentStepTitle}</h3>
-                    <p className="mt-1 text-sm leading-6 text-muted">{t.mailStepTitle}</p>
+                    <p className="mt-1 text-sm leading-6 text-muted">{t.mailPathBody}</p>
                   </div>
                 </div>
 
@@ -1319,10 +1362,13 @@ function App() {
 
               <section id="manual" className="workflow-card rounded-md p-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.manualJob}</p>
-                    <h3 className="mt-1 text-lg font-semibold">{t.manualTitle}</h3>
-                    <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{t.manualSubtitle}</p>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-emerald-600 text-sm font-bold text-white">2</div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.singleJobPathTitle}</p>
+                      <h3 className="mt-1 text-lg font-semibold">{t.manualTitle}</h3>
+                      <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{t.singleJobPathBody}</p>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-1 rounded-md border border-line bg-slate-50 p-1">
                     <ModeButton active={jobInputMode === "auto"} label={t.autoMode} onClick={() => setJobInputMode("auto")} />
@@ -1473,7 +1519,9 @@ function App() {
           <section id="history" className="surface-panel fade-lift rounded-md p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-base font-semibold">{t.recentRuns}</h2>
-              <span className="text-xs text-muted">{runs.length}</span>
+              <span className="text-xs font-semibold text-muted">
+                {runs.length} {t.runsCount}
+              </span>
             </div>
             {visibleRuns.length ? (
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
@@ -1733,6 +1781,33 @@ function ModeButton({ active, label, onClick }: { active: boolean; label: string
     >
       {label}
     </button>
+  );
+}
+
+function PathLink({
+  href,
+  icon,
+  title,
+  body,
+  action
+}: {
+  href: string;
+  icon: ReactNode;
+  title: string;
+  body: string;
+  action: string;
+}) {
+  return (
+    <a href={href} className="path-link rounded-md px-3 py-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white text-accent shadow-sm ring-1 ring-line">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-ink">{title}</span>
+        <span className="mt-1 block text-xs leading-5 text-muted">{body}</span>
+      </span>
+      <span className="shrink-0 text-xs font-semibold text-accent">{action}</span>
+    </a>
   );
 }
 
