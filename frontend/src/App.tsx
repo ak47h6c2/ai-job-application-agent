@@ -181,6 +181,7 @@ const translations = {
     loginBrowserStillLogin: "The dedicated browser is still on a login or verification page. Log in, open the job detail page, then read again.",
     loginBrowserOpeningHint: "Opening the dedicated browser. This can take up to 30 seconds.",
     loginBrowserReadingHint: "Reading the current dedicated browser page. Make sure it is on a real job detail page.",
+    loginBrowserOpenFirst: "Open the dedicated browser with a job link first, then read the current page.",
     requestTimeout: "This step took too long and was stopped. Check the dedicated browser window, then try again.",
     loginBrowserPageNotReady: "The job page is open, but the JD has not loaded yet. Wait until the job description is visible, then read again.",
     leadSnippetTitle: "Email lead only",
@@ -329,6 +330,7 @@ const translations = {
     loginBrowserStillLogin: "专用浏览器现在还停在登录或验证页面。请先在那个窗口完成登录，并打开岗位详情页，然后再回来读取。",
     loginBrowserOpeningHint: "正在打开专用浏览器，最多等待 30 秒。打开后如果需要登录，就在新窗口里完成登录。",
     loginBrowserReadingHint: "正在读取专用浏览器当前页面，最多等待 20 秒。请确认那个窗口停在岗位详情页。",
+    loginBrowserOpenFirst: "请先粘贴岗位链接并点击“打开登录浏览器”，等岗位页出现在专用浏览器里后，再回来读取当前页面。",
     requestTimeout: "这一步等待时间过长，已自动停止。请确认专用浏览器是否打开，并停在岗位详情页，然后再点一次。",
     loginBrowserPageNotReady: "岗位页已经打开，但 JD 还没加载出来。请等专用浏览器里出现完整岗位描述后，再回来读取。",
     leadSnippetTitle: "邮件里提到的岗位线索",
@@ -708,6 +710,7 @@ function App() {
   const friendlyError = (rawMessage: string, fallback: string) => {
     if (rawMessage.includes("Failed to fetch")) return t.apiError;
     if (rawMessage.includes("Request timed out") || rawMessage.includes("timed out")) return t.requestTimeout;
+    if (rawMessage.includes("Open the login browser with a job link first")) return t.loginBrowserOpenFirst;
     if (rawMessage.includes("login or verification page")) return t.loginBrowserStillLogin;
     if (rawMessage.includes("has not loaded the job description")) return t.loginBrowserPageNotReady;
     if (rawMessage.includes("Could not read enough resume text")) return t.uploadTextError;
