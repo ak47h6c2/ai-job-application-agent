@@ -1199,6 +1199,15 @@ function App() {
     );
   }, [run, selected, selectedIndex]);
 
+  function selectJob(index: number) {
+    setSelectedIndex(index);
+    if (window.matchMedia("(max-width: 1279px)").matches) {
+      window.setTimeout(() => {
+        document.getElementById("job-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
+    }
+  }
+
   const visibleRuns = runs.slice(0, 4);
   const isInitialLoading = state === "loading" && !run;
 
@@ -1628,7 +1637,7 @@ function App() {
                             key={`${lead.company}-${lead.title}-${index}`}
                             type="button"
                             aria-pressed={isSelected}
-                            onClick={() => setSelectedIndex(index)}
+                            onClick={() => selectJob(index)}
                             className={`w-full rounded-md border p-3 text-left transition ${
                               isSelected ? "job-card-selected border-accent bg-blue-50" : "job-card border-line bg-white/85 hover:border-blue-200"
                             }`}
