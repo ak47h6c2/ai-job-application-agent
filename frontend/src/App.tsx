@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clipboard,
   Clock3,
+  Download,
   ExternalLink,
   FileText,
   History,
@@ -263,6 +264,7 @@ const translations = {
     showLessRuns: "Show less",
     currentResult: "Current result",
     currentResultBody: "This is the active report. Start with the job list, then read details and review drafts.",
+    downloadReport: "Download report",
     resultJobs: "Shortlisted jobs",
     resultDrafts: "Drafts ready",
     resultSteps: "Completed steps",
@@ -306,6 +308,7 @@ const translations = {
     draftLanguageChinese: "Chinese",
     notes: "Notes",
     copyPackage: "Copy package",
+    downloadPackage: "Download Markdown",
     copy: "Copy",
     copied: "Copied",
     points: "pts",
@@ -460,6 +463,7 @@ const translations = {
     showLessRuns: "收起历史",
     currentResult: "当前结果",
     currentResultBody: "这是当前正在查看的报告。先看推荐岗位，再读取岗位详情，最后检查草稿。",
+    downloadReport: "下载报告",
     resultJobs: "推荐岗位",
     resultDrafts: "已生成草稿",
     resultSteps: "已完成步骤",
@@ -503,6 +507,7 @@ const translations = {
     draftLanguageChinese: "中文",
     notes: "投递提醒",
     copyPackage: "复制整套材料",
+    downloadPackage: "下载 Markdown",
     copy: "复制",
     copied: "已复制",
     points: "分",
@@ -717,6 +722,27 @@ function matchScoreLabel(score: number, language: Language) {
 function draftLanguageName(value: Language | undefined, language: Language) {
   if (value === "zh") return translations[language].draftLanguageChinese;
   return translations[language].draftLanguageEnglish;
+}
+
+function safeFilePart(value: string) {
+  const cleaned = value
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, " ")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+  return cleaned.slice(0, 80) || "application";
+}
+
+function downloadTextFile(filename: string, text: string) {
+  const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 async function parseApiError(response: Response) {
@@ -1290,6 +1316,23 @@ function App() {
   }
 
   const selected = run?.selected_jobs[selectedIndex] ?? run?.selected_jobs[0];
+  const currentReportMarkdown = useMemo(() => {
+    if (!run) return "";
+    const jobLines = run.selected_jobs.map((analysis, index) => {
+      const lead = analysis.scored_lead.lead;
+      return `${index + 1}. ${lead.title} - ${lead.company} (${matchScoreLabel(analysis.scored_lead.score, language)})`;
+    });
+    const draftLines = run.drafts.map((draft, index) => `${index + 1}. ${draft.job_title} - ${draft.company}`);
+    return [
+      `# ${t.currentResult}: ${displayRunId(run.id, language)}`,
+      `## ${t.selectedJobs}`,
+      jobLines.length ? jobLines.join("\n") : t.noJobsTitle,
+      `## ${t.applicationDraft}`,
+      draftLines.length ? draftLines.join("\n") : t.noDraftTitle,
+      `## ${t.steps}`,
+      run.steps.map((step) => `- ${stepLabels[language][step.name] ?? step.name}: ${step.summary}`).join("\n")
+    ].join("\n\n");
+  }, [run, language, t.currentResult, t.selectedJobs, t.applicationDraft, t.steps, t.noJobsTitle, t.noDraftTitle]);
   const selectedDraft = useMemo(() => {
     if (!run || !selected) return undefined;
     return (
@@ -1315,6 +1358,20 @@ function App() {
       ...selectedDraft.application_notes.map((item) => `- ${item}`)
     ].join("\n\n");
   }, [selectedDraft, t.applicationDraft, t.resumeFocus, t.coverLetter, t.recruiterMessage, t.notes]);
+  const selectedDraftFilename = selectedDraft
+    ? `${safeFilePart(selectedDraft.company)}-${safeFilePart(selectedDraft.job_title)}-application-package.md`
+    : "application-package.md";
+  const currentReportFilename = run ? `${safeFilePart(displayRunId(run.id, language))}-report.md` : "job-agent-report.md";
+
+  function downloadSelectedPackage() {
+    if (!selectedDraftPackage) return;
+    downloadTextFile(selectedDraftFilename, selectedDraftPackage);
+  }
+
+  function downloadCurrentReport() {
+    if (!currentReportMarkdown) return;
+    downloadTextFile(currentReportFilename, currentReportMarkdown);
+  }
 
   function selectJob(index: number) {
     setSelectedIndex(index);
@@ -1714,6 +1771,16 @@ function App() {
                   <ResultMetric label={t.resultSteps} value={run.steps.length.toString()} />
                 </div>
               </div>
+              <div className="mt-4 flex flex-wrap justify-end">
+                <button
+                  type="button"
+                  onClick={downloadCurrentReport}
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-blue-200 bg-white px-3 text-sm font-semibold text-accent hover:bg-blue-50"
+                >
+                  <Download className="h-4 w-4" />
+                  {t.downloadReport}
+                </button>
+              </div>
               <div className="mt-4 grid gap-2 md:grid-cols-3">
                 <a className="next-step-link rounded-md px-3 py-2" href="#jobs">
                   <span className="next-step-number">1</span>
@@ -1910,6 +1977,14 @@ function App() {
                           >
                             {copiedKey === "package" ? <Check className="h-3.5 w-3.5 text-success" /> : <Clipboard className="h-3.5 w-3.5" />}
                             {copiedKey === "package" ? t.copied : t.copyPackage}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={downloadSelectedPackage}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-blue-200 bg-white px-2.5 text-xs font-semibold text-accent hover:bg-blue-50"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            {t.downloadPackage}
                           </button>
                           <span className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-accent">
                             {t.draftLanguage}: {draftLanguageName(selectedDraft.communication_language, language)}

@@ -22,6 +22,7 @@
 - Added dynamic sidebar highlighting, smoother anchor positioning, disabled-action helper text, and a direct job-detail link to the application package.
 - Added expandable run history so older reports can be reopened without cluttering the default view.
 - Persisted scan settings and job-input mode locally, added a pre-generation checklist for single JD drafts, and added one-click copy for the full application package.
+- Added Markdown downloads for the current report and selected application package.
 - Fixed a React duplicate-key warning when two job leads share the same company and title.
 
 ### 中文
@@ -44,6 +45,7 @@
 - 增加侧边栏动态高亮、锚点滚动边距、按钮不可用原因提示，以及从岗位详情直达申请包的入口。
 - 历史结果支持展开全部和收起，默认保持简洁，同时旧报告也能重新打开。
 - 本地保存扫描设置和岗位输入模式；单个 JD 增加生成前检查；申请包支持一键复制整套材料。
+- 新增当前报告和选中申请包的 Markdown 下载。
 - 修复当两个岗位线索公司和标题相同时可能出现的 React key 警告。
 
 ## 2026-05-10
