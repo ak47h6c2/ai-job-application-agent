@@ -178,9 +178,11 @@ const translations = {
     customDate: "Custom date",
     agentStep: "Agent",
     agentStepTitle: "Shortlist and draft",
-    startScan: "Analyze jobs",
-    scanning: "Analyzing...",
-    refresh: "Reload",
+    startScan: "Scan mail and create drafts",
+    scanning: "Scanning mail...",
+    refresh: "Refresh saved results",
+    scanActionHint: "Creates a new current report from the selected mail range. Nothing is sent or submitted.",
+    refreshHint: "Reloads saved reports only. It does not scan your mailbox.",
     scanSuccess: "New job analysis generated.",
     scanError: "Scan failed.",
     manualTitle: "Add a job post",
@@ -263,7 +265,7 @@ const translations = {
     showAllRuns: "Show all history",
     showLessRuns: "Show less",
     currentResult: "Current result",
-    currentResultBody: "This is the active report. Start with the job list, then read details and review drafts.",
+    currentResultBody: "This is the report currently open on screen. To check newer mail, run a new scan above; to compare older work, open History below.",
     downloadReport: "Download report",
     resultJobs: "Shortlisted jobs",
     resultDrafts: "Drafts ready",
@@ -377,9 +379,11 @@ const translations = {
     customDate: "自定义日期",
     agentStep: "生成",
     agentStepTitle: "筛选职位并生成草稿",
-    startScan: "开始分析",
-    scanning: "分析中...",
-    refresh: "更新结果",
+    startScan: "扫描邮件并生成草稿",
+    scanning: "正在扫描邮箱...",
+    refresh: "刷新历史结果",
+    scanActionHint: "会按上面的日期重新读取邮件，并生成一个新的当前报告；不会自动发送邮件或投递。",
+    refreshHint: "只重新加载已经保存的结果，不会读取邮箱。",
     scanSuccess: "分析完成，已生成新的求职材料。",
     scanError: "分析失败。",
     manualTitle: "添加岗位 JD",
@@ -462,7 +466,7 @@ const translations = {
     showAllRuns: "展开全部历史",
     showLessRuns: "收起历史",
     currentResult: "当前结果",
-    currentResultBody: "这是当前正在查看的报告。先看推荐岗位，再读取岗位详情，最后检查草稿。",
+    currentResultBody: "这里显示的是当前打开的报告，可能是刚生成的，也可能是从历史里打开的。想看更新邮件，请回到上方重新扫描；想对比旧结果，请看下方历史。",
     downloadReport: "下载报告",
     resultJobs: "推荐岗位",
     resultDrafts: "已生成草稿",
@@ -1383,6 +1387,7 @@ function App() {
   }
 
   const visibleRuns = showAllRuns ? runs : runs.slice(0, 4);
+  const currentRunSummary = run ? runs.find((item) => item.id === run.id) : undefined;
   const isInitialLoading = state === "loading" && !run;
 
   return (
@@ -1561,13 +1566,6 @@ function App() {
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                   <button
                     type="button"
-                    onClick={() => void loadLatest()}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-white/85 px-3 text-sm font-semibold hover:border-blue-200 hover:bg-blue-50"
-                  >
-                    <RefreshCw className="h-4 w-4" /> {t.refresh}
-                  </button>
-                  <button
-                    type="button"
                     onClick={runAgent}
                     disabled={runStatus === "running" || !resume?.exists}
                     className="primary-action inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -1575,7 +1573,16 @@ function App() {
                     {runStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                     {runStatus === "running" ? t.scanning : t.startScan}
                   </button>
+                  <button
+                    type="button"
+                    title={t.refreshHint}
+                    onClick={() => void loadLatest()}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-white/85 px-3 text-sm font-semibold hover:border-blue-200 hover:bg-blue-50"
+                  >
+                    <RefreshCw className="h-4 w-4" /> {t.refresh}
+                  </button>
                 </div>
+                {resume?.exists && <p className="mt-2 text-xs leading-5 text-muted">{t.scanActionHint}</p>}
                 {!resume?.exists && <p className="mt-2 text-xs leading-5 text-amber-700">{t.resumeRequiredHint}</p>}
               </section>
 
@@ -1755,6 +1762,11 @@ function App() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.currentResult}</p>
                   <h2 className="mt-1 text-lg font-semibold">{displayRunId(run.id, language)}</h2>
+                  {currentRunSummary && (
+                    <p className="mt-1 text-xs font-semibold text-muted">
+                      {t.updated} {formatModified(currentRunSummary.modified_at, language)}
+                    </p>
+                  )}
                   <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{t.currentResultBody}</p>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {run.steps.map((step) => (

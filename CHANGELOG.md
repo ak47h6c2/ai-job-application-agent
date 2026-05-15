@@ -1,5 +1,17 @@
 # Changelog / 更新日志
 
+## 2026-05-15
+
+### English
+
+- Clarified the mail-scan controls: the primary action now scans mail and creates a new report, while refresh only reloads saved reports.
+- Added the current report's last-updated time and clearer guidance for when to scan again versus opening history.
+
+### 中文
+
+- 优化邮箱扫描区的按钮逻辑：主按钮明确表示“扫描邮件并生成草稿”，刷新按钮只负责重新加载已保存结果。
+- 当前报告新增更新时间，并说明它可能是刚生成的结果，也可能是从历史中打开的结果，减少误解。
+
 ## 2026-05-14
 
 ### English
