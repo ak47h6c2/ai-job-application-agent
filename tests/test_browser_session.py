@@ -77,6 +77,24 @@ class BrowserSessionTests(unittest.TestCase):
         with self.assertRaises(BrowserSessionError):
             validate_browser_job_payload(payload)
 
+    def test_rejects_browser_visible_text_that_is_not_a_jd(self) -> None:
+        payload = {
+            "title": "Systems Development Engineer",
+            "company": "Amazon Web Services",
+            "location": "Sydney, NSW",
+            "url": "https://www.linkedin.com/jobs/view/4408845265/",
+            "description": (
+                "Systems Development Engineer Amazon Web Services Sydney NSW. "
+                "View job Save Apply Share Open app Similar jobs People also viewed. "
+                "Company profile Privacy Policy Cookie Policy LinkedIn Corporation."
+            ),
+            "source": "www.linkedin.com",
+            "hasJobPosting": False,
+        }
+
+        with self.assertRaises(BrowserSessionError):
+            validate_browser_job_payload(payload)
+
 
 if __name__ == "__main__":
     unittest.main()

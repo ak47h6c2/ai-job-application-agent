@@ -4,11 +4,15 @@
 
 ### English
 
+- Added JD-quality validation so public-link and logged-in browser reads reject navigation, search-result, login, and recommendation text instead of treating it as the job description.
+- Improved the Web UI error copy when a page is readable but does not look like a complete JD.
 - Clarified the mail-scan controls: the primary action now scans mail and creates a new report, while refresh only reloads saved reports.
 - Added the current report's last-updated time and clearer guidance for when to scan again versus opening history.
 
 ### 中文
 
+- 新增 JD 质量校验：公开链接读取和登录浏览器读取会拒绝导航、搜索结果、登录页、推荐职位等页面壳文本，不再把它们当作岗位描述。
+- 优化“页面能读到但不像完整 JD”时的前端提示，引导用户打开真正岗位详情页或手动粘贴。
 - 优化邮箱扫描区的按钮逻辑：主按钮明确表示“扫描邮件并生成草稿”，刷新按钮只负责重新加载已保存结果。
 - 当前报告新增更新时间，并说明它可能是刚生成的结果，也可能是从历史中打开的结果，减少误解。
 

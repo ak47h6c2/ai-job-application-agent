@@ -6,7 +6,12 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from backend.app.services.job_url_reader import looks_like_blocked_or_login_page, validate_public_http_url
+from backend.app.services.job_url_reader import (
+    looks_like_blocked_or_login_page,
+    looks_like_job_description,
+    trim_job_description_text,
+    validate_public_http_url,
+)
 
 
 class BrowserSessionError(RuntimeError):
@@ -247,6 +252,7 @@ def clean_browser_job_payload(payload: dict[str, Any]) -> dict[str, Any]:
                 "选择语言",
             ),
         )
+    description = trim_job_description_text(description)
 
     cleaned["title"] = title
     cleaned["company"] = company
@@ -272,6 +278,15 @@ def validate_browser_job_payload(payload: dict[str, Any]) -> dict[str, str]:
     company = str(payload.get("company") or "").strip()
     if len(title) < 2 or len(company) < 1:
         raise BrowserSessionError("Could not read enough job information from the current browser page.")
+    if not looks_like_job_description(
+        title=title,
+        description=description,
+        has_jobposting=bool(payload.get("hasJobPosting")),
+    ):
+        raise BrowserSessionError(
+            "The current page text does not look like a full job description. "
+            "It may be navigation, search-result, login, or recommendation text instead of the JD."
+        )
     return {key: str(value or "") for key, value in payload.items() if key != "hasJobPosting" and not key.startswith("_")}
 
 

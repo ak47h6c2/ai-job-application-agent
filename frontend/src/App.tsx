@@ -195,6 +195,7 @@ const translations = {
     autoSuccess: "Job details loaded. Check the fields, then create drafts.",
     autoMissing: "Paste a job link first.",
     autoError: "Could not read this link automatically. Some sites require login or block automated reading. Use manual paste mode.",
+    jdQualityError: "The page was readable, but the text does not look like a complete JD. Open the real job detail page until responsibilities and requirements are visible, or paste the JD manually.",
     autoHint: "Best for public company career pages and job boards. LinkedIn may require manual paste.",
     browserImportTitle: "Open a dedicated login browser",
     browserImportBody: "No extension needed. The app opens a browser window, you log in there once, and the login state is stored locally for future reads.",
@@ -396,6 +397,7 @@ const translations = {
     autoSuccess: "岗位信息已读取，请检查字段后生成草稿。",
     autoMissing: "请先粘贴岗位链接。",
     autoError: "这个链接暂时无法自动读取。部分网站需要登录或会阻止抓取，请切换到手动粘贴。",
+    jdQualityError: "页面能读到文字，但不像完整 JD。请打开真正的岗位详情页，确认能看到岗位职责和任职要求；如果仍然不行，就切换到手动粘贴。",
     autoHint: "公司官网和公开招聘页通常更容易读取；LinkedIn 可能需要手动粘贴。",
     browserImportTitle: "打开专用登录浏览器",
     browserImportBody: "不需要安装扩展。系统会打开一个浏览器窗口，你在里面登录一次，登录状态会保存在本地，之后同平台可以继续复用。",
@@ -908,6 +910,7 @@ function App() {
     if (rawMessage.includes("Open the login browser with a job link first")) return t.loginBrowserOpenFirst;
     if (rawMessage.includes("login or verification page")) return t.loginBrowserStillLogin;
     if (rawMessage.includes("has not loaded the job description")) return t.loginBrowserPageNotReady;
+    if (rawMessage.includes("does not look like a full job description")) return t.jdQualityError;
     if (rawMessage.includes("Could not read enough resume text")) return t.uploadTextError;
     if (rawMessage.includes("Could not read resume PDF")) return t.uploadTextError;
     if (rawMessage.includes("Resume index not found")) return t.resumeMissing;

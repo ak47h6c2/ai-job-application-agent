@@ -81,6 +81,27 @@ class JobUrlReaderTests(unittest.TestCase):
         with self.assertRaises(JobUrlReadError):
             preview_from_html(html, "https://www.linkedin.com/comm/jobs/view/123/")
 
+    def test_preview_rejects_page_shell_text_instead_of_jd(self) -> None:
+        html = """
+        <html>
+          <head>
+            <meta property="og:title" content="Systems Development Engineer">
+            <meta property="og:site_name" content="LinkedIn">
+          </head>
+          <body>
+            <main>
+              Systems Development Engineer Amazon Web Services Sydney NSW.
+              View job Save Apply Share Open app Similar jobs People also viewed.
+              Company profile Privacy Policy Cookie Policy LinkedIn Corporation.
+              https://www.linkedin.com/jobs/view/123/
+            </main>
+          </body>
+        </html>
+        """
+
+        with self.assertRaises(JobUrlReadError):
+            preview_from_html(html, "https://www.linkedin.com/jobs/view/123/")
+
     def test_preview_requires_enough_information(self) -> None:
         with self.assertRaises(JobUrlReadError):
             preview_from_html("<html><title>x</title></html>", "https://example.com")

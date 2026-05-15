@@ -13,6 +13,151 @@ from urllib.request import Request, urlopen
 
 MAX_JOB_PAGE_BYTES = 1_500_000
 HTTP_TIMEOUT_SECONDS = 12
+JOB_DESCRIPTION_MARKERS = (
+    "job description",
+    "about the job",
+    "about the role",
+    "about this role",
+    "responsibilities",
+    "key responsibilities",
+    "duties",
+    "requirements",
+    "qualifications",
+    "basic qualifications",
+    "preferred qualifications",
+    "what you'll do",
+    "what you will do",
+    "what you bring",
+    "skills",
+    "experience",
+    "职位描述",
+    "职位详情",
+    "岗位职责",
+    "工作职责",
+    "任职要求",
+    "任职资格",
+    "岗位要求",
+    "工作内容",
+    "资格要求",
+    "技能要求",
+    "加分项",
+)
+JOB_ACTION_MARKERS = (
+    "build",
+    "develop",
+    "design",
+    "implement",
+    "maintain",
+    "support",
+    "automate",
+    "collaborate",
+    "负责",
+    "开发",
+    "设计",
+    "构建",
+    "维护",
+    "测试",
+    "协作",
+    "熟悉",
+    "掌握",
+)
+TECH_OR_ROLE_MARKERS = (
+    "python",
+    "sql",
+    "java",
+    "javascript",
+    "typescript",
+    "react",
+    "api",
+    "cloud",
+    "aws",
+    "docker",
+    "kubernetes",
+    "linux",
+    "database",
+    "testing",
+    "automation",
+    "machine learning",
+    "ai",
+    "agent",
+    "rag",
+    "llm",
+    "数据",
+    "算法",
+    "数据库",
+    "测试",
+    "自动化",
+    "大模型",
+    "人工智能",
+)
+PAGE_SHELL_MARKERS = (
+    "sign in",
+    "login",
+    "save job",
+    "apply now",
+    "similar jobs",
+    "people also viewed",
+    "recommended jobs",
+    "company profile",
+    "privacy policy",
+    "cookie policy",
+    "terms of service",
+    "linkedin corporation",
+    "open app",
+    "search jobs",
+    "登录",
+    "保存",
+    "申请",
+    "相似职位",
+    "更多职位",
+    "公司简介",
+    "隐私政策",
+    "用户协议",
+    "选择语言",
+)
+JOB_DESCRIPTION_START_MARKERS = (
+    "job description",
+    "about the job",
+    "about the role",
+    "about this role",
+    "responsibilities",
+    "key responsibilities",
+    "duties",
+    "requirements",
+    "qualifications",
+    "basic qualifications",
+    "preferred qualifications",
+    "what you'll do",
+    "what you will do",
+    "what you bring",
+    "职位描述",
+    "职位详情",
+    "岗位职责",
+    "工作职责",
+    "任职要求",
+    "任职资格",
+    "岗位要求",
+    "工作内容",
+    "资格要求",
+)
+JOB_DESCRIPTION_END_MARKERS = (
+    "about the company",
+    "company overview",
+    "similar jobs",
+    "people also viewed",
+    "recommended jobs",
+    "apply now",
+    "save job",
+    "share this job",
+    "privacy policy",
+    "cookie policy",
+    "公司简介",
+    "相似职位",
+    "更多职位",
+    "隐私政策",
+    "用户协议",
+    "选择语言",
+)
 
 
 class JobUrlReadError(RuntimeError):
@@ -236,6 +381,85 @@ def compact_description(parts: list[str], *, limit: int = 6000) -> str:
     return "\n".join(compacted)[:limit].strip()
 
 
+def trim_job_description_text(text: str) -> str:
+    clean_text = normalize_text(text)
+    lower_text = clean_text.lower()
+    start_candidates = [
+        lower_text.find(marker)
+        for marker in JOB_DESCRIPTION_START_MARKERS
+        if lower_text.find(marker) >= 0
+    ]
+    if start_candidates:
+        trimmed_from_start = clean_text[min(start_candidates):].strip()
+        if len(trimmed_from_start) >= 80:
+            clean_text = trimmed_from_start
+            lower_text = clean_text.lower()
+
+    end_candidates = [
+        lower_text.find(marker)
+        for marker in JOB_DESCRIPTION_END_MARKERS
+        if lower_text.find(marker) > 120
+    ]
+    if end_candidates:
+        clean_text = clean_text[: min(end_candidates)].strip()
+    return clean_text
+
+
+def job_description_quality_score(*, title: str, description: str, has_jobposting: bool) -> int:
+    text = normalize_text(description)
+    lower_text = text.lower()
+    if has_jobposting and len(text) >= 20:
+        return 10
+
+    score = 0
+    if len(text) >= 120:
+        score += 2
+    elif len(text) >= 80:
+        score += 1
+
+    description_hits = sum(1 for marker in JOB_DESCRIPTION_MARKERS if marker in lower_text)
+    action_hits = sum(1 for marker in JOB_ACTION_MARKERS if marker in lower_text)
+    tech_hits = sum(1 for marker in TECH_OR_ROLE_MARKERS if marker in lower_text)
+    shell_hits = sum(1 for marker in PAGE_SHELL_MARKERS if marker in lower_text)
+    sentence_count = len(re.findall(r"[.!?。！？；;]\s+|[.!?。！？；;]$", text))
+    word_count = len(re.findall(r"[A-Za-z0-9+#.-]+|[\u4e00-\u9fff]", text))
+
+    score += min(description_hits, 4)
+    score += min(action_hits, 2)
+    if tech_hits >= 2:
+        score += 1
+    if tech_hits >= 5:
+        score += 1
+    if sentence_count >= 2:
+        score += 1
+    if word_count >= 45:
+        score += 1
+
+    title_tokens = [token for token in re.findall(r"[a-z0-9+#.]{3,}", title.lower()) if token not in {"job", "role"}]
+    if len(text) >= 100 and any(token in lower_text for token in title_tokens[:4]):
+        score += 1
+
+    if shell_hits >= 4:
+        score -= 2
+    if shell_hits >= 7:
+        score -= 2
+    if len(re.findall(r"https?://|www\.", lower_text)) >= 3:
+        score -= 1
+    return score
+
+
+def looks_like_job_description(*, title: str, description: str, has_jobposting: bool = False) -> bool:
+    return job_description_quality_score(title=title, description=description, has_jobposting=has_jobposting) >= 4
+
+
+def ensure_job_description_quality(*, title: str, description: str, has_jobposting: bool = False) -> None:
+    if not looks_like_job_description(title=title, description=description, has_jobposting=has_jobposting):
+        raise JobUrlReadError(
+            "The page text does not look like a full job description. "
+            "It may be navigation, search-result, login, or recommendation text instead of the JD."
+        )
+
+
 def looks_like_blocked_or_login_page(
     *,
     url: str,
@@ -293,7 +517,7 @@ def preview_from_html(page_html: str, url: str) -> JobUrlPreview:
         or location_name(jobposting.get("applicantLocationRequirements"))
         or ""
     )
-    description = (
+    description = trim_job_description_text(
         value_to_text(jobposting.get("description"))
         or compact_description([meta.get("description", ""), meta.get("og:description", ""), *parser.text_parts])
     )
@@ -314,6 +538,11 @@ def preview_from_html(page_html: str, url: str) -> JobUrlPreview:
     )
     if len(preview.title) < 2 or len(preview.company) < 1 or len(preview.description) < 20:
         raise JobUrlReadError("Could not extract enough job information from this page.")
+    ensure_job_description_quality(
+        title=preview.title,
+        description=preview.description,
+        has_jobposting=bool(jobposting),
+    )
     return preview
 
 
