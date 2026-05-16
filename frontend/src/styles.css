@@ -395,6 +395,83 @@ textarea:focus-visible {
   box-shadow: var(--shadow-lg);
 }
 
+.resume-card {
+  border: 1px solid rgba(113, 128, 150, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 252, 251, 0.84)),
+    linear-gradient(120deg, rgba(37, 99, 235, 0.06), transparent 58%, rgba(15, 138, 122, 0.08));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 10px 24px rgba(30, 46, 72, 0.06);
+}
+
+.resume-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.resume-status-ready {
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  color: #047857;
+  background: rgba(236, 253, 245, 0.92);
+}
+
+.resume-status-running {
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  color: #1d4ed8;
+  background: rgba(239, 246, 255, 0.94);
+}
+
+.resume-status-error,
+.resume-status-missing {
+  border: 1px solid rgba(217, 119, 6, 0.28);
+  color: #92400e;
+  background: rgba(255, 251, 235, 0.94);
+}
+
+.resume-progress {
+  height: 6px;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.resume-progress span {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #0f8a7a);
+  animation: upload-progress 1.25s ease-in-out infinite;
+}
+
+.resume-mini-stat {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(113, 128, 150, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 9px 11px;
+}
+
+.resume-mini-stat span {
+  color: #59677a;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.resume-mini-stat strong {
+  color: #182235;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-align: right;
+}
+
 .action-panel::before {
   content: "";
   position: absolute;
@@ -561,6 +638,18 @@ textarea:focus-visible {
   88%,
   100% {
     transform: translateX(120%);
+  }
+}
+
+@keyframes upload-progress {
+  0% {
+    transform: translateX(-110%);
+  }
+  50% {
+    transform: translateX(95%);
+  }
+  100% {
+    transform: translateX(260%);
   }
 }
 

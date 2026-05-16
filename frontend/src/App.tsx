@@ -159,6 +159,16 @@ const translations = {
     resumePrivate: "Stored locally as a private evidence index.",
     resumeSectionsLabel: "Detected sections",
     resumeKeywordsLabel: "Detected keywords",
+    resumeLastParsed: "Last parsed",
+    resumeJustUploaded: "Uploaded just now",
+    resumeUploadingState: "Uploading and parsing",
+    resumeUploadFailedState: "Upload needs attention",
+    resumeReadyState: "Ready for matching",
+    resumeMissingState: "Not uploaded",
+    resumeParsedHint: "The resume index is ready. You can now scan email or create a draft from one JD.",
+    resumeUploadHint: "Choose a text-based PDF. Parsing status will appear here after upload.",
+    resumeSelectedFile: "Selected file",
+    replaceResume: "Replace PDF",
     uploadNextStep: "Next: scan email or paste a job post.",
     uploadResume: "Upload PDF",
     uploading: "Uploading...",
@@ -361,6 +371,16 @@ const translations = {
     resumePrivate: "简历只用于本地分析，不会提交到 GitHub。",
     resumeSectionsLabel: "已识别模块",
     resumeKeywordsLabel: "已识别关键词",
+    resumeLastParsed: "上次解析",
+    resumeJustUploaded: "刚刚上传成功",
+    resumeUploadingState: "正在上传并解析",
+    resumeUploadFailedState: "上传需要处理",
+    resumeReadyState: "可用于匹配",
+    resumeMissingState: "未上传",
+    resumeParsedHint: "简历索引已经准备好，下一步可以扫描邮箱，或用单个 JD 生成草稿。",
+    resumeUploadHint: "请选择可复制文字的 PDF。上传后，这里会直接显示解析状态。",
+    resumeSelectedFile: "本次文件",
+    replaceResume: "更换简历 PDF",
     uploadNextStep: "下一步：扫描邮件，或粘贴岗位 JD。",
     uploadResume: "选择简历 PDF",
     uploading: "上传中...",
@@ -790,6 +810,7 @@ function App() {
   const [selectedApplyStatus, setSelectedApplyStatus] = useState<AsyncStatus>("idle");
   const [browserOpenStatus, setBrowserOpenStatus] = useState<AsyncStatus>("idle");
   const [jobInputMode, setJobInputMode] = useState<JobInputMode>(getInitialJobInputMode);
+  const [resumeFileName, setResumeFileName] = useState("");
   const [manualJob, setManualJob] = useState<ManualJobForm>({
     title: "",
     company: "",
@@ -939,6 +960,7 @@ function App() {
     uploadAbortRef.current?.abort();
     uploadAbortRef.current = null;
     setUploadStatus("idle");
+    setResumeFileName("");
     setMessage(t.uploadCanceled);
   }
 
@@ -951,6 +973,7 @@ function App() {
     }
     const requestId = uploadRequestIdRef.current + 1;
     uploadRequestIdRef.current = requestId;
+    setResumeFileName(file.name);
     const controller = new AbortController();
     let timedOut = false;
     const timeoutId = window.setTimeout(() => {
@@ -1392,6 +1415,24 @@ function App() {
   const visibleRuns = showAllRuns ? runs : runs.slice(0, 4);
   const currentRunSummary = run ? runs.find((item) => item.id === run.id) : undefined;
   const isInitialLoading = state === "loading" && !run;
+  const resumeStatusLabel =
+    uploadStatus === "running"
+      ? t.resumeUploadingState
+      : uploadStatus === "success"
+        ? t.resumeJustUploaded
+        : uploadStatus === "error"
+          ? t.resumeUploadFailedState
+          : resume?.exists
+            ? t.resumeReadyState
+            : t.resumeMissingState;
+  const resumeStatusClass =
+    uploadStatus === "running"
+      ? "resume-status-running"
+      : uploadStatus === "error"
+        ? "resume-status-error"
+        : uploadStatus === "success" || resume?.exists
+          ? "resume-status-ready"
+          : "resume-status-missing";
 
   return (
     <main className="app-backdrop min-h-screen text-ink">
@@ -1488,59 +1529,99 @@ function App() {
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-md border border-line bg-white/80 px-3 py-3">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
+                <div className="resume-card mt-4 rounded-md px-3 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold text-muted">{t.resumeStep}</p>
-                      <p className="mt-1 text-sm font-semibold text-ink">{resume?.exists ? t.resumeReady : t.resumeStepTitle}</p>
-                      <p className="mt-1 text-xs leading-5 text-muted">
-                        {resume?.exists
-                          ? `${resume.chunk_count} ${language === "zh" ? "段简历内容" : "resume sections"} · ${formatModified(resume.modified_at, language)}`
-                          : t.resumeMissing}
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <p className="text-base font-semibold text-ink">{resume?.exists ? t.resumeReady : t.resumeStepTitle}</p>
+                        <span className={`resume-status-pill ${resumeStatusClass}`}>
+                          {uploadStatus === "running" ? (
+                            <Clock3 className="h-3.5 w-3.5 animate-spin" />
+                          ) : uploadStatus === "error" ? (
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                          ) : resume?.exists ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          ) : (
+                            <Upload className="h-3.5 w-3.5" />
+                          )}
+                          {resumeStatusLabel}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs leading-5 text-muted">
+                        {uploadStatus === "running"
+                          ? t.uploadWorking
+                          : resume?.exists
+                            ? t.resumeParsedHint
+                            : t.resumeUploadHint}
                       </p>
+                      {resumeFileName && (
+                        <p className="mt-2 truncate text-xs font-semibold text-muted">
+                          {t.resumeSelectedFile}: <span className="text-ink">{resumeFileName}</span>
+                        </p>
+                      )}
                     </div>
-                  <span
-                    className={`inline-flex w-fit rounded-md px-2 py-1 text-xs font-semibold ${
-                      resume?.exists ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : "bg-amber-50 text-amber-800 ring-1 ring-amber-100"
-                    }`}
-                  >
-                    {resume?.exists ? (language === "zh" ? "已准备" : "Ready") : language === "zh" ? "待上传" : "Missing"}
-                  </span>
-                </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <label
-                      aria-disabled={uploadStatus === "running"}
-                      className={`inline-flex h-10 items-center gap-2 rounded-md border border-line px-3 text-sm font-semibold text-ink transition ${
-                        uploadStatus === "running"
-                          ? "cursor-not-allowed bg-white/60 opacity-80"
-                          : "cursor-pointer bg-white hover:border-blue-200 hover:bg-blue-50"
-                      }`}
-                    >
-                      {uploadStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                      {uploadStatus === "running" ? t.uploading : t.uploadResume}
-                      <input
-                        className="hidden"
-                        type="file"
-                        accept="application/pdf,.pdf"
-                        disabled={uploadStatus === "running"}
-                        onChange={uploadResume}
-                      />
-                    </label>
-                    {uploadStatus === "running" && (
-                      <button
-                        type="button"
-                        onClick={cancelUpload}
-                        className="inline-flex h-10 items-center rounded-md border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
+                      <label
+                        aria-disabled={uploadStatus === "running"}
+                        className={`inline-flex h-10 items-center gap-2 rounded-md border border-line px-3 text-sm font-semibold text-ink transition ${
+                          uploadStatus === "running"
+                            ? "cursor-not-allowed bg-white/60 opacity-80"
+                            : "cursor-pointer bg-white hover:border-blue-200 hover:bg-blue-50"
+                        }`}
                       >
-                        {t.cancelUpload}
-                      </button>
-                    )}
+                        {uploadStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        {uploadStatus === "running" ? t.uploading : resume?.exists ? t.replaceResume : t.uploadResume}
+                        <input
+                          className="hidden"
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          disabled={uploadStatus === "running"}
+                          onChange={uploadResume}
+                        />
+                      </label>
+                      {uploadStatus === "running" && (
+                        <button
+                          type="button"
+                          onClick={cancelUpload}
+                          className="inline-flex h-10 items-center rounded-md border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+                        >
+                          {t.cancelUpload}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  {uploadStatus === "running" && <p className="mt-2 text-xs leading-5 text-muted">{t.uploadWorking}</p>}
+
+                  {uploadStatus === "running" && (
+                    <div className="resume-progress mt-3 overflow-hidden rounded-full">
+                      <span />
+                    </div>
+                  )}
+
+                  {resume?.exists && (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div className="resume-mini-stat">
+                        <span>{t.resumeSectionsLabel}</span>
+                        <strong>{resume.chunk_count}</strong>
+                      </div>
+                      <div className="resume-mini-stat">
+                        <span>{uploadStatus === "success" ? t.resumeJustUploaded : t.resumeLastParsed}</span>
+                        <strong>{formatModified(resume.modified_at, language) || "-"}</strong>
+                      </div>
+                    </div>
+                  )}
+
                   {resume?.exists && Boolean(resume.keywords?.length) && (
-                    <p className="mt-2 text-xs leading-5 text-muted">
-                      {t.resumeKeywordsLabel}: <span className="text-ink">{joinList(resume.keywords?.slice(0, 6), language)}</span>
-                    </p>
+                    <div className="mt-3">
+                      <p className="mb-2 text-xs font-semibold text-muted">{t.resumeKeywordsLabel}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {resume.keywords?.slice(0, 8).map((keyword) => (
+                          <span key={keyword} className="rounded-md border border-blue-100 bg-white/80 px-2 py-1 text-xs font-semibold text-muted">
+                            {keyword}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
 
