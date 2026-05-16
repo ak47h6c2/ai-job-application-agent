@@ -358,6 +358,21 @@ const translations = {
     applicationDraft: "Draft",
     draftReviewHint: "Review in order: resume edits first, then copy the message that matches the employer language.",
     reviewRequired: "review required",
+    applicationTracker: "Application tracking",
+    applicationTrackerHint: "Save what happened after preparing the package. This stays local.",
+    applicationStatus: "Status",
+    applicationNote: "Note",
+    applicationNotePlaceholder: "Add platform, deadline, contact, or follow-up notes.",
+    saveApplicationStatus: "Save status",
+    savingApplicationStatus: "Saving...",
+    applicationStatusSaved: "Application status saved.",
+    applicationStatusError: "Could not save application status.",
+    applicationStatusToReview: "To review",
+    applicationStatusDraftReady: "Draft ready",
+    applicationStatusApplied: "Applied",
+    applicationStatusWaiting: "Waiting",
+    applicationStatusInterview: "Interview",
+    applicationStatusRejected: "Rejected",
     resumeFocus: "Resume focus",
     coverLetter: "Cover letter",
     recruiterMessage: "Recruiter message",
@@ -615,6 +630,21 @@ const translations = {
     applicationDraft: "申请草稿",
     draftReviewHint: "按顺序检查：先改简历，再复制符合招聘方语言的草稿。",
     reviewRequired: "待你确认",
+    applicationTracker: "投递进度",
+    applicationTrackerHint: "把生成材料之后发生的事记录下来，只保存在本地。",
+    applicationStatus: "状态",
+    applicationNote: "备注",
+    applicationNotePlaceholder: "可以写投递平台、截止时间、联系人、后续跟进提醒。",
+    saveApplicationStatus: "保存状态",
+    savingApplicationStatus: "保存中...",
+    applicationStatusSaved: "投递状态已保存。",
+    applicationStatusError: "投递状态保存失败。",
+    applicationStatusToReview: "待检查",
+    applicationStatusDraftReady: "材料已生成",
+    applicationStatusApplied: "已投递",
+    applicationStatusWaiting: "等回复",
+    applicationStatusInterview: "面试中",
+    applicationStatusRejected: "已拒绝",
     resumeFocus: "简历修改重点",
     coverLetter: "求职信草稿",
     recruiterMessage: "招聘方消息",
@@ -670,6 +700,8 @@ const reasonLabels: Record<Language, Record<string, string>> = {
     "positive job-alert signal": "岗位来源信号"
   }
 };
+
+const APPLICATION_STATUSES: ApplicationStatus[] = ["to_review", "draft_ready", "applied", "waiting", "interview", "rejected"];
 
 type Step = {
   name: string;
@@ -755,6 +787,7 @@ type ManualJobForm = {
 
 type QualityLabel = "strong" | "usable" | "weak";
 type WorkflowStepStatus = "done" | "active" | "blocked" | "locked";
+type ApplicationStatus = "to_review" | "draft_ready" | "applied" | "waiting" | "interview" | "rejected";
 
 type JobQuality = {
   score: number;
@@ -772,6 +805,16 @@ type JobUrlPreview = ManualJobForm & {
   quality_label?: QualityLabel;
   quality_notes?: string[];
   imported_at?: string;
+};
+
+type ApplicationRecord = {
+  key: string;
+  title: string;
+  company: string;
+  url: string;
+  status: ApplicationStatus;
+  note: string;
+  updated_at: string;
 };
 
 function formatLocalDate(date: Date) {
@@ -828,6 +871,18 @@ function formatModified(value: number | null, language: Language) {
   }).format(new Date(value * 1000));
 }
 
+function formatIsoModified(value: string | undefined, language: Language) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-AU", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+}
+
 function displayRunId(id: string, language: Language) {
   if (id === "latest_test") return id;
   const manualMatch = id.match(/^manual-(\d{4}-\d{2}-\d{2})_(\d{8})T(\d{2})(\d{2})(\d{2})Z$/);
@@ -853,6 +908,26 @@ function matchScoreLabel(score: number, language: Language) {
 function draftLanguageName(value: Language | undefined, language: Language) {
   if (value === "zh") return translations[language].draftLanguageChinese;
   return translations[language].draftLanguageEnglish;
+}
+
+function applicationKeyFromLead(lead: Lead) {
+  const url = lead.url.trim().toLowerCase();
+  if (url) return `url:${url}`;
+  const seed = `${lead.company} ${lead.title}`.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-").replace(/^-|-$/g, "");
+  return `job:${seed.slice(0, 160) || "unknown"}`;
+}
+
+function applicationStatusLabel(status: ApplicationStatus, language: Language) {
+  const t = translations[language];
+  const labels: Record<ApplicationStatus, string> = {
+    to_review: t.applicationStatusToReview,
+    draft_ready: t.applicationStatusDraftReady,
+    applied: t.applicationStatusApplied,
+    waiting: t.applicationStatusWaiting,
+    interview: t.applicationStatusInterview,
+    rejected: t.applicationStatusRejected
+  };
+  return labels[status];
 }
 
 function qualityLabelFromScore(score: number): QualityLabel {
@@ -996,6 +1071,7 @@ function App() {
   const [language, setLanguage] = useState<Language>(getInitialLanguage);
   const [run, setRun] = useState<AgentRun | null>(null);
   const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [applications, setApplications] = useState<Record<string, ApplicationRecord>>({});
   const [resume, setResume] = useState<ResumeStatus | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -1009,6 +1085,7 @@ function App() {
   const [importStatus, setImportStatus] = useState<AsyncStatus>("idle");
   const [selectedApplyStatus, setSelectedApplyStatus] = useState<AsyncStatus>("idle");
   const [browserOpenStatus, setBrowserOpenStatus] = useState<AsyncStatus>("idle");
+  const [applicationStatusSaveStatus, setApplicationStatusSaveStatus] = useState<AsyncStatus>("idle");
   const [jobInputMode, setJobInputMode] = useState<JobInputMode>(getInitialJobInputMode);
   const [resumeFileName, setResumeFileName] = useState("");
   const [manualJob, setManualJob] = useState<ManualJobForm>({
@@ -1020,6 +1097,8 @@ function App() {
   });
   const [jobQuality, setJobQuality] = useState<JobQuality | null>(null);
   const [jobLeadNote, setJobLeadNote] = useState("");
+  const [applicationDraftStatus, setApplicationDraftStatus] = useState<ApplicationStatus>("to_review");
+  const [applicationDraftNote, setApplicationDraftNote] = useState("");
   const [message, setMessage] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
   const [activeSection, setActiveSection] = useState<NavSection>("overview");
@@ -1047,6 +1126,13 @@ function App() {
     setRuns(data.runs);
   }, []);
 
+  const loadApplications = useCallback(async () => {
+    const response = await fetch(`${API_BASE}/api/applications`);
+    if (!response.ok) throw new Error(await parseApiError(response));
+    const data = (await response.json()) as { records: ApplicationRecord[] };
+    setApplications(Object.fromEntries(data.records.map((record) => [record.key, record])));
+  }, []);
+
   const loadRun = useCallback(async (runId: string) => {
     const response = await fetch(`${API_BASE}/api/runs/${encodeURIComponent(runId)}`);
     if (!response.ok) throw new Error(await parseApiError(response));
@@ -1057,7 +1143,7 @@ function App() {
 
   const loadLatest = useCallback(async () => {
     try {
-      await Promise.all([loadResume(), loadRuns()]);
+      await Promise.all([loadResume(), loadRuns(), loadApplications()]);
       const response = await fetch(`${API_BASE}/api/runs/latest`);
       if (response.status === 404) {
         setState("empty");
@@ -1070,7 +1156,7 @@ function App() {
     } catch {
       setState("error");
     }
-  }, [loadResume, loadRuns]);
+  }, [loadResume, loadRuns, loadApplications]);
 
   useEffect(() => {
     window.localStorage.setItem("job-agent-language", language);
@@ -1612,6 +1698,14 @@ function App() {
     ? `${safeFilePart(selectedDraft.company)}-${safeFilePart(selectedDraft.job_title)}-application-package.md`
     : "application-package.md";
   const currentReportFilename = run ? `${safeFilePart(displayRunId(run.id, language))}-report.md` : "job-agent-report.md";
+  const selectedApplicationKey = selected ? applicationKeyFromLead(selected.scored_lead.lead) : "";
+  const selectedApplication = selectedApplicationKey ? applications[selectedApplicationKey] : undefined;
+
+  useEffect(() => {
+    setApplicationDraftStatus(selectedApplication?.status ?? (selectedDraft ? "draft_ready" : "to_review"));
+    setApplicationDraftNote(selectedApplication?.note ?? "");
+    setApplicationStatusSaveStatus("idle");
+  }, [selectedApplication?.key, selectedApplication?.status, selectedApplication?.note, selectedDraft, selectedIndex]);
 
   function downloadSelectedPackage() {
     if (!selectedDraftPackage) return;
@@ -1629,6 +1723,38 @@ function App() {
       window.setTimeout(() => {
         document.getElementById("job-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 0);
+    }
+  }
+
+  async function saveSelectedApplicationStatus(statusOverride?: ApplicationStatus) {
+    if (!selected || !selectedApplicationKey) return;
+    const lead = selected.scored_lead.lead;
+    const nextStatus = statusOverride ?? applicationDraftStatus;
+    setApplicationStatusSaveStatus("running");
+    try {
+      const response = await fetch(`${API_BASE}/api/applications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: selectedApplicationKey,
+          title: lead.title,
+          company: lead.company,
+          url: lead.url,
+          status: nextStatus,
+          note: applicationDraftNote
+        })
+      });
+      if (!response.ok) throw new Error(await parseApiError(response));
+      const data = (await response.json()) as { record: ApplicationRecord };
+      setApplications((current) => ({ ...current, [data.record.key]: data.record }));
+      setApplicationDraftStatus(data.record.status);
+      setApplicationDraftNote(data.record.note);
+      setApplicationStatusSaveStatus("success");
+      setMessage(t.applicationStatusSaved);
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : t.applicationStatusError;
+      setApplicationStatusSaveStatus("error");
+      setMessage(friendlyError(rawMessage, t.applicationStatusError));
     }
   }
 
@@ -2156,7 +2282,8 @@ function App() {
                 jobFetchStatus === "error" ||
                 importStatus === "error" ||
                 selectedApplyStatus === "error" ||
-                browserOpenStatus === "error"
+                browserOpenStatus === "error" ||
+                applicationStatusSaveStatus === "error"
                   ? "border-amber-200 bg-amber-50 text-amber-800"
                   : "border-emerald-200 bg-emerald-50 text-emerald-800"
               }`}
@@ -2359,6 +2486,30 @@ function App() {
                             }
                           />
                         </div>
+
+                        <ApplicationTrackerCard
+                          title={t.applicationTracker}
+                          hint={t.applicationTrackerHint}
+                          statusTitle={t.applicationStatus}
+                          status={applicationDraftStatus}
+                          statusLabel={(status) => applicationStatusLabel(status, language)}
+                          noteTitle={t.applicationNote}
+                          note={applicationDraftNote}
+                          notePlaceholder={t.applicationNotePlaceholder}
+                          updatedLabel={selectedApplication ? `${t.updated} ${formatIsoModified(selectedApplication.updated_at, language)}` : ""}
+                          saveStatus={applicationStatusSaveStatus}
+                          saveLabel={t.saveApplicationStatus}
+                          savingLabel={t.savingApplicationStatus}
+                          onStatusChange={(status) => {
+                            setApplicationDraftStatus(status);
+                            setApplicationStatusSaveStatus("idle");
+                          }}
+                          onNoteChange={(note) => {
+                            setApplicationDraftNote(note);
+                            setApplicationStatusSaveStatus("idle");
+                          }}
+                          onSave={() => void saveSelectedApplicationStatus()}
+                        />
 
                         {selectedFallbackVisible && (
                           <div className="selected-fallback-card mt-3 rounded-md px-3 py-3">
@@ -2794,6 +2945,88 @@ function WorkflowStepCard({ status, title, statusLabel }: { status: WorkflowStep
         <span className="block text-xs font-semibold text-muted">{statusLabel}</span>
       </span>
     </div>
+  );
+}
+
+function ApplicationTrackerCard({
+  title,
+  hint,
+  statusTitle,
+  status,
+  statusLabel,
+  noteTitle,
+  note,
+  notePlaceholder,
+  updatedLabel,
+  saveStatus,
+  saveLabel,
+  savingLabel,
+  onStatusChange,
+  onNoteChange,
+  onSave
+}: {
+  title: string;
+  hint: string;
+  statusTitle: string;
+  status: ApplicationStatus;
+  statusLabel: (status: ApplicationStatus) => string;
+  noteTitle: string;
+  note: string;
+  notePlaceholder: string;
+  updatedLabel: string;
+  saveStatus: AsyncStatus;
+  saveLabel: string;
+  savingLabel: string;
+  onStatusChange: (status: ApplicationStatus) => void;
+  onNoteChange: (note: string) => void;
+  onSave: () => void;
+}) {
+  return (
+    <section className="application-tracker-card mt-3 rounded-md px-3 py-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-ink">{title}</p>
+          <p className="mt-1 text-xs leading-5 text-muted">{hint}</p>
+        </div>
+        {updatedLabel && <span className="text-xs font-semibold text-muted">{updatedLabel}</span>}
+      </div>
+      <div className="mt-3">
+        <p className="mb-2 text-xs font-semibold text-muted">{statusTitle}</p>
+        <div className="grid gap-1.5 sm:grid-cols-3">
+          {APPLICATION_STATUSES.map((item) => (
+            <button
+              type="button"
+              key={item}
+              aria-pressed={status === item}
+              onClick={() => onStatusChange(item)}
+              className={`application-status-option rounded-md px-2 py-2 text-xs font-semibold ${status === item ? "application-status-active" : ""}`}
+            >
+              {statusLabel(item)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="mt-3 block">
+        <span className="mb-2 block text-xs font-semibold text-muted">{noteTitle}</span>
+        <textarea
+          value={note}
+          onChange={(event) => onNoteChange(event.target.value)}
+          placeholder={notePlaceholder}
+          className="min-h-20 w-full resize-y rounded-md border border-line bg-white/85 px-3 py-2 text-sm leading-6 outline-none transition focus:border-accent focus:bg-white"
+        />
+      </label>
+      <div className="mt-3 flex justify-end">
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saveStatus === "running"}
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-3 text-xs font-semibold text-accent hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {saveStatus === "running" ? <Clock3 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+          {saveStatus === "running" ? savingLabel : saveLabel}
+        </button>
+      </div>
+    </section>
   );
 }
 

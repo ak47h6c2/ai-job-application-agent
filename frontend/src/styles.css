@@ -839,6 +839,32 @@ textarea:focus-visible {
     linear-gradient(180deg, rgba(255, 251, 235, 0.92), rgba(255, 255, 255, 0.84));
 }
 
+.application-tracker-card {
+  border: 1px solid rgba(113, 128, 150, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 252, 251, 0.8)),
+    linear-gradient(120deg, rgba(15, 138, 122, 0.06), transparent 62%);
+}
+
+.application-status-option {
+  border: 1px solid rgba(113, 128, 150, 0.18);
+  color: #59677a;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.application-status-option:hover {
+  border-color: rgba(37, 99, 235, 0.28);
+  color: #1d4ed8;
+  background: rgba(239, 246, 255, 0.82);
+}
+
+.application-status-active {
+  border-color: rgba(15, 138, 122, 0.34);
+  color: #047857;
+  background: rgba(236, 253, 245, 0.94);
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.12);
+}
+
 .fade-lift {
   animation: fade-lift 380ms ease both;
 }

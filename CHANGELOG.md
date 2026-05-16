@@ -4,6 +4,7 @@
 
 ### English
 
+- Added local application tracking: each selected role can now store a status and note, such as draft ready, applied, waiting, interview, or rejected.
 - Simplified the selected-job workflow into one primary action that reads the full JD, checks quality, and creates or refreshes the application package, with clear login/manual fallback steps.
 - Added JD confidence metadata from the backend and a visible JD check card in the Web UI, so generated drafts are gated on content that looks like a real job description rather than page shell text.
 - Added a goal-mode workflow panel that shows the one main path: resume, job source, then draft review, with one next-step action instead of another button cluster.
@@ -16,6 +17,7 @@
 
 ### 中文
 
+- 新增本地投递进度管理：每个选中岗位可以保存状态和备注，例如材料已生成、已投递、等回复、面试中或已拒绝。
 - 简化选中岗位后的操作链路：主按钮统一为“读取完整 JD 并生成申请材料”，并显示完整 JD、申请材料状态；遇到登录或无法读取时给出明确补救步骤。
 - 新增后端 JD 可信度元数据，并在 Web UI 中显示“JD 完整度检查”卡片；生成草稿前会判断内容是否像真实岗位描述，避免把页面壳或邮件摘要当作 JD。
 - 新增“目标模式”流程面板：把页面主线收敛为简历、岗位来源、草稿检查三步，并提供一个明确的下一步按钮，减少按钮堆叠。

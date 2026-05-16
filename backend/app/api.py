@@ -13,6 +13,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from backend.app.rag.resume_index import build_resume_index, extract_pdf_text, load_resume_index, save_resume_index
+from backend.app.services.application_tracker import load_application_records, upsert_application_record
 from backend.app.services.browser_session import BrowserSessionError, import_current_browser_job, open_login_browser
 from backend.app.services.imported_jobs import load_latest_imported_job, save_imported_job
 from backend.app.services.job_url_reader import JobUrlReadError, read_job_posting_from_url
@@ -64,6 +65,15 @@ class JobUrlPreviewRequest(BaseModel):
 
 class BrowserOpenRequest(BaseModel):
     url: str = Field(min_length=8, max_length=500)
+
+
+class ApplicationRecordRequest(BaseModel):
+    key: str = Field(default="", max_length=560)
+    title: str = Field(default="", max_length=160)
+    company: str = Field(default="", max_length=160)
+    url: str = Field(default="", max_length=500)
+    status: Literal["to_review", "draft_ready", "applied", "waiting", "interview", "rejected"] = "to_review"
+    note: str = Field(default="", max_length=2000)
 
 
 def validate_since(value: str) -> str:
@@ -161,6 +171,17 @@ def health() -> dict[str, str]:
 @app.get("/api/runs")
 def list_runs() -> dict[str, Any]:
     return {"runs": [summarize_run(path) for path in run_dirs()]}
+
+
+@app.get("/api/applications")
+def list_applications() -> dict[str, Any]:
+    return {"records": load_application_records(PRIVATE_DATA_DIR)}
+
+
+@app.post("/api/applications")
+def save_application(request: ApplicationRecordRequest) -> dict[str, Any]:
+    record = upsert_application_record(PRIVATE_DATA_DIR, request.model_dump())
+    return {"record": record}
 
 
 @app.get("/api/resume-index")
