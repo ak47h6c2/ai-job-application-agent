@@ -252,6 +252,7 @@ const translations = {
     readingLoginBrowser: "Reading...",
     loginBrowserOpenSuccess: "Login browser opened. Log in there if needed, open the job detail page, then return here and read the current page.",
     loginBrowserReadSuccess: "Read the logged-in browser page and created drafts.",
+    loginBrowserReadNeedsFullJd: "The page was read, but it still does not look like a complete JD. Keep the job detail open until duties and requirements are visible, or paste the full JD manually.",
     loginBrowserInstallMissing: "Playwright is not installed. Run .\\start-webui.ps1 -Install, then restart the app.",
     loginBrowserStillLogin: "The dedicated browser is still on a login or verification page. Log in, open the job detail page, then read again.",
     loginBrowserOpeningHint: "Opening the dedicated browser. This can take up to 30 seconds.",
@@ -270,7 +271,7 @@ const translations = {
     importedEmpty: "No imported job found yet. Open a job page and click the bookmarklet first.",
     credentialSafety: "Passwords stay on the official job site. This app only receives the job text you choose to import.",
     useSelectedJobLink: "Fill from selected lead",
-    applySelected: "Read job details",
+    applySelected: "Read full JD and create package",
     applyingSelected: "Reading job details...",
     openOriginalJob: "Open job page",
     reviewApplicationPackage: "Review application package",
@@ -278,7 +279,20 @@ const translations = {
     quickApplySuccess: "Job details read and drafts refreshed.",
     quickApplyFallback: "This site needs login or blocks automatic reading. I opened it in the dedicated login browser. Log in there, stay on the job detail page, then return here and read the current page.",
     quickApplyMissing: "This email lead does not include a job link. Paste the JD below to generate materials.",
-    selectedJobActionHint: "From an email lead: read the job page first. Drafts refresh after the full JD is available.",
+    selectedJobActionHint: "One click starts the full path: read the real JD, check its quality, then refresh the draft.",
+    selectedJobFlowTitle: "Application package flow",
+    selectedJobFlowBody: "Use the main button first. If the site requires login, the app opens the dedicated browser and waits for you to read the logged-in page.",
+    selectedJobFlowLead: "Email lead",
+    selectedJobFlowRead: "Full JD",
+    selectedJobFlowDraft: "Draft package",
+    selectedJobFlowReady: "Ready",
+    selectedJobFlowCurrent: "Current",
+    selectedJobFlowBlocked: "Needs action",
+    selectedJobPrimaryDone: "Refresh from full JD",
+    selectedJobLoginContinue: "I logged in, read current page",
+    selectedJobManualContinue: "Paste full JD manually",
+    selectedJobFallbackTitle: "Automatic read needs help",
+    selectedJobFallbackBody: "The job site likely requires login or blocked automatic reading. Use the dedicated browser, then come back and read the current job page.",
     manualJobTitle: "Job title",
     manualCompany: "Company",
     manualLocation: "Location",
@@ -495,6 +509,7 @@ const translations = {
     readingLoginBrowser: "读取中...",
     loginBrowserOpenSuccess: "登录浏览器已打开。如果页面要求登录，请在里面登录并打开岗位详情页，然后回到这里读取当前页面。",
     loginBrowserReadSuccess: "已读取登录浏览器里的岗位页面，并生成草稿。",
+    loginBrowserReadNeedsFullJd: "页面已经读取，但仍然不像完整 JD。请确认专用浏览器停在能看到岗位职责和任职要求的详情页，或者手动粘贴完整 JD。",
     loginBrowserInstallMissing: "Playwright 尚未安装。请执行 .\\start-webui.ps1 -Install 后重启项目。",
     loginBrowserStillLogin: "专用浏览器现在还停在登录或验证页面。请先在那个窗口完成登录，并打开岗位详情页，然后再回来读取。",
     loginBrowserOpeningHint: "正在打开专用浏览器，最多等待 30 秒。打开后如果需要登录，就在新窗口里完成登录。",
@@ -513,7 +528,7 @@ const translations = {
     importedEmpty: "还没有导入岗位。请先打开岗位页面并点击书签。",
     credentialSafety: "账号密码只输入在招聘平台官网。本项目只接收你主动导入的岗位文字。",
     useSelectedJobLink: "填入这个岗位链接",
-    applySelected: "读取岗位详情",
+    applySelected: "读取完整 JD 并生成申请材料",
     applyingSelected: "读取岗位中...",
     openOriginalJob: "打开岗位网页",
     reviewApplicationPackage: "查看申请包",
@@ -521,7 +536,20 @@ const translations = {
     quickApplySuccess: "已读取岗位详情并更新草稿。",
     quickApplyFallback: "这个网站需要登录或阻止自动读取。我已经用专用登录浏览器打开它。请在那个窗口登录并停留在岗位详情页，然后回到这里读取当前页面。",
     quickApplyMissing: "这封邮件里没有岗位链接。请把 JD 粘贴到下方后生成材料。",
-    selectedJobActionHint: "从邮件线索进入：先读取完整岗位详情，系统会用完整 JD 更新草稿。",
+    selectedJobActionHint: "优先点主按钮：系统会先读取真实 JD，检查完整度，再刷新申请材料。",
+    selectedJobFlowTitle: "申请材料流程",
+    selectedJobFlowBody: "先用主按钮走完整流程。如果网站要求登录，系统会打开专用浏览器；你登录后再回到这里读取当前岗位页。",
+    selectedJobFlowLead: "邮件线索",
+    selectedJobFlowRead: "完整 JD",
+    selectedJobFlowDraft: "申请材料",
+    selectedJobFlowReady: "已准备",
+    selectedJobFlowCurrent: "当前",
+    selectedJobFlowBlocked: "需处理",
+    selectedJobPrimaryDone: "重新读取完整 JD",
+    selectedJobLoginContinue: "我已登录，读取当前页面",
+    selectedJobManualContinue: "手动粘贴完整 JD",
+    selectedJobFallbackTitle: "自动读取需要你协助",
+    selectedJobFallbackBody: "这个网站大概率需要登录，或阻止了自动读取。请在专用浏览器里登录并停留在岗位详情页，再回到这里读取当前页面。",
     manualJobTitle: "岗位名称",
     manualCompany: "公司",
     manualLocation: "地点",
@@ -726,6 +754,7 @@ type ManualJobForm = {
 };
 
 type QualityLabel = "strong" | "usable" | "weak";
+type WorkflowStepStatus = "done" | "active" | "blocked" | "locked";
 
 type JobQuality = {
   score: number;
@@ -1401,15 +1430,26 @@ function App() {
       setManualJob(job);
       setJobQuality(importedQuality);
       setJobLeadNote("");
-      if (resume?.exists && job.description.trim().length >= 20 && importedQuality.label !== "weak") {
+      if (importedQuality.label === "weak") {
+        setImportStatus("success");
+        setSelectedApplyStatus("error");
+        setMessage(t.loginBrowserReadNeedsFullJd);
+        return;
+      }
+      if (resume?.exists && job.description.trim().length >= 20) {
         await requestManualJobRun(job);
         setManualStatus("success");
+        setSelectedApplyStatus("success");
+        setMessage(t.loginBrowserReadSuccess);
+      } else {
+        setSelectedApplyStatus("idle");
+        setMessage(t.importedSuccess);
       }
       setImportStatus("success");
-      setMessage(t.loginBrowserReadSuccess);
     } catch (error) {
       const rawMessage = error instanceof Error ? error.message : t.importedEmpty;
       setImportStatus("error");
+      setSelectedApplyStatus("error");
       setMessage(rawMessage.includes("Playwright") ? t.loginBrowserInstallMissing : friendlyError(rawMessage, t.importedEmpty));
     }
   }
@@ -1664,6 +1704,32 @@ function App() {
       href: hasJobContext ? "#drafts" : "#manual"
     }
   ] as const;
+  const selectedHasUrl = Boolean(selected?.scored_lead.lead.url);
+  const selectedReadStatus: WorkflowStepStatus =
+    selectedApplyStatus === "success"
+      ? "done"
+      : selectedApplyStatus === "running" || jobFetchStatus === "running"
+        ? "active"
+        : selectedApplyStatus === "error"
+          ? "blocked"
+          : "active";
+  const selectedDraftStatus: WorkflowStepStatus =
+    selectedApplyStatus === "success" || Boolean(selectedDraft)
+      ? "done"
+      : selectedApplyStatus === "error"
+        ? "blocked"
+        : "locked";
+  const selectedFallbackVisible = Boolean(
+    selected &&
+      selectedApplyStatus === "error" &&
+      (!selectedHasUrl || browserOpenStatus === "success" || jobInputMode === "browser")
+  );
+  const selectedPrimaryLabel =
+    selectedApplyStatus === "running"
+      ? t.applyingSelected
+      : selectedApplyStatus === "success"
+        ? t.selectedJobPrimaryDone
+        : t.applySelected;
 
   return (
     <main className="app-backdrop min-h-screen text-ink">
@@ -2246,40 +2312,104 @@ function App() {
                           <p className="mt-1 text-sm text-muted">{selected.scored_lead.lead.location}</p>
                           <p className="mt-2 max-w-xl text-xs leading-5 text-muted">{t.selectedJobDetailBody}</p>
                         </div>
-                        <div className="flex flex-wrap gap-2 lg:max-w-xs lg:justify-end">
+                        <span className={`h-fit rounded-md border px-2 py-1 text-xs font-semibold ${scoreTone(selected.scored_lead.score)}`}>
+                          {matchScoreLabel(selected.scored_lead.score, language)}
+                        </span>
+                      </div>
+
+                      <section className="selected-flow-panel mt-4 rounded-md p-3">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.selectedJobFlowTitle}</p>
+                            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{t.selectedJobFlowBody}</p>
+                          </div>
                           <button
                             type="button"
                             onClick={() => void applySelectedJob()}
-                            disabled={selectedApplyStatus === "running" || !resume?.exists || !selected.scored_lead.lead.url}
-                            className="secondary-action inline-flex h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={selectedApplyStatus === "running" || !resume?.exists}
+                            className="primary-action inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            {selectedApplyStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                            {selectedApplyStatus === "running" ? t.applyingSelected : t.applySelected}
+                            {selectedApplyStatus === "running" ? <Clock3 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                            {selectedPrimaryLabel}
                           </button>
+                        </div>
+
+                        <div className="mt-3 grid gap-2 md:grid-cols-3">
+                          <WorkflowStepCard status="done" title={t.selectedJobFlowLead} statusLabel={t.selectedJobFlowReady} />
+                          <WorkflowStepCard
+                            status={selectedReadStatus}
+                            title={t.selectedJobFlowRead}
+                            statusLabel={
+                              selectedReadStatus === "done"
+                                ? t.selectedJobFlowReady
+                                : selectedReadStatus === "blocked"
+                                  ? t.selectedJobFlowBlocked
+                                  : t.selectedJobFlowCurrent
+                            }
+                          />
+                          <WorkflowStepCard
+                            status={selectedDraftStatus}
+                            title={t.selectedJobFlowDraft}
+                            statusLabel={
+                              selectedDraftStatus === "done"
+                                ? t.selectedJobFlowReady
+                                : selectedDraftStatus === "blocked"
+                                  ? t.selectedJobFlowBlocked
+                                  : t.goalStatusLocked
+                            }
+                          />
+                        </div>
+
+                        {selectedFallbackVisible && (
+                          <div className="selected-fallback-card mt-3 rounded-md px-3 py-3">
+                            <p className="text-sm font-semibold text-ink">{selectedHasUrl ? t.selectedJobFallbackTitle : t.jobLinkRequiredHint}</p>
+                            <p className="mt-1 text-xs leading-5 text-muted">
+                              {selectedHasUrl ? t.selectedJobFallbackBody : t.quickApplyMissing}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {selectedHasUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => void readLoginBrowserJob()}
+                                  disabled={importStatus === "running" || browserOpenStatus === "running"}
+                                  className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-3 text-xs font-semibold text-accent hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {importStatus === "running" ? <Clock3 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                                  {t.selectedJobLoginContinue}
+                                </button>
+                              )}
+                              <a
+                                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink hover:border-blue-200 hover:bg-blue-50"
+                                href="#manual"
+                              >
+                                {t.selectedJobManualContinue}
+                              </a>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mt-3 flex flex-wrap gap-2">
                           {selectedDraft && (
                             <a
-                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-accent hover:bg-blue-100"
+                              className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-accent hover:bg-blue-100"
                               href="#drafts"
                             >
-                              {t.reviewApplicationPackage} <ArrowRight className="h-4 w-4" />
+                              {t.reviewApplicationPackage} <ArrowRight className="h-3.5 w-3.5" />
                             </a>
                           )}
                           {selected.scored_lead.lead.url && (
                             <a
-                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-white/80 px-3 text-sm font-semibold hover:border-blue-200 hover:bg-blue-50"
+                              className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-line bg-white/80 px-3 text-xs font-semibold hover:border-blue-200 hover:bg-blue-50"
                               href={selected.scored_lead.lead.url}
                               target="_blank"
                               rel="noreferrer"
                             >
-                              {t.openOriginalJob} <ExternalLink className="h-4 w-4" />
+                              {t.openOriginalJob} <ExternalLink className="h-3.5 w-3.5" />
                             </a>
                           )}
-                          {!resume?.exists && <p className="w-full text-xs leading-5 text-amber-700 lg:text-right">{t.resumeRequiredHint}</p>}
-                          {resume?.exists && !selected.scored_lead.lead.url && (
-                            <p className="w-full text-xs leading-5 text-amber-700 lg:text-right">{t.jobLinkRequiredHint}</p>
-                          )}
                         </div>
-                      </div>
+                        {!resume?.exists && <p className="mt-2 text-xs leading-5 text-amber-700">{t.resumeRequiredHint}</p>}
+                      </section>
 
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         <InfoBlock title={t.resumeEvidence}>
@@ -2642,6 +2772,28 @@ function JobQualityCard({
       </div>
       <p className="mt-3 text-xs leading-5 text-muted">{hint}</p>
     </section>
+  );
+}
+
+function WorkflowStepCard({ status, title, statusLabel }: { status: WorkflowStepStatus; title: string; statusLabel: string }) {
+  return (
+    <div className={`workflow-step-card workflow-step-${status} rounded-md px-3 py-2`}>
+      <span className="workflow-step-icon">
+        {status === "done" ? (
+          <CheckCircle2 className="h-3.5 w-3.5" />
+        ) : status === "blocked" ? (
+          <AlertTriangle className="h-3.5 w-3.5" />
+        ) : status === "active" ? (
+          <Clock3 className="h-3.5 w-3.5" />
+        ) : (
+          <span className="h-2 w-2 rounded-full bg-current" />
+        )}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-ink">{title}</span>
+        <span className="block text-xs font-semibold text-muted">{statusLabel}</span>
+      </span>
+    </div>
   );
 }
 
