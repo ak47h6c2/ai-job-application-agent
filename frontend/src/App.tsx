@@ -224,6 +224,19 @@ const translations = {
     autoMissing: "Paste a job link first.",
     autoError: "Could not read this link automatically. Some sites require login or block automated reading. Use manual paste mode.",
     jdQualityError: "The page was readable, but the text does not look like a complete JD. Open the real job detail page until responsibilities and requirements are visible, or paste the JD manually.",
+    jdQualityTitle: "JD check",
+    jdQualityStrong: "Complete JD",
+    jdQualityUsable: "Usable JD",
+    jdQualityWeak: "Needs full JD",
+    jdQualitySource: "Source",
+    jdQualityScore: "Confidence",
+    jdQualitySourceSchema: "Structured job page",
+    jdQualitySourcePage: "Page text",
+    jdQualitySourceManual: "Manual text",
+    jdQualitySourceBrowser: "Logged-in page",
+    jdQualityHintStrong: "This looks like a real job description with enough duties, requirements, or role signals.",
+    jdQualityHintUsable: "This can be used, but quickly check that duties and requirements are really visible.",
+    jdQualityHintWeak: "This may be an email snippet, login page, or page shell. Open the real job detail page or paste the full JD.",
     autoHint: "Best for public company career pages and job boards. LinkedIn may require manual paste.",
     browserImportTitle: "Open a dedicated login browser",
     browserImportBody: "No extension needed. The app opens a browser window, you log in there once, and the login state is stored locally for future reads.",
@@ -280,7 +293,7 @@ const translations = {
     manualReadyResume: "Resume uploaded",
     manualReadyTitleField: "Job title filled",
     manualReadyCompany: "Company filled",
-    manualReadyDescription: "JD has enough detail",
+    manualReadyDescription: "Full JD is available",
     manualReadyHint: "Complete these checks to unlock draft generation.",
     readSince: "Read mail since",
     topDrafts: "Drafts to prepare",
@@ -454,6 +467,19 @@ const translations = {
     autoMissing: "请先粘贴岗位链接。",
     autoError: "这个链接暂时无法自动读取。部分网站需要登录或会阻止抓取，请切换到手动粘贴。",
     jdQualityError: "页面能读到文字，但不像完整 JD。请打开真正的岗位详情页，确认能看到岗位职责和任职要求；如果仍然不行，就切换到手动粘贴。",
+    jdQualityTitle: "JD 完整度检查",
+    jdQualityStrong: "像完整 JD",
+    jdQualityUsable: "基本可用",
+    jdQualityWeak: "需要完整 JD",
+    jdQualitySource: "来源",
+    jdQualityScore: "可信度",
+    jdQualitySourceSchema: "结构化招聘页",
+    jdQualitySourcePage: "网页正文",
+    jdQualitySourceManual: "手动输入",
+    jdQualitySourceBrowser: "登录页面",
+    jdQualityHintStrong: "这段内容看起来包含岗位职责、任职要求或技术信号，可以继续生成草稿。",
+    jdQualityHintUsable: "可以先用，但建议确认里面真的有职责和要求，不只是邮件摘要。",
+    jdQualityHintWeak: "这段内容可能只是邮件摘要、登录页或页面壳。请打开真正岗位详情页，或手动粘贴完整 JD。",
     autoHint: "公司官网和公开招聘页通常更容易读取；LinkedIn 可能需要手动粘贴。",
     browserImportTitle: "打开专用登录浏览器",
     browserImportBody: "不需要安装扩展。系统会打开一个浏览器窗口，你在里面登录一次，登录状态会保存在本地，之后同平台可以继续复用。",
@@ -510,7 +536,7 @@ const translations = {
     manualReadyResume: "已上传简历",
     manualReadyTitleField: "已填写岗位名称",
     manualReadyCompany: "已填写公司",
-    manualReadyDescription: "岗位描述内容足够",
+    manualReadyDescription: "已有完整 JD",
     manualReadyHint: "完成这些检查后，才可以生成草稿。",
     readSince: "读取邮件日期",
     topDrafts: "准备几份草稿",
@@ -699,10 +725,24 @@ type ManualJobForm = {
   description: string;
 };
 
+type QualityLabel = "strong" | "usable" | "weak";
+
+type JobQuality = {
+  score: number;
+  label: QualityLabel;
+  source: string;
+  description: string;
+};
+
 type JobUrlPreview = ManualJobForm & {
   ok?: boolean;
   detail?: string;
   source: string;
+  extraction_source?: string;
+  quality_score?: number;
+  quality_label?: QualityLabel;
+  quality_notes?: string[];
+  imported_at?: string;
 };
 
 function formatLocalDate(date: Date) {
@@ -786,6 +826,101 @@ function draftLanguageName(value: Language | undefined, language: Language) {
   return translations[language].draftLanguageEnglish;
 }
 
+function qualityLabelFromScore(score: number): QualityLabel {
+  if (score >= 8) return "strong";
+  if (score >= 4) return "usable";
+  return "weak";
+}
+
+function previewQuality(preview: JobUrlPreview): JobQuality {
+  const score =
+    typeof preview.quality_score === "number" && Number.isFinite(preview.quality_score)
+      ? preview.quality_score
+      : clientJobQuality(preview).score;
+  return {
+    score,
+    label: preview.quality_label ?? qualityLabelFromScore(score),
+    source: preview.extraction_source || preview.source || "page_text",
+    description: preview.description
+  };
+}
+
+function clientJobQuality(job: ManualJobForm): JobQuality {
+  const text = job.description.replace(/\s+/g, " ").trim();
+  const lower = text.toLowerCase();
+  let score = 0;
+  if (text.length >= 500) score += 4;
+  else if (text.length >= 260) score += 3;
+  else if (text.length >= 140) score += 1;
+
+  const jdMarkers = [
+    "job description",
+    "about the role",
+    "responsibilities",
+    "requirements",
+    "qualifications",
+    "what you'll do",
+    "岗位职责",
+    "任职要求",
+    "职位描述",
+    "工作内容"
+  ];
+  const skillMarkers = [
+    "python",
+    "sql",
+    "java",
+    "javascript",
+    "typescript",
+    "react",
+    "api",
+    "aws",
+    "cloud",
+    "docker",
+    "agent",
+    "rag",
+    "llm",
+    "数据库",
+    "算法",
+    "测试",
+    "大模型",
+    "人工智能"
+  ];
+  const shellMarkers = [
+    "sign in",
+    "login",
+    "save job",
+    "similar jobs",
+    "people also viewed",
+    "privacy policy",
+    "cookie policy",
+    "open app",
+    "登录",
+    "保存",
+    "相似职位",
+    "隐私政策",
+    "用户协议"
+  ];
+
+  score += Math.min(jdMarkers.filter((marker) => lower.includes(marker)).length, 4);
+  const skillHits = skillMarkers.filter((marker) => lower.includes(marker)).length;
+  if (skillHits >= 2) score += 1;
+  if (skillHits >= 5) score += 1;
+  if ((text.match(/[.!?。！？；;]/g) ?? []).length >= 2) score += 1;
+  if ((text.match(/[A-Za-z0-9+#.-]+|[\u4e00-\u9fff]/g) ?? []).length >= 45) score += 1;
+
+  const shellHits = shellMarkers.filter((marker) => lower.includes(marker)).length;
+  if (shellHits >= 4) score -= 2;
+  if (shellHits >= 7) score -= 2;
+  if ((lower.match(/https?:\/\/|www\./g) ?? []).length >= 3) score -= 1;
+
+  return {
+    score,
+    label: qualityLabelFromScore(score),
+    source: "manual",
+    description: job.description
+  };
+}
+
 function safeFilePart(value: string) {
   const cleaned = value
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, " ")
@@ -854,6 +989,7 @@ function App() {
     url: "",
     description: ""
   });
+  const [jobQuality, setJobQuality] = useState<JobQuality | null>(null);
   const [jobLeadNote, setJobLeadNote] = useState("");
   const [message, setMessage] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
@@ -865,7 +1001,8 @@ function App() {
   const t = translations[language];
   const manualTitleReady = Boolean(manualJob.title.trim());
   const manualCompanyReady = Boolean(manualJob.company.trim());
-  const manualDescriptionReady = manualJob.description.trim().length >= 20;
+  const activeJobQuality = jobQuality?.description === manualJob.description ? jobQuality : clientJobQuality(manualJob);
+  const manualDescriptionReady = manualJob.description.trim().length >= 20 && activeJobQuality.label !== "weak";
   const manualCanGenerate = Boolean(resume?.exists) && manualTitleReady && manualCompanyReady && manualDescriptionReady;
 
   const loadResume = useCallback(async () => {
@@ -1149,6 +1286,7 @@ function App() {
         url: preview.url || targetUrl,
         description: preview.description || current.description
       }));
+      setJobQuality(previewQuality(preview));
       setJobLeadNote("");
       setJobFetchStatus("success");
       setMessage(t.autoSuccess);
@@ -1180,6 +1318,7 @@ function App() {
         url: imported.url || current.url,
         description: imported.description || current.description
       }));
+      setJobQuality(previewQuality(imported));
       setJobLeadNote("");
       setImportStatus("success");
       setMessage(t.importedSuccess);
@@ -1258,9 +1397,11 @@ function App() {
         url: imported.url,
         description: imported.description
       };
+      const importedQuality = previewQuality(imported);
       setManualJob(job);
+      setJobQuality(importedQuality);
       setJobLeadNote("");
-      if (resume?.exists && job.description.trim().length >= 20) {
+      if (resume?.exists && job.description.trim().length >= 20 && importedQuality.label !== "weak") {
         await requestManualJobRun(job);
         setManualStatus("success");
       }
@@ -1285,6 +1426,7 @@ function App() {
       url: lead.url,
       description: current.description
     }));
+    setJobQuality(null);
     void fetchJobUrl(lead.url);
   }
 
@@ -1307,6 +1449,7 @@ function App() {
     setImportStatus("idle");
     setJobInputMode("auto");
     setManualJob(baseJob);
+    setJobQuality(null);
     setMessage("");
 
     if (!lead.url) {
@@ -1328,6 +1471,7 @@ function App() {
         description: preview.description || baseJob.description
       };
       setManualJob(detailedJob);
+      setJobQuality(previewQuality(preview));
       setJobLeadNote("");
       await requestManualJobRun(detailedJob);
       setJobFetchStatus("success");
@@ -1350,9 +1494,9 @@ function App() {
       setMessage(t.resumeMissing);
       return;
     }
-    if (!manualJob.title.trim() || !manualJob.company.trim() || manualJob.description.trim().length < 20) {
+    if (!manualJob.title.trim() || !manualJob.company.trim() || !manualDescriptionReady) {
       setManualStatus("error");
-      setMessage(t.manualMissing);
+      setMessage(!manualDescriptionReady ? t.jdQualityHintWeak : t.manualMissing);
       return;
     }
 
@@ -1469,6 +1613,26 @@ function App() {
         : uploadStatus === "success" || resume?.exists
           ? "resume-status-ready"
           : "resume-status-missing";
+  const activeQualityLabel =
+    activeJobQuality.label === "strong"
+      ? t.jdQualityStrong
+      : activeJobQuality.label === "usable"
+        ? t.jdQualityUsable
+        : t.jdQualityWeak;
+  const activeQualityHint =
+    activeJobQuality.label === "strong"
+      ? t.jdQualityHintStrong
+      : activeJobQuality.label === "usable"
+        ? t.jdQualityHintUsable
+        : t.jdQualityHintWeak;
+  const activeQualitySource =
+    activeJobQuality.source === "schema_org_jobposting"
+      ? t.jdQualitySourceSchema
+      : activeJobQuality.source === "manual"
+        ? t.jdQualitySourceManual
+        : activeJobQuality.source === "browser"
+          ? t.jdQualitySourceBrowser
+          : t.jdQualitySourcePage;
   const hasPreparedResume = Boolean(resume?.exists);
   const hasJobContext = Boolean(
     run?.selected_jobs.length ||
@@ -1877,6 +2041,16 @@ function App() {
                     className="min-h-40 w-full resize-y rounded-md border border-line bg-white/85 px-3 py-3 text-sm leading-6 outline-none transition focus:border-accent focus:bg-white"
                   />
                 </label>
+
+                <JobQualityCard
+                  title={t.jdQualityTitle}
+                  quality={activeJobQuality}
+                  label={activeQualityLabel}
+                  sourceTitle={t.jdQualitySource}
+                  sourceLabel={activeQualitySource}
+                  scoreTitle={t.jdQualityScore}
+                  hint={activeQualityHint}
+                />
 
                 <section className="mt-3 rounded-md border border-line bg-white/75 p-3">
                   <div className="mb-2 flex items-center justify-between gap-3">
@@ -2422,6 +2596,52 @@ function ReadinessItem({ ok, label }: { ok: boolean; label: string }) {
       {ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
       {label}
     </div>
+  );
+}
+
+function JobQualityCard({
+  title,
+  quality,
+  label,
+  sourceTitle,
+  sourceLabel,
+  scoreTitle,
+  hint
+}: {
+  title: string;
+  quality: JobQuality;
+  label: string;
+  sourceTitle: string;
+  sourceLabel: string;
+  scoreTitle: string;
+  hint: string;
+}) {
+  const isWeak = quality.label === "weak";
+  return (
+    <section className={`jd-quality-card jd-quality-${quality.label} mt-3 rounded-md px-3 py-3`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-2">
+          <span className="jd-quality-icon">
+            {isWeak ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+          </span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-normal text-muted">{title}</p>
+            <h4 className="mt-1 text-sm font-semibold text-ink">{label}</h4>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs sm:min-w-64">
+          <div className="jd-quality-stat">
+            <span>{sourceTitle}</span>
+            <strong>{sourceLabel}</strong>
+          </div>
+          <div className="jd-quality-stat">
+            <span>{scoreTitle}</span>
+            <strong>{Math.min(10, Math.max(0, quality.score))}/10</strong>
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-muted">{hint}</p>
+    </section>
   );
 }
 

@@ -172,8 +172,12 @@ class JobUrlPreview:
     description: str
     url: str
     source: str = "url"
+    extraction_source: str = "page_text"
+    quality_score: int = 0
+    quality_label: str = "weak"
+    quality_notes: tuple[str, ...] = ()
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "title": self.title,
             "company": self.company,
@@ -181,6 +185,10 @@ class JobUrlPreview:
             "description": self.description,
             "url": self.url,
             "source": self.source,
+            "extraction_source": self.extraction_source,
+            "quality_score": self.quality_score,
+            "quality_label": self.quality_label,
+            "quality_notes": list(self.quality_notes),
         }
 
 
@@ -448,6 +456,33 @@ def job_description_quality_score(*, title: str, description: str, has_jobpostin
     return score
 
 
+def job_description_quality_label(score: int) -> str:
+    if score >= 8:
+        return "strong"
+    if score >= 4:
+        return "usable"
+    return "weak"
+
+
+def job_description_quality_notes(*, description: str, has_jobposting: bool) -> tuple[str, ...]:
+    text = normalize_text(description)
+    lower_text = text.lower()
+    notes: list[str] = []
+    if has_jobposting:
+        notes.append("structured_jobposting")
+    if len(text) >= 500:
+        notes.append("substantial_description")
+    elif len(text) < 160:
+        notes.append("short_description")
+    if any(marker in lower_text for marker in JOB_DESCRIPTION_MARKERS):
+        notes.append("jd_section_markers")
+    if sum(1 for marker in TECH_OR_ROLE_MARKERS if marker in lower_text) >= 2:
+        notes.append("role_or_skill_terms")
+    if sum(1 for marker in PAGE_SHELL_MARKERS if marker in lower_text) >= 4:
+        notes.append("page_shell_markers")
+    return tuple(dict.fromkeys(notes))
+
+
 def looks_like_job_description(*, title: str, description: str, has_jobposting: bool = False) -> bool:
     return job_description_quality_score(title=title, description=description, has_jobposting=has_jobposting) >= 4
 
@@ -529,12 +564,26 @@ def preview_from_html(page_html: str, url: str) -> JobUrlPreview:
     ):
         raise JobUrlReadError("This site returned a login, captcha, or access-blocked page instead of the job post.")
 
+    preview_title = normalize_text(title)[:160]
+    preview_description = description[:12000]
+    quality_score = job_description_quality_score(
+        title=preview_title,
+        description=preview_description,
+        has_jobposting=bool(jobposting),
+    )
     preview = JobUrlPreview(
-        title=normalize_text(title)[:160],
+        title=preview_title,
         company=normalize_text(company)[:160],
         location=normalize_text(location)[:160],
-        description=description[:12000],
+        description=preview_description,
         url=url,
+        extraction_source="schema_org_jobposting" if jobposting else "page_text",
+        quality_score=quality_score,
+        quality_label=job_description_quality_label(quality_score),
+        quality_notes=job_description_quality_notes(
+            description=preview_description,
+            has_jobposting=bool(jobposting),
+        ),
     )
     if len(preview.title) < 2 or len(preview.company) < 1 or len(preview.description) < 20:
         raise JobUrlReadError("Could not extract enough job information from this page.")

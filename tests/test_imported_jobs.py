@@ -23,6 +23,8 @@ class ImportedJobTests(unittest.TestCase):
         self.assertEqual(payload["company"], "示例科技")
         self.assertIn("RAG 与 function calling", payload["description"])
         self.assertEqual(payload["imported_at"], "2026-05-10T00:00:00+00:00")
+        self.assertIn(payload["quality_label"], {"weak", "usable", "strong"})
+        self.assertIsInstance(payload["quality_score"], int)
 
     def test_save_and_load_latest_imported_job(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

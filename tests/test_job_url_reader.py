@@ -39,6 +39,9 @@ class JobUrlReaderTests(unittest.TestCase):
         self.assertEqual(preview.location, "Sydney, NSW, Australia")
         self.assertIn("Python services", preview.description)
         self.assertEqual(preview.url, "https://example.com/jobs/1")
+        self.assertEqual(preview.extraction_source, "schema_org_jobposting")
+        self.assertEqual(preview.quality_label, "strong")
+        self.assertEqual(preview.quality_score, 10)
 
     def test_preview_falls_back_to_meta_and_visible_text(self) -> None:
         html = """
@@ -62,6 +65,9 @@ class JobUrlReaderTests(unittest.TestCase):
         self.assertEqual(preview.title, "Data Analyst Intern")
         self.assertEqual(preview.company, "Example Careers")
         self.assertIn("SQL", preview.description)
+        self.assertEqual(preview.extraction_source, "page_text")
+        self.assertIn(preview.quality_label, {"usable", "strong"})
+        self.assertGreaterEqual(preview.quality_score, 4)
 
     def test_validate_public_http_url_rejects_local_links(self) -> None:
         with self.assertRaises(ValueError):
