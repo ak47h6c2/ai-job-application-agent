@@ -122,6 +122,24 @@ const translations = {
     productName: "AI Job Application Agent",
     headline: "Application workbench",
     subline: "Upload a resume, choose one path, then review drafts.",
+    goalEyebrow: "Goal mode",
+    goalTitle: "Prepare one application package",
+    goalBody: "Follow one main path: resume first, then job source, then draft review.",
+    goalResumeTitle: "Resume",
+    goalResumeTodo: "Upload a readable PDF resume.",
+    goalResumeDone: "Resume is ready for matching.",
+    goalSourceTitle: "Job source",
+    goalSourceTodo: "Scan email or add one JD.",
+    goalSourceDone: "Job information is available.",
+    goalDraftTitle: "Draft review",
+    goalDraftTodo: "Generate and check the materials before using them.",
+    goalDraftDone: "Drafts are ready for review.",
+    goalNextResume: "Upload resume",
+    goalNextSource: "Choose job source",
+    goalNextDraft: "Review drafts",
+    goalStatusDone: "Done",
+    goalStatusActive: "Now",
+    goalStatusLocked: "Later",
     pathPickerTitle: "What do you want to do now?",
     pathPickerBody: "Pick one entry and the page moves to that workspace.",
     pathMailTitle: "Scan email jobs",
@@ -334,6 +352,24 @@ const translations = {
     productName: "AI 求职申请助手",
     headline: "求职申请工作台",
     subline: "上传简历后，选择邮件扫描或单个 JD 路径，最后检查草稿。",
+    goalEyebrow: "目标模式",
+    goalTitle: "目标：准备一份可检查的申请材料",
+    goalBody: "页面按一条主线走：先确认简历，再选择岗位来源，最后检查求职信和招聘方消息。",
+    goalResumeTitle: "简历",
+    goalResumeTodo: "先上传一份可复制文字的 PDF 简历。",
+    goalResumeDone: "简历已经可以用于匹配。",
+    goalSourceTitle: "岗位来源",
+    goalSourceTodo: "扫描邮箱，或者添加一个完整 JD。",
+    goalSourceDone: "已经有可用的岗位信息。",
+    goalDraftTitle: "草稿检查",
+    goalDraftTodo: "生成后先检查，再复制使用。",
+    goalDraftDone: "草稿已经可以检查。",
+    goalNextResume: "上传简历",
+    goalNextSource: "选择岗位来源",
+    goalNextDraft: "检查草稿",
+    goalStatusDone: "完成",
+    goalStatusActive: "当前",
+    goalStatusLocked: "稍后",
     pathPickerTitle: "你现在要做什么？",
     pathPickerBody: "点一个入口，页面会直接跳到对应操作区。",
     pathMailTitle: "扫描邮箱",
@@ -1433,6 +1469,37 @@ function App() {
         : uploadStatus === "success" || resume?.exists
           ? "resume-status-ready"
           : "resume-status-missing";
+  const hasPreparedResume = Boolean(resume?.exists);
+  const hasJobContext = Boolean(
+    run?.selected_jobs.length ||
+      run?.drafts.length ||
+      manualJob.title.trim() ||
+      manualJob.company.trim() ||
+      manualJob.description.trim().length >= 160
+  );
+  const hasApplicationPackage = Boolean(run?.drafts.length);
+  const goalHref = !hasPreparedResume ? "#setup" : !hasJobContext ? "#manual" : hasApplicationPackage ? "#drafts" : "#manual";
+  const goalCta = !hasPreparedResume ? t.goalNextResume : !hasJobContext ? t.goalNextSource : t.goalNextDraft;
+  const goalItems = [
+    {
+      title: t.goalResumeTitle,
+      body: hasPreparedResume ? t.goalResumeDone : t.goalResumeTodo,
+      status: hasPreparedResume ? "done" : "active",
+      href: "#setup"
+    },
+    {
+      title: t.goalSourceTitle,
+      body: hasJobContext ? t.goalSourceDone : t.goalSourceTodo,
+      status: !hasPreparedResume ? "locked" : hasJobContext ? "done" : "active",
+      href: hasPreparedResume ? "#manual" : "#setup"
+    },
+    {
+      title: t.goalDraftTitle,
+      body: hasApplicationPackage ? t.goalDraftDone : t.goalDraftTodo,
+      status: !hasJobContext ? "locked" : hasApplicationPackage ? "done" : "active",
+      href: hasJobContext ? "#drafts" : "#manual"
+    }
+  ] as const;
 
   return (
     <main className="app-backdrop min-h-screen text-ink">
@@ -1494,18 +1561,36 @@ function App() {
             </div>
           </header>
 
-          <section className="route-panel flow-panel fade-lift rounded-md p-3" aria-label={t.pathPickerTitle}>
-            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <section className="goal-panel fade-lift rounded-md p-4" aria-label={t.goalTitle}>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.controls}</p>
-                <h2 className="mt-1 text-base font-semibold">{t.pathPickerTitle}</h2>
+                <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.goalEyebrow}</p>
+                <h2 className="mt-1 text-lg font-semibold">{t.goalTitle}</h2>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">{t.goalBody}</p>
               </div>
-              <p className="max-w-xl text-xs leading-5 text-muted">{t.pathPickerBody}</p>
+              <a href={goalHref} className="goal-cta inline-flex h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold">
+                {goalCta}
+                <ArrowRight className="h-4 w-4" />
+              </a>
             </div>
-            <div className="grid gap-2 lg:grid-cols-3">
-              <PathLink step="1" href="#setup" icon={<Mail className="h-4 w-4" />} title={t.pathMailTitle} body={t.pathMailBody} />
-              <PathLink step="2" href="#manual" icon={<FileText className="h-4 w-4" />} title={t.pathJobTitle} body={t.pathJobBody} />
-              <PathLink step="3" href="#drafts" icon={<Clipboard className="h-4 w-4" />} title={t.pathDraftTitle} body={t.pathDraftBody} />
+            <div className="mt-4 grid gap-2 lg:grid-cols-3">
+              {goalItems.map((item, index) => (
+                <GoalStepCard
+                  key={item.title}
+                  index={index + 1}
+                  title={item.title}
+                  body={item.body}
+                  status={item.status}
+                  statusLabel={
+                    item.status === "done"
+                      ? t.goalStatusDone
+                      : item.status === "active"
+                        ? t.goalStatusActive
+                        : t.goalStatusLocked
+                  }
+                  href={item.href}
+                />
+              ))}
             </div>
           </section>
 
@@ -2219,30 +2304,36 @@ function ModeButton({ active, label, onClick }: { active: boolean; label: string
   );
 }
 
-function PathLink({
-  step,
+type GoalStepStatus = "done" | "active" | "locked";
+
+function GoalStepCard({
+  index,
   href,
-  icon,
   title,
-  body
+  body,
+  status,
+  statusLabel
 }: {
-  step: string;
+  index: number;
   href: string;
-  icon: ReactNode;
   title: string;
   body: string;
+  status: GoalStepStatus;
+  statusLabel: string;
 }) {
   return (
-    <a href={href} className="path-link rounded-md px-3 py-2.5">
-      <span className="path-step-number">{step}</span>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-accent shadow-sm ring-1 ring-line">
-        {icon}
+    <a href={href} aria-current={status === "active" ? "step" : undefined} className={`goal-step-card goal-step-${status} rounded-md px-3 py-3`}>
+      <span className="goal-step-index">
+        {status === "done" ? <Check className="h-4 w-4" /> : index}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-ink">{title}</span>
-        <span className="block truncate text-xs text-muted">{body}</span>
+        <span className="flex items-center gap-2">
+          <span className="block text-sm font-semibold text-ink">{title}</span>
+          <span className="goal-step-status">{statusLabel}</span>
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-muted">{body}</span>
       </span>
-      <ArrowRight className="h-4 w-4 shrink-0 text-accent" />
+      <ArrowRight className="goal-step-arrow h-4 w-4 shrink-0" />
     </a>
   );
 }

@@ -4,6 +4,7 @@
 
 ### English
 
+- Added a goal-mode workflow panel that shows the one main path: resume, job source, then draft review, with one next-step action instead of another button cluster.
 - Improved resume upload feedback with an in-card status pill, selected filename, parsing summary, progress indicator, and clearer next-step guidance.
 - Refreshed the Web UI visual system with a Figma-style workbench background, stronger panel hierarchy, more distinct selected states, and lightweight motion for metrics, buttons, chips, and navigation.
 - Added JD-quality validation so public-link and logged-in browser reads reject navigation, search-result, login, and recommendation text instead of treating it as the job description.
@@ -13,6 +14,7 @@
 
 ### 中文
 
+- 新增“目标模式”流程面板：把页面主线收敛为简历、岗位来源、草稿检查三步，并提供一个明确的下一步按钮，减少按钮堆叠。
 - 优化简历上传反馈：在简历卡片内直接显示状态标签、本次文件名、解析摘要、上传进度和下一步引导。
 - 按 Figma 工作流重新打磨 Web UI：加入工作台式背景、更清晰的面板层级、更明显的选中状态，以及指标、按钮、标签和导航的轻量动效。
 - 新增 JD 质量校验：公开链接读取和登录浏览器读取会拒绝导航、搜索结果、登录页、推荐职位等页面壳文本，不再把它们当作岗位描述。
