@@ -1395,7 +1395,7 @@ function App() {
 
   return (
     <main className="app-backdrop min-h-screen text-ink">
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-5 px-5 py-5 lg:grid-cols-[232px_minmax(0,1fr)]">
+      <div className="workbench-grid mx-auto grid max-w-7xl grid-cols-1 gap-5 px-5 py-5 lg:grid-cols-[236px_minmax(0,1fr)]">
         <aside className="sidebar-panel rounded-md p-4 lg:sticky lg:top-5 lg:h-[calc(100vh-40px)]">
           <div className="flex items-center gap-3 border-b border-line pb-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-accent">
@@ -1440,12 +1440,12 @@ function App() {
         <section className="space-y-5">
           <header id="overview" className="hero-panel fade-lift rounded-md p-5 shadow-soft">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <div>
+              <div className="hero-copy">
                 <p className="text-sm font-medium text-emerald-100">{t.productName}</p>
                 <h1 className="mt-1 text-3xl font-semibold tracking-normal text-white">{t.headline}</h1>
                 <p className="mt-2 text-sm text-blue-50">{t.subline}</p>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="metric-grid grid grid-cols-3 gap-2 text-center">
                 <Metric label={t.jobs} value={isInitialLoading ? "..." : (run?.selected_jobs.length ?? 0).toString()} />
                 <Metric label={t.drafts} value={isInitialLoading ? "..." : (run?.drafts.length ?? 0).toString()} />
                 <Metric label={t.steps} value={isInitialLoading ? "..." : (run?.steps.length ?? 0).toString()} />
@@ -1478,7 +1478,7 @@ function App() {
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[0.92fr_1.28fr]">
-              <section className="workflow-card rounded-md p-4">
+              <section className="workflow-card workflow-card-mail rounded-md p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-600 text-sm font-bold text-white">1</div>
                   <div>
@@ -1589,7 +1589,7 @@ function App() {
                 {!resume?.exists && <p className="mt-2 text-xs leading-5 text-amber-700">{t.resumeRequiredHint}</p>}
               </section>
 
-              <section id="manual" className="workflow-card rounded-md p-4">
+              <section id="manual" className="workflow-card workflow-card-jd rounded-md p-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex items-start gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-emerald-600 text-sm font-bold text-white">2</div>
