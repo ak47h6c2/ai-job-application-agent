@@ -384,6 +384,13 @@ const translations = {
     applicationBoardLatest: "Latest applications",
     trackedApplications: "Tracked",
     applicationNoNote: "No note yet.",
+    allApplicationStatuses: "All",
+    applicationBoardFilter: "Filter",
+    applicationBoardSave: "Save",
+    applicationBoardSaving: "Saving...",
+    applicationBoardSaved: "Saved",
+    applicationBoardError: "Save failed",
+    applicationBoardFilteredEmpty: "No applications in this status yet.",
     resumeFocus: "Resume focus",
     coverLetter: "Cover letter",
     recruiterMessage: "Recruiter message",
@@ -667,6 +674,13 @@ const translations = {
     applicationBoardLatest: "最近记录",
     trackedApplications: "已记录",
     applicationNoNote: "暂无备注。",
+    allApplicationStatuses: "全部",
+    applicationBoardFilter: "筛选",
+    applicationBoardSave: "保存",
+    applicationBoardSaving: "保存中...",
+    applicationBoardSaved: "已保存",
+    applicationBoardError: "保存失败",
+    applicationBoardFilteredEmpty: "这个状态下还没有记录。",
     resumeFocus: "简历修改重点",
     coverLetter: "求职信草稿",
     recruiterMessage: "招聘方消息",
@@ -724,6 +738,7 @@ const reasonLabels: Record<Language, Record<string, string>> = {
 };
 
 const APPLICATION_STATUSES: ApplicationStatus[] = ["to_review", "draft_ready", "applied", "waiting", "interview", "rejected"];
+const APPLICATION_FILTERS: ApplicationFilter[] = ["all", ...APPLICATION_STATUSES];
 
 type Step = {
   name: string;
@@ -810,6 +825,7 @@ type ManualJobForm = {
 type QualityLabel = "strong" | "usable" | "weak";
 type WorkflowStepStatus = "done" | "active" | "blocked" | "locked";
 type ApplicationStatus = "to_review" | "draft_ready" | "applied" | "waiting" | "interview" | "rejected";
+type ApplicationFilter = ApplicationStatus | "all";
 
 type JobQuality = {
   score: number;
@@ -1094,6 +1110,7 @@ function App() {
   const [run, setRun] = useState<AgentRun | null>(null);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [applications, setApplications] = useState<Record<string, ApplicationRecord>>({});
+  const [applicationFilter, setApplicationFilter] = useState<ApplicationFilter>("all");
   const [resume, setResume] = useState<ResumeStatus | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -1805,6 +1822,18 @@ function App() {
     }
   }
 
+  async function saveBoardApplicationStatus(record: ApplicationRecord, status: ApplicationStatus, note: string) {
+    await saveApplicationRecord({
+      key: record.key,
+      title: record.title,
+      company: record.company,
+      url: record.url,
+      status,
+      note
+    });
+    setMessage(t.applicationStatusSaved);
+  }
+
   const visibleRuns = showAllRuns ? runs : runs.slice(0, 4);
   const currentRunSummary = run ? runs.find((item) => item.id === run.id) : undefined;
   const applicationRecords = useMemo(
@@ -2022,10 +2051,23 @@ function App() {
             updatedLabel={t.updated}
             openLabel={t.open}
             noNoteLabel={t.applicationNoNote}
+            filterLabel={t.applicationBoardFilter}
+            allLabel={t.allApplicationStatuses}
+            filteredEmptyBody={t.applicationBoardFilteredEmpty}
+            statusTitle={t.applicationStatus}
+            noteLabel={t.applicationNote}
+            notePlaceholder={t.applicationNotePlaceholder}
+            saveLabel={t.applicationBoardSave}
+            savingLabel={t.applicationBoardSaving}
+            savedLabel={t.applicationBoardSaved}
+            errorLabel={t.applicationBoardError}
             records={applicationRecords}
             counts={applicationStatusCounts}
+            filter={applicationFilter}
+            onFilterChange={setApplicationFilter}
             statusLabel={(status) => applicationStatusLabel(status, language)}
             formatDate={(value) => formatIsoModified(value, language)}
+            onSave={(record, status, note) => saveBoardApplicationStatus(record, status, note)}
           />
 
           <section id="setup" className="fade-lift space-y-4">
@@ -3050,10 +3092,23 @@ function ApplicationBoard({
   updatedLabel,
   openLabel,
   noNoteLabel,
+  filterLabel,
+  allLabel,
+  filteredEmptyBody,
+  statusTitle,
+  noteLabel,
+  notePlaceholder,
+  saveLabel,
+  savingLabel,
+  savedLabel,
+  errorLabel,
   records,
   counts,
+  filter,
+  onFilterChange,
   statusLabel,
-  formatDate
+  formatDate,
+  onSave
 }: {
   title: string;
   hint: string;
@@ -3063,12 +3118,26 @@ function ApplicationBoard({
   updatedLabel: string;
   openLabel: string;
   noNoteLabel: string;
+  filterLabel: string;
+  allLabel: string;
+  filteredEmptyBody: string;
+  statusTitle: string;
+  noteLabel: string;
+  notePlaceholder: string;
+  saveLabel: string;
+  savingLabel: string;
+  savedLabel: string;
+  errorLabel: string;
   records: ApplicationRecord[];
   counts: Record<ApplicationStatus, number>;
+  filter: ApplicationFilter;
+  onFilterChange: (filter: ApplicationFilter) => void;
   statusLabel: (status: ApplicationStatus) => string;
   formatDate: (value: string) => string;
+  onSave: (record: ApplicationRecord, status: ApplicationStatus, note: string) => Promise<void>;
 }) {
-  const visibleRecords = records.slice(0, 6);
+  const filteredRecords = filter === "all" ? records : records.filter((record) => record.status === filter);
+  const visibleRecords = filteredRecords.slice(0, 8);
   return (
     <section id="applications" className="application-board fade-lift rounded-md p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -3083,51 +3152,193 @@ function ApplicationBoard({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
-        {APPLICATION_STATUSES.map((status) => (
-          <div key={status} className={`application-summary-chip application-summary-${status}`}>
-            <span>{statusLabel(status)}</span>
-            <strong>{counts[status] ?? 0}</strong>
-          </div>
-        ))}
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-semibold text-muted">{filterLabel}</p>
+        <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-7">
+          {APPLICATION_FILTERS.map((status) => (
+            <button
+              type="button"
+              key={status}
+              aria-pressed={filter === status}
+              onClick={() => onFilterChange(status)}
+              className={`application-summary-chip application-summary-${status} ${filter === status ? "application-summary-active" : ""}`}
+            >
+              <span>{status === "all" ? allLabel : statusLabel(status)}</span>
+              <strong>{status === "all" ? records.length : counts[status] ?? 0}</strong>
+            </button>
+          ))}
+        </div>
       </div>
+
+      {records.length > 0 && visibleRecords.length === 0 && (
+        <div className="mt-4 rounded-md border border-line bg-white/70 px-3 py-4 text-sm font-semibold text-muted">
+          {filteredEmptyBody}
+        </div>
+      )}
 
       {visibleRecords.length > 0 && (
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           {visibleRecords.map((record) => (
-            <article key={record.key} className="application-record-card rounded-md p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-accent">{record.company || "-"}</p>
-                  <h3 className="mt-1 text-sm font-semibold text-ink">{record.title || "-"}</h3>
-                </div>
-                <span className={`application-status-badge application-status-${record.status}`}>
-                  {statusLabel(record.status)}
-                </span>
-              </div>
-              <p className="application-record-note mt-2 text-xs leading-5 text-muted">{record.note || noNoteLabel}</p>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-muted">
-                <span className="inline-flex items-center gap-1">
-                  <CalendarDays className="h-3.5 w-3.5" />
-                  {updatedLabel} {formatDate(record.updated_at) || "-"}
-                </span>
-                {record.url && (
-                  <a
-                    href={record.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 rounded-md border border-line bg-white/80 px-2 py-1 text-accent hover:border-blue-200 hover:bg-blue-50"
-                  >
-                    {openLabel}
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                )}
-              </div>
-            </article>
-          ))}
+            <ApplicationRecordEditor
+              key={record.key}
+              record={record}
+              updatedLabel={updatedLabel}
+              openLabel={openLabel}
+              noNoteLabel={noNoteLabel}
+              statusTitle={statusTitle}
+              noteLabel={noteLabel}
+              notePlaceholder={notePlaceholder}
+              saveLabel={saveLabel}
+              savingLabel={savingLabel}
+              savedLabel={savedLabel}
+              errorLabel={errorLabel}
+              statusLabel={statusLabel}
+              formatDate={formatDate}
+              onSave={onSave}
+            />
+        ))}
         </div>
       )}
     </section>
+  );
+}
+
+function ApplicationRecordEditor({
+  record,
+  updatedLabel,
+  openLabel,
+  noNoteLabel,
+  statusTitle,
+  noteLabel,
+  notePlaceholder,
+  saveLabel,
+  savingLabel,
+  savedLabel,
+  errorLabel,
+  statusLabel,
+  formatDate,
+  onSave
+}: {
+  record: ApplicationRecord;
+  updatedLabel: string;
+  openLabel: string;
+  noNoteLabel: string;
+  statusTitle: string;
+  noteLabel: string;
+  notePlaceholder: string;
+  saveLabel: string;
+  savingLabel: string;
+  savedLabel: string;
+  errorLabel: string;
+  statusLabel: (status: ApplicationStatus) => string;
+  formatDate: (value: string) => string;
+  onSave: (record: ApplicationRecord, status: ApplicationStatus, note: string) => Promise<void>;
+}) {
+  const [draftStatus, setDraftStatus] = useState<ApplicationStatus>(record.status);
+  const [draftNote, setDraftNote] = useState(record.note);
+  const [saveStatus, setSaveStatus] = useState<AsyncStatus>("idle");
+
+  useEffect(() => {
+    setDraftStatus(record.status);
+    setDraftNote(record.note);
+    setSaveStatus("idle");
+  }, [record.key, record.status, record.note]);
+
+  async function handleSave() {
+    setSaveStatus("running");
+    try {
+      await onSave(record, draftStatus, draftNote);
+      setSaveStatus("success");
+    } catch {
+      setSaveStatus("error");
+    }
+  }
+
+  const dirty = draftStatus !== record.status || draftNote !== record.note;
+  const saveText =
+    saveStatus === "running"
+      ? savingLabel
+      : saveStatus === "success" && !dirty
+        ? savedLabel
+        : saveStatus === "error"
+          ? errorLabel
+          : saveLabel;
+
+  return (
+    <article className="application-record-card rounded-md p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold text-accent">{record.company || "-"}</p>
+          <h3 className="mt-1 text-sm font-semibold text-ink">{record.title || "-"}</h3>
+        </div>
+        <span className={`application-status-badge application-status-${record.status}`}>
+          {statusLabel(record.status)}
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-[0.82fr_1.18fr]">
+        <label>
+          <span className="mb-1.5 block text-xs font-semibold text-muted">{statusTitle}</span>
+          <select
+            value={draftStatus}
+            onChange={(event) => {
+              setDraftStatus(event.target.value as ApplicationStatus);
+              setSaveStatus("idle");
+            }}
+            className="application-record-select h-9 w-full rounded-md border border-line bg-white/85 px-2 text-xs font-semibold outline-none focus:border-accent"
+          >
+            {APPLICATION_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {statusLabel(status)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="mb-1.5 block text-xs font-semibold text-muted">{noteLabel}</span>
+          <textarea
+            value={draftNote}
+            onChange={(event) => {
+              setDraftNote(event.target.value);
+              setSaveStatus("idle");
+            }}
+            placeholder={notePlaceholder || noNoteLabel}
+            className="application-record-note-input min-h-16 w-full resize-y rounded-md border border-line bg-white/85 px-2 py-2 text-xs leading-5 outline-none focus:border-accent"
+          />
+        </label>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-muted">
+        <span className="inline-flex items-center gap-1">
+          <CalendarDays className="h-3.5 w-3.5" />
+          {updatedLabel} {formatDate(record.updated_at) || "-"}
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {record.url && (
+            <a
+              href={record.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-8 items-center gap-1 rounded-md border border-line bg-white/80 px-2 text-accent hover:border-blue-200 hover:bg-blue-50"
+            >
+              {openLabel}
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={saveStatus === "running" || (!dirty && saveStatus === "success")}
+            className={`application-record-save inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-70 ${
+              saveStatus === "error" ? "application-record-save-error" : ""
+            }`}
+          >
+            {saveStatus === "running" ? <Clock3 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+            {saveText}
+          </button>
+        </div>
+      </div>
+    </article>
   );
 }
 
