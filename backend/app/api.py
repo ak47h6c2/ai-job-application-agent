@@ -87,6 +87,7 @@ class ApplicationRecordRequest(BaseModel):
     url: str = Field(default="", max_length=500)
     status: Literal["to_review", "draft_ready", "applied", "waiting", "interview", "rejected"] = "to_review"
     note: str = Field(default="", max_length=2000)
+    next_action_at: str = Field(default="", max_length=20)
 
 
 class ApplicationDeleteRequest(BaseModel):

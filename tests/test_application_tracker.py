@@ -29,6 +29,7 @@ class ApplicationTrackerTests(unittest.TestCase):
                     "url": "https://example.com/job",
                     "status": "draft_ready",
                     "note": "Generated package.",
+                    "next_action_at": "2026-05-20",
                 },
             )
             second = upsert_application_record(
@@ -47,6 +48,7 @@ class ApplicationTrackerTests(unittest.TestCase):
             self.assertEqual(len(records), 1)
             self.assertEqual(records[0]["status"], "applied")
             self.assertIn("Submitted", str(records[0]["note"]))
+            self.assertEqual(records[0]["next_action_at"], "2026-05-20")
 
     def test_invalid_status_falls_back_to_review(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -60,6 +62,31 @@ class ApplicationTrackerTests(unittest.TestCase):
             )
 
             self.assertEqual(record["status"], "to_review")
+            self.assertEqual(record["next_action_at"], "")
+
+    def test_next_action_date_is_normalized(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            valid = upsert_application_record(
+                Path(tmp_dir),
+                {
+                    "title": "Role",
+                    "company": "Company",
+                    "status": "waiting",
+                    "next_action_at": "2026-05-21",
+                },
+            )
+            invalid = upsert_application_record(
+                Path(tmp_dir),
+                {
+                    "title": "Other Role",
+                    "company": "Company",
+                    "status": "waiting",
+                    "next_action_at": "next week",
+                },
+            )
+
+            self.assertEqual(valid["next_action_at"], "2026-05-21")
+            self.assertEqual(invalid["next_action_at"], "")
 
     def test_delete_application_record_removes_matching_key(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -127,6 +154,7 @@ class ApplicationTrackerTests(unittest.TestCase):
                     "url": "https://example.com/job",
                     "status": "waiting",
                     "note": "Already submitted.",
+                    "next_action_at": "2026-05-22",
                 },
             )
 
@@ -142,6 +170,7 @@ class ApplicationTrackerTests(unittest.TestCase):
 
             self.assertEqual(record["status"], "waiting")
             self.assertEqual(load_application_records(private_dir)[0]["note"], "Already submitted.")
+            self.assertEqual(load_application_records(private_dir)[0]["next_action_at"], "2026-05-22")
 
 
 if __name__ == "__main__":

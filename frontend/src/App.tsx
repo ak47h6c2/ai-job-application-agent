@@ -397,6 +397,12 @@ const translations = {
     applicationBoardRemoved: "Application record removed.",
     applicationBoardRemoveError: "Could not remove application record.",
     applicationBoardFilteredEmpty: "No applications in this status yet.",
+    applicationFollowUpDue: "Needs follow-up",
+    applicationNextAction: "Next follow-up",
+    applicationNoNextAction: "No follow-up date",
+    applicationFollowUpToday: "Follow up today",
+    applicationFollowUpOverdue: "Overdue follow-up",
+    applicationFollowUpLater: "Follow-up scheduled",
     resumeFocus: "Resume focus",
     coverLetter: "Cover letter",
     recruiterMessage: "Recruiter message",
@@ -692,6 +698,12 @@ const translations = {
     applicationBoardRemoved: "投递记录已移除。",
     applicationBoardRemoveError: "投递记录移除失败。",
     applicationBoardFilteredEmpty: "这个状态下还没有记录。",
+    applicationFollowUpDue: "需要跟进",
+    applicationNextAction: "下次跟进",
+    applicationNoNextAction: "未设置跟进",
+    applicationFollowUpToday: "今天跟进",
+    applicationFollowUpOverdue: "已逾期",
+    applicationFollowUpLater: "已安排跟进",
     resumeFocus: "简历修改重点",
     coverLetter: "求职信草稿",
     recruiterMessage: "招聘方消息",
@@ -749,7 +761,7 @@ const reasonLabels: Record<Language, Record<string, string>> = {
 };
 
 const APPLICATION_STATUSES: ApplicationStatus[] = ["to_review", "draft_ready", "applied", "waiting", "interview", "rejected"];
-const APPLICATION_FILTERS: ApplicationFilter[] = ["all", ...APPLICATION_STATUSES];
+const APPLICATION_FILTERS: ApplicationFilter[] = ["all", "follow_up", ...APPLICATION_STATUSES];
 
 type Step = {
   name: string;
@@ -836,7 +848,7 @@ type ManualJobForm = {
 type QualityLabel = "strong" | "usable" | "weak";
 type WorkflowStepStatus = "done" | "active" | "blocked" | "locked";
 type ApplicationStatus = "to_review" | "draft_ready" | "applied" | "waiting" | "interview" | "rejected";
-type ApplicationFilter = ApplicationStatus | "all";
+type ApplicationFilter = ApplicationStatus | "all" | "follow_up";
 
 type JobQuality = {
   score: number;
@@ -863,6 +875,7 @@ type ApplicationRecord = {
   url: string;
   status: ApplicationStatus;
   note: string;
+  next_action_at: string;
   updated_at: string;
 };
 
@@ -932,6 +945,16 @@ function formatIsoModified(value: string | undefined, language: Language) {
   }).format(date);
 }
 
+function formatIsoDate(value: string | undefined, language: Language) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-AU", {
+    month: "short",
+    day: "numeric"
+  }).format(date);
+}
+
 function displayRunId(id: string, language: Language) {
   if (id === "latest_test") return id;
   const manualMatch = id.match(/^manual-(\d{4}-\d{2}-\d{2})_(\d{8})T(\d{2})(\d{2})(\d{2})Z$/);
@@ -977,6 +1000,10 @@ function applicationStatusLabel(status: ApplicationStatus, language: Language) {
     rejected: t.applicationStatusRejected
   };
   return labels[status];
+}
+
+function isApplicationFollowUpDue(record: ApplicationRecord) {
+  return Boolean(record.next_action_at) && record.status !== "rejected" && record.next_action_at <= dateOffset(0);
 }
 
 function qualityLabelFromScore(score: number): QualityLabel {
@@ -1796,6 +1823,7 @@ function App() {
     url: string;
     status: ApplicationStatus;
     note: string;
+    next_action_at?: string;
   }) {
     const response = await fetch(`${API_BASE}/api/applications`, {
       method: "POST",
@@ -1847,14 +1875,15 @@ function App() {
     }
   }
 
-  async function saveBoardApplicationStatus(record: ApplicationRecord, status: ApplicationStatus, note: string) {
+  async function saveBoardApplicationStatus(record: ApplicationRecord, status: ApplicationStatus, note: string, nextActionAt: string) {
     await saveApplicationRecord({
       key: record.key,
       title: record.title,
       company: record.company,
       url: record.url,
       status,
-      note
+      note,
+      next_action_at: nextActionAt
     });
     setMessage(t.applicationStatusSaved);
   }
@@ -2089,9 +2118,15 @@ function App() {
             filterLabel={t.applicationBoardFilter}
             allLabel={t.allApplicationStatuses}
             filteredEmptyBody={t.applicationBoardFilteredEmpty}
+            followUpFilterLabel={t.applicationFollowUpDue}
             statusTitle={t.applicationStatus}
             noteLabel={t.applicationNote}
             notePlaceholder={t.applicationNotePlaceholder}
+            nextActionLabel={t.applicationNextAction}
+            noNextActionLabel={t.applicationNoNextAction}
+            followUpTodayLabel={t.applicationFollowUpToday}
+            followUpOverdueLabel={t.applicationFollowUpOverdue}
+            followUpLaterLabel={t.applicationFollowUpLater}
             saveLabel={t.applicationBoardSave}
             savingLabel={t.applicationBoardSaving}
             savedLabel={t.applicationBoardSaved}
@@ -2106,7 +2141,8 @@ function App() {
             onFilterChange={setApplicationFilter}
             statusLabel={(status) => applicationStatusLabel(status, language)}
             formatDate={(value) => formatIsoModified(value, language)}
-            onSave={(record, status, note) => saveBoardApplicationStatus(record, status, note)}
+            formatDateOnly={(value) => formatIsoDate(value, language)}
+            onSave={(record, status, note, nextActionAt) => saveBoardApplicationStatus(record, status, note, nextActionAt)}
             onDelete={(record) => deleteBoardApplication(record)}
           />
 
@@ -3135,9 +3171,15 @@ function ApplicationBoard({
   filterLabel,
   allLabel,
   filteredEmptyBody,
+  followUpFilterLabel,
   statusTitle,
   noteLabel,
   notePlaceholder,
+  nextActionLabel,
+  noNextActionLabel,
+  followUpTodayLabel,
+  followUpOverdueLabel,
+  followUpLaterLabel,
   saveLabel,
   savingLabel,
   savedLabel,
@@ -3152,6 +3194,7 @@ function ApplicationBoard({
   onFilterChange,
   statusLabel,
   formatDate,
+  formatDateOnly,
   onSave,
   onDelete
 }: {
@@ -3166,9 +3209,15 @@ function ApplicationBoard({
   filterLabel: string;
   allLabel: string;
   filteredEmptyBody: string;
+  followUpFilterLabel: string;
   statusTitle: string;
   noteLabel: string;
   notePlaceholder: string;
+  nextActionLabel: string;
+  noNextActionLabel: string;
+  followUpTodayLabel: string;
+  followUpOverdueLabel: string;
+  followUpLaterLabel: string;
   saveLabel: string;
   savingLabel: string;
   savedLabel: string;
@@ -3183,10 +3232,17 @@ function ApplicationBoard({
   onFilterChange: (filter: ApplicationFilter) => void;
   statusLabel: (status: ApplicationStatus) => string;
   formatDate: (value: string) => string;
-  onSave: (record: ApplicationRecord, status: ApplicationStatus, note: string) => Promise<void>;
+  formatDateOnly: (value: string) => string;
+  onSave: (record: ApplicationRecord, status: ApplicationStatus, note: string, nextActionAt: string) => Promise<void>;
   onDelete: (record: ApplicationRecord) => Promise<void>;
 }) {
-  const filteredRecords = filter === "all" ? records : records.filter((record) => record.status === filter);
+  const followUpDueCount = records.filter(isApplicationFollowUpDue).length;
+  const filteredRecords =
+    filter === "all"
+      ? records
+      : filter === "follow_up"
+        ? records.filter(isApplicationFollowUpDue)
+        : records.filter((record) => record.status === filter);
   const visibleRecords = filteredRecords.slice(0, 8);
   return (
     <section id="applications" className="application-board fade-lift rounded-md p-4">
@@ -3204,7 +3260,7 @@ function ApplicationBoard({
 
       <div className="mt-4">
         <p className="mb-2 text-xs font-semibold text-muted">{filterLabel}</p>
-        <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-7">
+        <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-8">
           {APPLICATION_FILTERS.map((status) => (
             <button
               type="button"
@@ -3213,8 +3269,8 @@ function ApplicationBoard({
               onClick={() => onFilterChange(status)}
               className={`application-summary-chip application-summary-${status} ${filter === status ? "application-summary-active" : ""}`}
             >
-              <span>{status === "all" ? allLabel : statusLabel(status)}</span>
-              <strong>{status === "all" ? records.length : counts[status] ?? 0}</strong>
+              <span>{status === "all" ? allLabel : status === "follow_up" ? followUpFilterLabel : statusLabel(status)}</span>
+              <strong>{status === "all" ? records.length : status === "follow_up" ? followUpDueCount : counts[status] ?? 0}</strong>
             </button>
           ))}
         </div>
@@ -3238,6 +3294,11 @@ function ApplicationBoard({
               statusTitle={statusTitle}
               noteLabel={noteLabel}
               notePlaceholder={notePlaceholder}
+              nextActionLabel={nextActionLabel}
+              noNextActionLabel={noNextActionLabel}
+              followUpTodayLabel={followUpTodayLabel}
+              followUpOverdueLabel={followUpOverdueLabel}
+              followUpLaterLabel={followUpLaterLabel}
               saveLabel={saveLabel}
               savingLabel={savingLabel}
               savedLabel={savedLabel}
@@ -3248,6 +3309,7 @@ function ApplicationBoard({
               removeErrorLabel={removeErrorLabel}
               statusLabel={statusLabel}
               formatDate={formatDate}
+              formatDateOnly={formatDateOnly}
               onSave={onSave}
               onDelete={onDelete}
             />
@@ -3266,6 +3328,11 @@ function ApplicationRecordEditor({
   statusTitle,
   noteLabel,
   notePlaceholder,
+  nextActionLabel,
+  noNextActionLabel,
+  followUpTodayLabel,
+  followUpOverdueLabel,
+  followUpLaterLabel,
   saveLabel,
   savingLabel,
   savedLabel,
@@ -3276,6 +3343,7 @@ function ApplicationRecordEditor({
   removeErrorLabel,
   statusLabel,
   formatDate,
+  formatDateOnly,
   onSave,
   onDelete
 }: {
@@ -3286,6 +3354,11 @@ function ApplicationRecordEditor({
   statusTitle: string;
   noteLabel: string;
   notePlaceholder: string;
+  nextActionLabel: string;
+  noNextActionLabel: string;
+  followUpTodayLabel: string;
+  followUpOverdueLabel: string;
+  followUpLaterLabel: string;
   saveLabel: string;
   savingLabel: string;
   savedLabel: string;
@@ -3296,11 +3369,13 @@ function ApplicationRecordEditor({
   removeErrorLabel: string;
   statusLabel: (status: ApplicationStatus) => string;
   formatDate: (value: string) => string;
-  onSave: (record: ApplicationRecord, status: ApplicationStatus, note: string) => Promise<void>;
+  formatDateOnly: (value: string) => string;
+  onSave: (record: ApplicationRecord, status: ApplicationStatus, note: string, nextActionAt: string) => Promise<void>;
   onDelete: (record: ApplicationRecord) => Promise<void>;
 }) {
   const [draftStatus, setDraftStatus] = useState<ApplicationStatus>(record.status);
   const [draftNote, setDraftNote] = useState(record.note);
+  const [draftNextAction, setDraftNextAction] = useState(record.next_action_at ?? "");
   const [saveStatus, setSaveStatus] = useState<AsyncStatus>("idle");
   const [deleteStatus, setDeleteStatus] = useState<AsyncStatus>("idle");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -3308,10 +3383,11 @@ function ApplicationRecordEditor({
   useEffect(() => {
     setDraftStatus(record.status);
     setDraftNote(record.note);
+    setDraftNextAction(record.next_action_at ?? "");
     setSaveStatus("idle");
     setDeleteStatus("idle");
     setConfirmDelete(false);
-  }, [record.key, record.status, record.note]);
+  }, [record.key, record.status, record.note, record.next_action_at]);
 
   useEffect(() => {
     if (!confirmDelete) return;
@@ -3322,7 +3398,7 @@ function ApplicationRecordEditor({
   async function handleSave() {
     setSaveStatus("running");
     try {
-      await onSave(record, draftStatus, draftNote);
+      await onSave(record, draftStatus, draftNote, draftNextAction);
       setSaveStatus("success");
     } catch {
       setSaveStatus("error");
@@ -3345,7 +3421,7 @@ function ApplicationRecordEditor({
     }
   }
 
-  const dirty = draftStatus !== record.status || draftNote !== record.note;
+  const dirty = draftStatus !== record.status || draftNote !== record.note || draftNextAction !== (record.next_action_at ?? "");
   const saveText =
     saveStatus === "running"
       ? savingLabel
@@ -3362,6 +3438,22 @@ function ApplicationRecordEditor({
         : confirmDelete
           ? confirmRemoveLabel
           : removeLabel;
+  const today = dateOffset(0);
+  const followUpTone = !record.next_action_at
+    ? "none"
+    : record.next_action_at < today
+      ? "overdue"
+      : record.next_action_at === today
+        ? "today"
+        : "future";
+  const followUpText =
+    followUpTone === "none"
+      ? noNextActionLabel
+      : followUpTone === "overdue"
+        ? `${followUpOverdueLabel} · ${formatDateOnly(record.next_action_at)}`
+        : followUpTone === "today"
+          ? followUpTodayLabel
+          : `${followUpLaterLabel} · ${formatDateOnly(record.next_action_at)}`;
 
   return (
     <article className="application-record-card rounded-md p-3">
@@ -3375,7 +3467,7 @@ function ApplicationRecordEditor({
         </span>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-[0.82fr_1.18fr]">
+      <div className="mt-3 grid gap-2 lg:grid-cols-[0.78fr_0.9fr_1.35fr]">
         <label>
           <span className="mb-1.5 block text-xs font-semibold text-muted">{statusTitle}</span>
           <select
@@ -3394,6 +3486,18 @@ function ApplicationRecordEditor({
           </select>
         </label>
         <label>
+          <span className="mb-1.5 block text-xs font-semibold text-muted">{nextActionLabel}</span>
+          <input
+            type="date"
+            value={draftNextAction}
+            onChange={(event) => {
+              setDraftNextAction(event.target.value);
+              setSaveStatus("idle");
+            }}
+            className="application-record-date-input h-9 w-full rounded-md border border-line bg-white/85 px-2 text-xs font-semibold outline-none focus:border-accent"
+          />
+        </label>
+        <label>
           <span className="mb-1.5 block text-xs font-semibold text-muted">{noteLabel}</span>
           <textarea
             value={draftNote}
@@ -3408,10 +3512,15 @@ function ApplicationRecordEditor({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-muted">
-        <span className="inline-flex items-center gap-1">
-          <CalendarDays className="h-3.5 w-3.5" />
-          {updatedLabel} {formatDate(record.updated_at) || "-"}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1">
+            <CalendarDays className="h-3.5 w-3.5" />
+            {updatedLabel} {formatDate(record.updated_at) || "-"}
+          </span>
+          <span className={`application-follow-up-pill application-follow-up-${followUpTone}`}>
+            {followUpText}
+          </span>
+        </div>
         <div className="flex flex-wrap gap-2">
           {record.url && (
             <a

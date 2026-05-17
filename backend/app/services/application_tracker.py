@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +29,16 @@ def normalize_note(value: Any, *, limit: int = 2000) -> str:
         return ""
     lines = [" ".join(line.split()) for line in str(value).replace("\x00", "").splitlines()]
     return "\n".join(line for line in lines if line)[:limit]
+
+
+def normalize_date(value: Any) -> str:
+    text = normalize_text(value, limit=20)
+    if not text:
+        return ""
+    try:
+        return date.fromisoformat(text).isoformat()
+    except ValueError:
+        return ""
 
 
 def application_key(*, title: str, company: str, url: str = "") -> str:
@@ -82,6 +92,7 @@ def normalize_application_record(payload: dict[str, Any]) -> dict[str, object]:
         "url": url,
         "status": status,
         "note": normalize_note(payload.get("note")),
+        "next_action_at": normalize_date(payload.get("next_action_at")),
         "updated_at": normalize_text(payload.get("updated_at"), limit=80) or datetime.now(timezone.utc).isoformat(),
     }
 
@@ -94,6 +105,9 @@ def upsert_application_record(private_data_dir: Path, payload: dict[str, Any]) -
         }
     )
     records = load_application_records(private_data_dir)
+    existing = next((record for record in records if record.get("key") == incoming["key"]), None)
+    if existing and "next_action_at" not in payload:
+        incoming["next_action_at"] = existing.get("next_action_at", "")
     next_records = [record for record in records if record.get("key") != incoming["key"]]
     next_records.insert(0, incoming)
     save_application_records(private_data_dir, next_records)
@@ -127,6 +141,8 @@ def mark_application_draft_ready(private_data_dir: Path, payload: dict[str, Any]
 
     if existing and not incoming.get("note"):
         incoming["note"] = existing.get("note", "")
+    if existing and not incoming.get("next_action_at"):
+        incoming["next_action_at"] = existing.get("next_action_at", "")
     next_records = [record for record in records if record.get("key") != incoming["key"]]
     next_records.insert(0, incoming)
     save_application_records(private_data_dir, next_records)

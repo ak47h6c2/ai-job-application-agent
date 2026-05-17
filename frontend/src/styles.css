@@ -931,12 +931,14 @@ button.application-summary-chip:hover {
 }
 
 .application-record-select,
-.application-record-note-input {
+.application-record-note-input,
+.application-record-date-input {
   transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
 }
 
 .application-record-select:focus,
-.application-record-note-input:focus {
+.application-record-note-input:focus,
+.application-record-date-input:focus {
   background: #ffffff;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
 }
@@ -988,6 +990,7 @@ button.application-summary-chip:hover {
 
 .application-status-draft_ready,
 .application-summary-draft_ready,
+.application-summary-follow_up,
 .application-status-applied,
 .application-summary-applied,
 .application-status-waiting,
@@ -999,11 +1002,46 @@ button.application-summary-chip:hover {
   color: #047857;
 }
 
+.application-summary-follow_up {
+  border-color: rgba(37, 99, 235, 0.28);
+  background: rgba(239, 246, 255, 0.88);
+  color: #1d4ed8;
+}
+
 .application-status-rejected,
 .application-summary-rejected {
   border-color: rgba(217, 119, 6, 0.24);
   background: rgba(255, 251, 235, 0.86);
   color: #b45309;
+}
+
+.application-follow-up-pill {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid rgba(203, 213, 225, 0.78);
+  border-radius: 8px;
+  padding: 3px 7px;
+  background: rgba(248, 250, 252, 0.86);
+  color: #64748b;
+}
+
+.application-follow-up-today {
+  border-color: rgba(37, 99, 235, 0.28);
+  background: rgba(239, 246, 255, 0.92);
+  color: #1d4ed8;
+}
+
+.application-follow-up-overdue {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: rgba(254, 242, 242, 0.94);
+  color: #b91c1c;
+}
+
+.application-follow-up-future {
+  border-color: rgba(15, 138, 122, 0.24);
+  background: rgba(236, 253, 245, 0.9);
+  color: #047857;
 }
 
 .application-tracker-card {

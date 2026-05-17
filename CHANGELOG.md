@@ -4,6 +4,7 @@
 
 ### English
 
+- Added structured follow-up dates to the application board, with a "Needs follow-up" filter and overdue/today/upcoming visual cues.
 - Added two-step removal for application board records, so mistaken or duplicate local tracking items can be cleaned without touching drafts or mail data.
 - Made the application board actionable: status summary chips now filter records, and each application card can update status and notes directly.
 - Added an application board that summarizes locally tracked roles by status and shows the latest saved application records.
@@ -21,6 +22,7 @@
 
 ### 中文
 
+- 投递记录看板新增结构化“下次跟进日期”，支持“需要跟进”筛选，并显示逾期、今天跟进和已安排跟进状态。
 - 投递记录看板新增二次确认移除：错误记录或重复记录可以直接清理，不影响已生成草稿或邮箱数据。
 - 投递记录看板支持直接操作：状态汇总可用于筛选，每张记录卡片都能直接修改状态和备注。
 - 新增投递记录看板：按状态汇总本地记录的岗位，并显示最近保存的投递进度。
