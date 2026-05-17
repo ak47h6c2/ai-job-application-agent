@@ -100,6 +100,18 @@ def upsert_application_record(private_data_dir: Path, payload: dict[str, Any]) -
     return incoming
 
 
+def delete_application_record(private_data_dir: Path, key: str) -> bool:
+    normalized_key = normalize_text(key, limit=560)
+    if not normalized_key:
+        return False
+    records = load_application_records(private_data_dir)
+    next_records = [record for record in records if record.get("key") != normalized_key]
+    if len(next_records) == len(records):
+        return False
+    save_application_records(private_data_dir, next_records)
+    return True
+
+
 def mark_application_draft_ready(private_data_dir: Path, payload: dict[str, Any]) -> dict[str, object]:
     incoming = normalize_application_record(
         {

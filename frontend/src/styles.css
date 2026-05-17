@@ -951,6 +951,30 @@ button.application-summary-chip:hover {
   background: linear-gradient(135deg, #d97706, #b45309);
 }
 
+.application-record-remove {
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.application-record-remove:hover {
+  border-color: rgba(217, 119, 6, 0.32);
+  color: #b45309;
+  background: rgba(255, 251, 235, 0.92);
+}
+
+.application-record-remove-confirm {
+  border-color: rgba(220, 38, 38, 0.34);
+  color: #b91c1c;
+  background: rgba(254, 242, 242, 0.94);
+}
+
+.application-record-remove-error {
+  border-color: rgba(217, 119, 6, 0.36);
+  color: #b45309;
+  background: rgba(255, 251, 235, 0.96);
+}
+
 .application-status-badge {
   flex-shrink: 0;
   border: 1px solid rgba(113, 128, 150, 0.18);

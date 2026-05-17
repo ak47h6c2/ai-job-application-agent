@@ -4,6 +4,7 @@
 
 ### English
 
+- Added two-step removal for application board records, so mistaken or duplicate local tracking items can be cleaned without touching drafts or mail data.
 - Made the application board actionable: status summary chips now filter records, and each application card can update status and notes directly.
 - Added an application board that summarizes locally tracked roles by status and shows the latest saved application records.
 - Added browser-page mismatch protection: when reading a logged-in job page, the app now checks that the current page still matches the intended role and blocks unrelated tabs or different jobs.
@@ -20,6 +21,7 @@
 
 ### 中文
 
+- 投递记录看板新增二次确认移除：错误记录或重复记录可以直接清理，不影响已生成草稿或邮箱数据。
 - 投递记录看板支持直接操作：状态汇总可用于筛选，每张记录卡片都能直接修改状态和备注。
 - 新增投递记录看板：按状态汇总本地记录的岗位，并显示最近保存的投递进度。
 - 新增登录浏览器页面匹配保护：读取已登录岗位页时，会检查当前页面是否仍然匹配目标岗位；如果停在无关网站、首页或其他岗位，会直接拦截。

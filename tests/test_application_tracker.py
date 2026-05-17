@@ -4,6 +4,7 @@ from pathlib import Path
 
 from backend.app.services.application_tracker import (
     application_key,
+    delete_application_record,
     load_application_records,
     mark_application_draft_ready,
     upsert_application_record,
@@ -59,6 +60,41 @@ class ApplicationTrackerTests(unittest.TestCase):
             )
 
             self.assertEqual(record["status"], "to_review")
+
+    def test_delete_application_record_removes_matching_key(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            private_dir = Path(tmp_dir)
+            record = upsert_application_record(
+                private_dir,
+                {
+                    "title": "Product Engineer",
+                    "company": "Example",
+                    "url": "https://example.com/product-engineer",
+                    "status": "draft_ready",
+                },
+            )
+
+            deleted = delete_application_record(private_dir, str(record["key"]))
+
+            self.assertTrue(deleted)
+            self.assertEqual(load_application_records(private_dir), [])
+
+    def test_delete_application_record_returns_false_for_missing_key(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            private_dir = Path(tmp_dir)
+            upsert_application_record(
+                private_dir,
+                {
+                    "title": "Product Engineer",
+                    "company": "Example",
+                    "status": "draft_ready",
+                },
+            )
+
+            deleted = delete_application_record(private_dir, "missing")
+
+            self.assertFalse(deleted)
+            self.assertEqual(len(load_application_records(private_dir)), 1)
 
     def test_load_records_accepts_utf8_bom_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

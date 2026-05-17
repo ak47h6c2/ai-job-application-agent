@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Trash2,
   Upload,
   UserCheck
 } from "lucide-react";
@@ -390,6 +391,11 @@ const translations = {
     applicationBoardSaving: "Saving...",
     applicationBoardSaved: "Saved",
     applicationBoardError: "Save failed",
+    applicationBoardRemove: "Remove",
+    applicationBoardConfirmRemove: "Confirm remove",
+    applicationBoardRemoving: "Removing...",
+    applicationBoardRemoved: "Application record removed.",
+    applicationBoardRemoveError: "Could not remove application record.",
     applicationBoardFilteredEmpty: "No applications in this status yet.",
     resumeFocus: "Resume focus",
     coverLetter: "Cover letter",
@@ -680,6 +686,11 @@ const translations = {
     applicationBoardSaving: "保存中...",
     applicationBoardSaved: "已保存",
     applicationBoardError: "保存失败",
+    applicationBoardRemove: "移除",
+    applicationBoardConfirmRemove: "确认移除",
+    applicationBoardRemoving: "移除中...",
+    applicationBoardRemoved: "投递记录已移除。",
+    applicationBoardRemoveError: "投递记录移除失败。",
     applicationBoardFilteredEmpty: "这个状态下还没有记录。",
     resumeFocus: "简历修改重点",
     coverLetter: "求职信草稿",
@@ -1797,6 +1808,20 @@ function App() {
     return data.record;
   }
 
+  async function deleteApplicationRecord(record: ApplicationRecord) {
+    const response = await fetch(`${API_BASE}/api/applications/delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: record.key })
+    });
+    if (!response.ok) throw new Error(await parseApiError(response));
+    const data = (await response.json()) as { deleted: boolean; records: ApplicationRecord[] };
+    setApplications(
+      Object.fromEntries(data.records.map((item) => [item.key, item]))
+    );
+    setMessage(t.applicationBoardRemoved);
+  }
+
   async function saveSelectedApplicationStatus(statusOverride?: ApplicationStatus) {
     if (!selected || !selectedApplicationKey) return;
     const lead = selected.scored_lead.lead;
@@ -1832,6 +1857,16 @@ function App() {
       note
     });
     setMessage(t.applicationStatusSaved);
+  }
+
+  async function deleteBoardApplication(record: ApplicationRecord) {
+    try {
+      await deleteApplicationRecord(record);
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : t.applicationBoardRemoveError;
+      setMessage(friendlyError(rawMessage, t.applicationBoardRemoveError));
+      throw error;
+    }
   }
 
   const visibleRuns = showAllRuns ? runs : runs.slice(0, 4);
@@ -2061,6 +2096,10 @@ function App() {
             savingLabel={t.applicationBoardSaving}
             savedLabel={t.applicationBoardSaved}
             errorLabel={t.applicationBoardError}
+            removeLabel={t.applicationBoardRemove}
+            confirmRemoveLabel={t.applicationBoardConfirmRemove}
+            removingLabel={t.applicationBoardRemoving}
+            removeErrorLabel={t.applicationBoardRemoveError}
             records={applicationRecords}
             counts={applicationStatusCounts}
             filter={applicationFilter}
@@ -2068,6 +2107,7 @@ function App() {
             statusLabel={(status) => applicationStatusLabel(status, language)}
             formatDate={(value) => formatIsoModified(value, language)}
             onSave={(record, status, note) => saveBoardApplicationStatus(record, status, note)}
+            onDelete={(record) => deleteBoardApplication(record)}
           />
 
           <section id="setup" className="fade-lift space-y-4">
@@ -3102,13 +3142,18 @@ function ApplicationBoard({
   savingLabel,
   savedLabel,
   errorLabel,
+  removeLabel,
+  confirmRemoveLabel,
+  removingLabel,
+  removeErrorLabel,
   records,
   counts,
   filter,
   onFilterChange,
   statusLabel,
   formatDate,
-  onSave
+  onSave,
+  onDelete
 }: {
   title: string;
   hint: string;
@@ -3128,6 +3173,10 @@ function ApplicationBoard({
   savingLabel: string;
   savedLabel: string;
   errorLabel: string;
+  removeLabel: string;
+  confirmRemoveLabel: string;
+  removingLabel: string;
+  removeErrorLabel: string;
   records: ApplicationRecord[];
   counts: Record<ApplicationStatus, number>;
   filter: ApplicationFilter;
@@ -3135,6 +3184,7 @@ function ApplicationBoard({
   statusLabel: (status: ApplicationStatus) => string;
   formatDate: (value: string) => string;
   onSave: (record: ApplicationRecord, status: ApplicationStatus, note: string) => Promise<void>;
+  onDelete: (record: ApplicationRecord) => Promise<void>;
 }) {
   const filteredRecords = filter === "all" ? records : records.filter((record) => record.status === filter);
   const visibleRecords = filteredRecords.slice(0, 8);
@@ -3192,9 +3242,14 @@ function ApplicationBoard({
               savingLabel={savingLabel}
               savedLabel={savedLabel}
               errorLabel={errorLabel}
+              removeLabel={removeLabel}
+              confirmRemoveLabel={confirmRemoveLabel}
+              removingLabel={removingLabel}
+              removeErrorLabel={removeErrorLabel}
               statusLabel={statusLabel}
               formatDate={formatDate}
               onSave={onSave}
+              onDelete={onDelete}
             />
         ))}
         </div>
@@ -3215,9 +3270,14 @@ function ApplicationRecordEditor({
   savingLabel,
   savedLabel,
   errorLabel,
+  removeLabel,
+  confirmRemoveLabel,
+  removingLabel,
+  removeErrorLabel,
   statusLabel,
   formatDate,
-  onSave
+  onSave,
+  onDelete
 }: {
   record: ApplicationRecord;
   updatedLabel: string;
@@ -3230,19 +3290,34 @@ function ApplicationRecordEditor({
   savingLabel: string;
   savedLabel: string;
   errorLabel: string;
+  removeLabel: string;
+  confirmRemoveLabel: string;
+  removingLabel: string;
+  removeErrorLabel: string;
   statusLabel: (status: ApplicationStatus) => string;
   formatDate: (value: string) => string;
   onSave: (record: ApplicationRecord, status: ApplicationStatus, note: string) => Promise<void>;
+  onDelete: (record: ApplicationRecord) => Promise<void>;
 }) {
   const [draftStatus, setDraftStatus] = useState<ApplicationStatus>(record.status);
   const [draftNote, setDraftNote] = useState(record.note);
   const [saveStatus, setSaveStatus] = useState<AsyncStatus>("idle");
+  const [deleteStatus, setDeleteStatus] = useState<AsyncStatus>("idle");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     setDraftStatus(record.status);
     setDraftNote(record.note);
     setSaveStatus("idle");
+    setDeleteStatus("idle");
+    setConfirmDelete(false);
   }, [record.key, record.status, record.note]);
+
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const timeout = window.setTimeout(() => setConfirmDelete(false), 3600);
+    return () => window.clearTimeout(timeout);
+  }, [confirmDelete]);
 
   async function handleSave() {
     setSaveStatus("running");
@@ -3251,6 +3326,22 @@ function ApplicationRecordEditor({
       setSaveStatus("success");
     } catch {
       setSaveStatus("error");
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      setDeleteStatus("idle");
+      return;
+    }
+    setDeleteStatus("running");
+    try {
+      await onDelete(record);
+      setDeleteStatus("success");
+    } catch {
+      setDeleteStatus("error");
+      setConfirmDelete(false);
     }
   }
 
@@ -3263,6 +3354,14 @@ function ApplicationRecordEditor({
         : saveStatus === "error"
           ? errorLabel
           : saveLabel;
+  const deleteText =
+    deleteStatus === "running"
+      ? removingLabel
+      : deleteStatus === "error"
+        ? removeErrorLabel
+        : confirmDelete
+          ? confirmRemoveLabel
+          : removeLabel;
 
   return (
     <article className="application-record-card rounded-md p-3">
@@ -3335,6 +3434,17 @@ function ApplicationRecordEditor({
           >
             {saveStatus === "running" ? <Clock3 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
             {saveText}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleDelete()}
+            disabled={deleteStatus === "running" || saveStatus === "running"}
+            className={`application-record-remove inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-70 ${
+              confirmDelete ? "application-record-remove-confirm" : ""
+            } ${deleteStatus === "error" ? "application-record-remove-error" : ""}`}
+          >
+            {deleteStatus === "running" ? <Clock3 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            {deleteText}
           </button>
         </div>
       </div>

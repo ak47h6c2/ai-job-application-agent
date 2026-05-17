@@ -14,7 +14,12 @@ from pydantic import BaseModel, Field
 
 from backend.app.rag.resume_index import build_resume_index, extract_pdf_text, load_resume_index, save_resume_index
 from backend.app.models import AgentRunReport
-from backend.app.services.application_tracker import load_application_records, mark_application_draft_ready, upsert_application_record
+from backend.app.services.application_tracker import (
+    delete_application_record,
+    load_application_records,
+    mark_application_draft_ready,
+    upsert_application_record,
+)
 from backend.app.services.browser_session import BrowserSessionError, import_current_browser_job, open_login_browser
 from backend.app.services.imported_jobs import load_latest_imported_job, save_imported_job
 from backend.app.services.job_url_reader import JobUrlReadError, read_job_posting_from_url
@@ -82,6 +87,10 @@ class ApplicationRecordRequest(BaseModel):
     url: str = Field(default="", max_length=500)
     status: Literal["to_review", "draft_ready", "applied", "waiting", "interview", "rejected"] = "to_review"
     note: str = Field(default="", max_length=2000)
+
+
+class ApplicationDeleteRequest(BaseModel):
+    key: str = Field(min_length=1, max_length=560)
 
 
 def validate_since(value: str) -> str:
@@ -207,6 +216,12 @@ def list_applications() -> dict[str, Any]:
 def save_application(request: ApplicationRecordRequest) -> dict[str, Any]:
     record = upsert_application_record(PRIVATE_DATA_DIR, request.model_dump())
     return {"record": record}
+
+
+@app.post("/api/applications/delete")
+def delete_application(request: ApplicationDeleteRequest) -> dict[str, Any]:
+    deleted = delete_application_record(PRIVATE_DATA_DIR, request.key)
+    return {"deleted": deleted, "records": load_application_records(PRIVATE_DATA_DIR)}
 
 
 @app.get("/api/resume-index")
