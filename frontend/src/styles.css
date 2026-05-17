@@ -839,6 +839,13 @@ textarea:focus-visible {
     linear-gradient(180deg, rgba(255, 251, 235, 0.92), rgba(255, 255, 255, 0.84));
 }
 
+.browser-target-card {
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(240, 253, 250, 0.78)),
+    linear-gradient(120deg, rgba(37, 99, 235, 0.05), transparent 58%);
+}
+
 .application-tracker-card {
   border: 1px solid rgba(113, 128, 150, 0.18);
   background:

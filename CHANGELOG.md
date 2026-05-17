@@ -4,6 +4,7 @@
 
 ### English
 
+- Added browser-page mismatch protection: when reading a logged-in job page, the app now checks that the current page still matches the intended role and blocks unrelated tabs or different jobs.
 - Added local application tracking: each selected role can now store a status and note, such as draft ready, applied, waiting, interview, or rejected.
 - Simplified the selected-job workflow into one primary action that reads the full JD, checks quality, and creates or refreshes the application package, with clear login/manual fallback steps.
 - Added JD confidence metadata from the backend and a visible JD check card in the Web UI, so generated drafts are gated on content that looks like a real job description rather than page shell text.
@@ -17,6 +18,7 @@
 
 ### 中文
 
+- 新增登录浏览器页面匹配保护：读取已登录岗位页时，会检查当前页面是否仍然匹配目标岗位；如果停在无关网站、首页或其他岗位，会直接拦截。
 - 新增本地投递进度管理：每个选中岗位可以保存状态和备注，例如材料已生成、已投递、等回复、面试中或已拒绝。
 - 简化选中岗位后的操作链路：主按钮统一为“读取完整 JD 并生成申请材料”，并显示完整 JD、申请材料状态；遇到登录或无法读取时给出明确补救步骤。
 - 新增后端 JD 可信度元数据，并在 Web UI 中显示“JD 完整度检查”卡片；生成草稿前会判断内容是否像真实岗位描述，避免把页面壳或邮件摘要当作 JD。

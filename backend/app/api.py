@@ -7,7 +7,7 @@ from typing import Any, Literal
 from urllib.parse import parse_qs
 from uuid import uuid4
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
@@ -65,6 +65,12 @@ class JobUrlPreviewRequest(BaseModel):
 
 class BrowserOpenRequest(BaseModel):
     url: str = Field(min_length=8, max_length=500)
+
+
+class BrowserImportRequest(BaseModel):
+    expected_url: str = Field(default="", max_length=500)
+    expected_title: str = Field(default="", max_length=160)
+    expected_company: str = Field(default="", max_length=160)
 
 
 class ApplicationRecordRequest(BaseModel):
@@ -342,9 +348,16 @@ async def open_browser_session(request: BrowserOpenRequest) -> dict[str, Any]:
 
 
 @app.post("/api/browser-session/import-current")
-async def import_current_browser_page() -> dict[str, Any]:
+async def import_current_browser_page(request: BrowserImportRequest = Body(default_factory=BrowserImportRequest)) -> dict[str, Any]:
     try:
-        payload = await import_current_browser_job(PRIVATE_DATA_DIR)
+        payload = await import_current_browser_job(
+            PRIVATE_DATA_DIR,
+            expected={
+                "url": request.expected_url,
+                "title": request.expected_title,
+                "company": request.expected_company,
+            },
+        )
         imported = save_imported_job(payload, PRIVATE_DATA_DIR)
         return {"ok": True, "job": imported}
     except BrowserSessionError as exc:

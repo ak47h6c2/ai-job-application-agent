@@ -95,6 +95,58 @@ class BrowserSessionTests(unittest.TestCase):
         with self.assertRaises(BrowserSessionError):
             validate_browser_job_payload(payload)
 
+    def test_rejects_current_page_that_does_not_match_expected_job(self) -> None:
+        payload = {
+            "title": "Video Platform Backend Engineer",
+            "company": "Bilibili",
+            "location": "Shanghai",
+            "url": "https://www.bilibili.com/careers/backend-engineer",
+            "description": (
+                "Responsibilities include building backend services, maintaining APIs, "
+                "supporting Linux systems, and collaborating with engineering teams. "
+                "Requirements include Python, databases, automation, and testing experience."
+            ),
+            "source": "www.bilibili.com",
+            "hasJobPosting": False,
+        }
+
+        with self.assertRaises(BrowserSessionError):
+            validate_browser_job_payload(
+                payload,
+                expected={
+                    "title": "Systems Development Engineer",
+                    "company": "Amazon Web Services",
+                    "url": "https://www.linkedin.com/jobs/view/4408845265/",
+                },
+            )
+
+    def test_accepts_redirected_page_when_it_matches_expected_job(self) -> None:
+        payload = {
+            "title": "Systems Development Engineer",
+            "company": "Amazon Web Services",
+            "location": "Sydney, NSW",
+            "url": "https://amazon.jobs/en/jobs/A10412002/systems-development-engineer",
+            "description": (
+                "Amazon Web Services is hiring a Systems Development Engineer. "
+                "Responsibilities include building distributed systems, maintaining automation, "
+                "supporting Linux services, and collaborating with cloud engineering teams. "
+                "Basic Qualifications include Python, databases, APIs, and testing experience."
+            ),
+            "source": "amazon.jobs",
+            "hasJobPosting": False,
+        }
+
+        validated = validate_browser_job_payload(
+            payload,
+            expected={
+                "title": "Systems Development Engineer",
+                "company": "Amazon Web Services",
+                "url": "https://www.linkedin.com/jobs/view/4408845265/",
+            },
+        )
+
+        self.assertEqual(validated["company"], "Amazon Web Services")
+
 
 if __name__ == "__main__":
     unittest.main()

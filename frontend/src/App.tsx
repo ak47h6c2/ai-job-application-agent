@@ -260,6 +260,9 @@ const translations = {
     loginBrowserOpenFirst: "Open the dedicated browser with a job link first, then read the current page.",
     requestTimeout: "This step took too long and was stopped. Check the dedicated browser window, then try again.",
     loginBrowserPageNotReady: "The job page is open, but the JD has not loaded yet. Wait until the job description is visible, then read again.",
+    loginBrowserMismatch: "The dedicated browser is on a different page than the job you opened. Return to the correct job detail page, then read again.",
+    browserTargetTitle: "Reading target",
+    browserTargetHint: "The app will only accept a page that matches this role, so an unrelated tab will be blocked.",
     leadSnippetTitle: "Email lead only",
     leadSnippetBody: "This is what the email mentioned, not the full JD. Read the job page or paste the real JD before generating materials.",
     bookmarkletLabel: "Drag me to bookmarks",
@@ -532,6 +535,9 @@ const translations = {
     loginBrowserOpenFirst: "请先粘贴岗位链接并点击“打开登录浏览器”，等岗位页出现在专用浏览器里后，再回来读取当前页面。",
     requestTimeout: "这一步等待时间过长，已自动停止。请确认专用浏览器是否打开，并停在岗位详情页，然后再点一次。",
     loginBrowserPageNotReady: "岗位页已经打开，但 JD 还没加载出来。请等专用浏览器里出现完整岗位描述后，再回来读取。",
+    loginBrowserMismatch: "专用浏览器当前页面和要读取的岗位不一致。请回到正确的岗位详情页，不要停在其他网站、首页或其他岗位，再读取。",
+    browserTargetTitle: "当前要读取",
+    browserTargetHint: "系统只接受和这个岗位匹配的页面；如果停在无关网站或别的岗位，会直接拦截。",
     leadSnippetTitle: "邮件里提到的岗位线索",
     leadSnippetBody: "这只是邮件摘要，不是完整 JD。用它确认岗位是否正确；真正生成材料前需要读取岗位页面，或手动粘贴完整 JD。",
     bookmarkletLabel: "拖我到书签栏",
@@ -1219,6 +1225,7 @@ function App() {
     if (rawMessage.includes("Open the login browser with a job link first")) return t.loginBrowserOpenFirst;
     if (rawMessage.includes("login or verification page")) return t.loginBrowserStillLogin;
     if (rawMessage.includes("has not loaded the job description")) return t.loginBrowserPageNotReady;
+    if (rawMessage.includes("does not match the job you opened")) return t.loginBrowserMismatch;
     if (rawMessage.includes("does not look like a full job description")) return t.jdQualityError;
     if (rawMessage.includes("Could not read enough resume text")) return t.uploadTextError;
     if (rawMessage.includes("Could not read resume PDF")) return t.uploadTextError;
@@ -1498,7 +1505,15 @@ function App() {
     try {
       const response = await fetchWithTimeout(
         `${API_BASE}/api/browser-session/import-current`,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            expected_url: manualJob.url,
+            expected_title: manualJob.title,
+            expected_company: manualJob.company
+          })
+        },
         LOGIN_BROWSER_READ_TIMEOUT_MS
       );
       if (!response.ok) throw new Error(await parseApiError(response));
@@ -2200,6 +2215,21 @@ function App() {
                       <div className="mt-3 rounded-md border border-blue-100 bg-white/85 px-3 py-2 text-sm font-semibold text-accent shadow-sm">
                         {message || (importStatus === "running" ? t.loginBrowserReadingHint : t.loginBrowserOpeningHint)}
                       </div>
+                    )}
+                    {(manualJob.url || manualJob.title || manualJob.company) && (
+                      <section className="browser-target-card mt-3 rounded-md px-3 py-3">
+                        <div className="flex items-start gap-2">
+                          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold uppercase tracking-normal text-emerald-700">{t.browserTargetTitle}</p>
+                            <p className="mt-1 break-words text-sm font-semibold text-ink">
+                              {[manualJob.company, manualJob.title].filter(Boolean).join(" · ") || manualJob.url}
+                            </p>
+                            {manualJob.url && <p className="mt-1 break-all text-xs leading-5 text-muted">{manualJob.url}</p>}
+                            <p className="mt-2 text-xs leading-5 text-muted">{t.browserTargetHint}</p>
+                          </div>
+                        </div>
+                      </section>
                     )}
                   </div>
                 )}

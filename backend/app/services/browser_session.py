@@ -24,6 +24,39 @@ _context: Any | None = None
 _page: Any | None = None
 PAGE_TITLE_TIMEOUT_SECONDS = 3
 PAGE_READ_TIMEOUT_SECONDS = 8
+EXPECTED_TOKEN_STOPWORDS = {
+    "and",
+    "the",
+    "for",
+    "with",
+    "job",
+    "jobs",
+    "role",
+    "view",
+    "apply",
+    "career",
+    "careers",
+    "internship",
+    "intern",
+    "graduate",
+    "junior",
+    "senior",
+    "australia",
+    "sydney",
+    "melbourne",
+    "nsw",
+    "vic",
+    "pty",
+    "ltd",
+    "limited",
+    "service",
+    "services",
+    "technology",
+    "technologies",
+    "group",
+    "company",
+    "web",
+}
 LINKEDIN_JOB_DETAIL_MARKERS = (
     "about the job",
     "description",
@@ -181,6 +214,37 @@ def compact_text(value: Any) -> str:
     return " ".join(str(value or "").replace("\x00", "").split())
 
 
+def expected_match_tokens(value: Any) -> set[str]:
+    text = compact_text(value).lower()
+    tokens = re.findall(r"[a-z0-9+#.]{3,}|[\u4e00-\u9fff]{2,}", text)
+    return {token for token in tokens if token not in EXPECTED_TOKEN_STOPWORDS}
+
+
+def browser_payload_matches_expected(payload: dict[str, Any], expected: dict[str, Any] | None = None) -> bool:
+    if not expected:
+        return True
+
+    expected_title_tokens = expected_match_tokens(expected.get("title") or expected.get("expected_title"))
+    expected_company_tokens = expected_match_tokens(expected.get("company") or expected.get("expected_company"))
+    if not expected_title_tokens and not expected_company_tokens:
+        return True
+
+    actual_text = " ".join(
+        compact_text(payload.get(key))
+        for key in ("title", "company", "location", "url", "description", "source")
+    ).lower()
+    title_hits = sum(1 for token in expected_title_tokens if token in actual_text)
+    company_hits = sum(1 for token in expected_company_tokens if token in actual_text)
+
+    if expected_company_tokens:
+        return company_hits >= 1
+    if expected_title_tokens and title_hits >= min(2, len(expected_title_tokens)):
+        return True
+    if len(expected_title_tokens) == 1 and title_hits == 1 and not expected_company_tokens:
+        return True
+    return False
+
+
 def trim_text_between_markers(text: str, start_markers: tuple[str, ...], end_markers: tuple[str, ...]) -> str:
     lower_text = text.lower()
     start_candidates: list[tuple[int, str]] = []
@@ -261,7 +325,7 @@ def clean_browser_job_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return cleaned
 
 
-def validate_browser_job_payload(payload: dict[str, Any]) -> dict[str, str]:
+def validate_browser_job_payload(payload: dict[str, Any], expected: dict[str, Any] | None = None) -> dict[str, str]:
     payload = clean_browser_job_payload(payload)
     if looks_like_login_or_blocked_browser_page(payload):
         raise BrowserSessionError(
@@ -278,6 +342,11 @@ def validate_browser_job_payload(payload: dict[str, Any]) -> dict[str, str]:
     company = str(payload.get("company") or "").strip()
     if len(title) < 2 or len(company) < 1:
         raise BrowserSessionError("Could not read enough job information from the current browser page.")
+    if not browser_payload_matches_expected(payload, expected):
+        raise BrowserSessionError(
+            "The current browser page does not match the job you opened. "
+            "Return to the correct job detail page, then read again."
+        )
     if not looks_like_job_description(
         title=title,
         description=description,
@@ -394,7 +463,7 @@ async def open_login_browser(url: str, private_data_dir: Path) -> dict[str, str]
         raise BrowserSessionError(f"Could not open the dedicated login browser: {last_error}")
 
 
-async def import_current_browser_job(private_data_dir: Path) -> dict[str, str]:
+async def import_current_browser_job(private_data_dir: Path, expected: dict[str, Any] | None = None) -> dict[str, str]:
     global _page
 
     async with _lock:
@@ -419,4 +488,4 @@ async def import_current_browser_job(private_data_dir: Path) -> dict[str, str]:
             raise
         if not isinstance(payload, dict):
             raise BrowserSessionError("Could not read the current browser page.")
-        return validate_browser_job_payload(payload)
+        return validate_browser_job_payload(payload, expected=expected)
