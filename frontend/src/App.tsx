@@ -1203,6 +1203,7 @@ function App() {
   const [jobLeadNote, setJobLeadNote] = useState("");
   const [applicationDraftStatus, setApplicationDraftStatus] = useState<ApplicationStatus>("to_review");
   const [applicationDraftNote, setApplicationDraftNote] = useState("");
+  const [applicationDraftNextAction, setApplicationDraftNextAction] = useState("");
   const [message, setMessage] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
   const [activeSection, setActiveSection] = useState<NavSection>("overview");
@@ -1835,8 +1836,9 @@ function App() {
   useEffect(() => {
     setApplicationDraftStatus(selectedApplication?.status ?? (selectedDraft ? "draft_ready" : "to_review"));
     setApplicationDraftNote(selectedApplication?.note ?? "");
+    setApplicationDraftNextAction(selectedApplication?.next_action_at ?? "");
     setApplicationStatusSaveStatus("idle");
-  }, [selectedApplication?.key, selectedApplication?.status, selectedApplication?.note, selectedDraft, selectedIndex]);
+  }, [selectedApplication?.key, selectedApplication?.status, selectedApplication?.note, selectedApplication?.next_action_at, selectedDraft, selectedIndex]);
 
   function downloadSelectedPackage() {
     if (!selectedDraftPackage) return;
@@ -1961,10 +1963,12 @@ function App() {
         company: lead.company,
         url: lead.url,
         status: nextStatus,
-        note: applicationDraftNote
+        note: applicationDraftNote,
+        next_action_at: applicationDraftNextAction
       });
       setApplicationDraftStatus(record.status);
       setApplicationDraftNote(record.note);
+      setApplicationDraftNextAction(record.next_action_at ?? "");
       setApplicationStatusSaveStatus("success");
       setMessage(t.applicationStatusSaved);
     } catch (error) {
@@ -2802,6 +2806,12 @@ function App() {
                           noteTitle={t.applicationNote}
                           note={applicationDraftNote}
                           notePlaceholder={t.applicationNotePlaceholder}
+                          nextActionTitle={t.applicationNextAction}
+                          nextAction={applicationDraftNextAction}
+                          quickTodayLabel={t.quickFollowUpToday}
+                          quick3DaysLabel={t.quickFollowUp3Days}
+                          quick7DaysLabel={t.quickFollowUp7Days}
+                          quickClearLabel={t.quickFollowUpClear}
                           updatedLabel={selectedApplication ? `${t.updated} ${formatIsoModified(selectedApplication.updated_at, language)}` : ""}
                           saveStatus={applicationStatusSaveStatus}
                           saveLabel={t.saveApplicationStatus}
@@ -2812,6 +2822,10 @@ function App() {
                           }}
                           onNoteChange={(note) => {
                             setApplicationDraftNote(note);
+                            setApplicationStatusSaveStatus("idle");
+                          }}
+                          onNextActionChange={(nextAction) => {
+                            setApplicationDraftNextAction(nextAction);
                             setApplicationStatusSaveStatus("idle");
                           }}
                           onSave={() => void saveSelectedApplicationStatus()}
@@ -3746,12 +3760,19 @@ function ApplicationTrackerCard({
   noteTitle,
   note,
   notePlaceholder,
+  nextActionTitle,
+  nextAction,
+  quickTodayLabel,
+  quick3DaysLabel,
+  quick7DaysLabel,
+  quickClearLabel,
   updatedLabel,
   saveStatus,
   saveLabel,
   savingLabel,
   onStatusChange,
   onNoteChange,
+  onNextActionChange,
   onSave
 }: {
   title: string;
@@ -3762,12 +3783,19 @@ function ApplicationTrackerCard({
   noteTitle: string;
   note: string;
   notePlaceholder: string;
+  nextActionTitle: string;
+  nextAction: string;
+  quickTodayLabel: string;
+  quick3DaysLabel: string;
+  quick7DaysLabel: string;
+  quickClearLabel: string;
   updatedLabel: string;
   saveStatus: AsyncStatus;
   saveLabel: string;
   savingLabel: string;
   onStatusChange: (status: ApplicationStatus) => void;
   onNoteChange: (note: string) => void;
+  onNextActionChange: (nextAction: string) => void;
   onSave: () => void;
 }) {
   return (
@@ -3795,15 +3823,41 @@ function ApplicationTrackerCard({
           ))}
         </div>
       </div>
-      <label className="mt-3 block">
-        <span className="mb-2 block text-xs font-semibold text-muted">{noteTitle}</span>
-        <textarea
-          value={note}
-          onChange={(event) => onNoteChange(event.target.value)}
-          placeholder={notePlaceholder}
-          className="min-h-20 w-full resize-y rounded-md border border-line bg-white/85 px-3 py-2 text-sm leading-6 outline-none transition focus:border-accent focus:bg-white"
-        />
-      </label>
+      <div className="mt-3 grid gap-3 lg:grid-cols-[0.9fr_1.3fr]">
+        <div>
+          <span className="mb-2 block text-xs font-semibold text-muted">{nextActionTitle}</span>
+          <input
+            aria-label={nextActionTitle}
+            type="date"
+            value={nextAction}
+            onChange={(event) => onNextActionChange(event.target.value)}
+            className="application-record-date-input h-10 w-full rounded-md border border-line bg-white/85 px-3 text-sm font-semibold outline-none focus:border-accent"
+          />
+          <div className="mt-1.5 grid grid-cols-4 gap-1">
+            <button type="button" onClick={() => onNextActionChange(dateInDays(0))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+              {quickTodayLabel}
+            </button>
+            <button type="button" onClick={() => onNextActionChange(dateInDays(3))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+              {quick3DaysLabel}
+            </button>
+            <button type="button" onClick={() => onNextActionChange(dateInDays(7))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+              {quick7DaysLabel}
+            </button>
+            <button type="button" onClick={() => onNextActionChange("")} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+              {quickClearLabel}
+            </button>
+          </div>
+        </div>
+        <label className="block">
+          <span className="mb-2 block text-xs font-semibold text-muted">{noteTitle}</span>
+          <textarea
+            value={note}
+            onChange={(event) => onNoteChange(event.target.value)}
+            placeholder={notePlaceholder}
+            className="min-h-24 w-full resize-y rounded-md border border-line bg-white/85 px-3 py-2 text-sm leading-6 outline-none transition focus:border-accent focus:bg-white"
+          />
+        </label>
+      </div>
       <div className="mt-3 flex justify-end">
         <button
           type="button"

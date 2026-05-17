@@ -4,6 +4,7 @@
 
 ### English
 
+- Added next follow-up date controls to the selected-job application tracker, including the same Today / 3 days / 7 days / Clear shortcuts used on the application board.
 - Added application-board exports for Markdown and CSV, plus one-click copying of due follow-ups and quick follow-up date shortcuts on each record.
 - Added structured follow-up dates to the application board, with a "Needs follow-up" filter and overdue/today/upcoming visual cues.
 - Added two-step removal for application board records, so mistaken or duplicate local tracking items can be cleaned without touching drafts or mail data.
@@ -23,6 +24,7 @@
 
 ### 中文
 
+- 当前岗位的投递进度卡新增“下次跟进日期”，并支持和投递看板一致的今天、3 天后、7 天后、清空快捷按钮。
 - 投递记录看板新增 Markdown / CSV 导出、到期跟进清单一键复制，以及每条记录的快捷跟进日期按钮。
 - 投递记录看板新增结构化“下次跟进日期”，支持“需要跟进”筛选，并显示逾期、今天跟进和已安排跟进状态。
 - 投递记录看板新增二次确认移除：错误记录或重复记录可以直接清理，不影响已生成草稿或邮箱数据。
