@@ -1111,6 +1111,278 @@ button.application-summary-chip:hover {
   box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.12);
 }
 
+/* Product workbench refresh */
+.app-backdrop {
+  background:
+    linear-gradient(180deg, #f6f8f9 0%, #eef3f4 48%, #f7f9fb 100%),
+    linear-gradient(90deg, rgba(39, 100, 231, 0.04), transparent 36%, rgba(15, 138, 122, 0.04));
+}
+
+.app-backdrop::before {
+  opacity: 0.55;
+  background:
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 82%);
+}
+
+.content-shell {
+  border-left: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+.sidebar-panel {
+  border: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 0;
+  background:
+    linear-gradient(180deg, #10202d 0%, #132532 56%, #0f1b24 100%);
+  box-shadow: none;
+}
+
+.sidebar-panel::before {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.35;
+}
+
+.sidebar-panel .bg-blue-50 {
+  background: rgba(125, 211, 252, 0.12);
+  color: #a7f3d0;
+}
+
+.sidebar-panel nav a {
+  min-height: 40px;
+  border: 1px solid transparent;
+  color: #b9c7d3;
+}
+
+.sidebar-panel nav a:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(1px);
+}
+
+.sidebar-panel nav a.nav-link-active {
+  border-color: rgba(125, 211, 252, 0.16);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 3px 0 0 #2dd4bf;
+}
+
+.hero-panel {
+  min-height: auto;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background:
+    linear-gradient(135deg, #102033 0%, #163244 54%, #123d3d 100%);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+}
+
+.hero-panel::after {
+  opacity: 0.35;
+  animation-duration: 12s;
+}
+
+.hero-panel::before {
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #2f6df3, #13a18f, #d69a31);
+}
+
+.hero-copy h1 {
+  max-width: 720px;
+  line-height: 1.1;
+}
+
+.command-primary {
+  color: #ffffff;
+  background: linear-gradient(135deg, #2f6df3, #0f8a7a);
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
+}
+
+.command-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(37, 99, 235, 0.28);
+}
+
+.command-status {
+  color: #cceee7;
+  border: 1px solid rgba(204, 238, 231, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.metric-card {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.goal-panel,
+.surface-panel,
+.workflow-card,
+.application-board {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
+  backdrop-filter: blur(18px);
+}
+
+.goal-panel::before,
+.workflow-card::before {
+  height: 2px;
+  background: linear-gradient(90deg, #2f6df3, #13a18f, #d69a31);
+}
+
+.goal-cta {
+  color: #0f5c56;
+  border: 1px solid rgba(15, 138, 122, 0.24);
+  background: rgba(236, 253, 245, 0.9);
+  box-shadow: none;
+}
+
+.goal-cta:hover {
+  background: #ecfdf5;
+  box-shadow: 0 12px 24px rgba(15, 138, 122, 0.12);
+}
+
+.goal-step-card {
+  min-height: 72px;
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(248, 250, 252, 0.86);
+  box-shadow: none;
+}
+
+.goal-step-card:hover {
+  background: #ffffff;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.goal-step-index {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+
+.application-board {
+  overflow: hidden;
+  padding: 0;
+}
+
+.application-board > div:first-child,
+.application-board > div:not(.application-record-list) {
+  padding-inline: 16px;
+}
+
+.application-board > div:first-child {
+  padding-top: 16px;
+}
+
+.application-board .application-board-tools {
+  padding-bottom: 14px;
+}
+
+.application-board-tool {
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.application-summary-chip {
+  min-height: 40px;
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(248, 250, 252, 0.78);
+}
+
+.application-summary-active {
+  border-color: rgba(47, 109, 243, 0.28);
+  background: rgba(239, 246, 255, 0.92);
+}
+
+.application-record-list {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(248, 250, 252, 0.62);
+  padding: 10px;
+}
+
+.application-record-row {
+  border-color: rgba(15, 23, 42, 0.09);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: none;
+}
+
+.application-record-row:hover {
+  border-color: rgba(47, 109, 243, 0.18);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07);
+  transform: none;
+}
+
+.application-record-row[open] {
+  border-color: rgba(47, 109, 243, 0.2);
+  background: #ffffff;
+}
+
+.application-record-summary {
+  display: grid;
+  min-height: 62px;
+  cursor: pointer;
+  grid-template-columns: minmax(180px, 1fr) minmax(260px, auto);
+  align-items: center;
+  gap: 14px;
+  padding: 11px 12px;
+  list-style: none;
+}
+
+.application-record-summary::-webkit-details-marker {
+  display: none;
+}
+
+.application-record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.application-record-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.application-record-edit-label {
+  border-radius: 8px;
+  color: #2563eb;
+  background: rgba(239, 246, 255, 0.9);
+  padding: 4px 7px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.application-record-row[open] .application-record-edit-label {
+  color: #047857;
+  background: rgba(236, 253, 245, 0.92);
+}
+
+.application-record-body {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.72), rgba(255, 255, 255, 0.86));
+}
+
+@media (max-width: 860px) {
+  .application-record-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .application-record-meta {
+    justify-content: flex-start;
+  }
+}
+
 .fade-lift {
   animation: fade-lift 380ms ease both;
 }

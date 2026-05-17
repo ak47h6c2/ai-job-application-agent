@@ -396,6 +396,7 @@ const translations = {
     applicationBoardSortFollowUp: "Follow-up date",
     applicationBoardSortCompany: "Company / role",
     applicationBoardSortStatus: "Status",
+    applicationRecordEdit: "Edit record",
     applicationBoardSave: "Save",
     applicationBoardSaving: "Saving...",
     applicationBoardSaved: "Saved",
@@ -713,6 +714,7 @@ const translations = {
     applicationBoardSortFollowUp: "跟进日期",
     applicationBoardSortCompany: "公司 / 岗位",
     applicationBoardSortStatus: "投递状态",
+    applicationRecordEdit: "编辑记录",
     applicationBoardSave: "保存",
     applicationBoardSaving: "保存中...",
     applicationBoardSaved: "已保存",
@@ -2120,8 +2122,8 @@ function App() {
 
   return (
     <main className="app-backdrop min-h-screen text-ink">
-      <div className="workbench-grid mx-auto grid max-w-7xl grid-cols-1 gap-5 px-5 py-5 lg:grid-cols-[236px_minmax(0,1fr)]">
-        <aside className="sidebar-panel rounded-md p-4 lg:sticky lg:top-5 lg:h-[calc(100vh-40px)]">
+      <div className="workbench-grid mx-auto grid min-h-screen max-w-[1480px] grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
+        <aside className="sidebar-panel p-4 lg:sticky lg:top-0 lg:h-screen">
           <div className="flex items-center gap-3 border-b border-line pb-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-accent">
               <Sparkles className="h-5 w-5" />
@@ -2163,13 +2165,23 @@ function App() {
           </div>
         </aside>
 
-        <section className="space-y-5">
+        <section className="content-shell min-w-0 space-y-4 px-4 py-4 sm:px-5 lg:px-6 lg:py-5">
           <header id="overview" className="hero-panel fade-lift rounded-md p-5 shadow-soft">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="hero-copy">
                 <p className="text-sm font-medium text-emerald-100">{t.productName}</p>
                 <h1 className="mt-1 text-3xl font-semibold tracking-normal text-white">{t.headline}</h1>
                 <p className="mt-2 text-sm text-blue-50">{t.subline}</p>
+                <div className="hero-actions mt-4 flex flex-wrap items-center gap-2">
+                  <a href={goalHref} className="command-primary inline-flex h-10 items-center gap-2 rounded-md px-3 text-sm font-semibold">
+                    {goalCta}
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                  <span className="command-status inline-flex h-10 items-center gap-2 rounded-md px-3 text-sm font-semibold">
+                    <ShieldCheck className="h-4 w-4" />
+                    {t.safeTitle}
+                  </span>
+                </div>
               </div>
               <div className="metric-grid grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
                 <Metric label={t.jobs} value={isInitialLoading ? "..." : (run?.selected_jobs.length ?? 0).toString()} />
@@ -2233,6 +2245,7 @@ function App() {
             sortFollowUpLabel={t.applicationBoardSortFollowUp}
             sortCompanyLabel={t.applicationBoardSortCompany}
             sortStatusLabel={t.applicationBoardSortStatus}
+            editRecordLabel={t.applicationRecordEdit}
             followUpFilterLabel={t.applicationFollowUpDue}
             statusTitle={t.applicationStatus}
             noteLabel={t.applicationNote}
@@ -3314,6 +3327,7 @@ function ApplicationBoard({
   sortFollowUpLabel,
   sortCompanyLabel,
   sortStatusLabel,
+  editRecordLabel,
   followUpFilterLabel,
   statusTitle,
   noteLabel,
@@ -3370,6 +3384,7 @@ function ApplicationBoard({
   sortFollowUpLabel: string;
   sortCompanyLabel: string;
   sortStatusLabel: string;
+  editRecordLabel: string;
   followUpFilterLabel: string;
   statusTitle: string;
   noteLabel: string;
@@ -3555,7 +3570,7 @@ function ApplicationBoard({
       )}
 
       {visibleRecords.length > 0 && (
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="application-record-list mt-4 grid gap-2">
           {visibleRecords.map((record) => (
             <ApplicationRecordEditor
               key={record.key}
@@ -3575,6 +3590,7 @@ function ApplicationBoard({
               quick3DaysLabel={quick3DaysLabel}
               quick7DaysLabel={quick7DaysLabel}
               quickClearLabel={quickClearLabel}
+              editRecordLabel={editRecordLabel}
               saveLabel={saveLabel}
               savingLabel={savingLabel}
               savedLabel={savedLabel}
@@ -3613,6 +3629,7 @@ function ApplicationRecordEditor({
   quick3DaysLabel,
   quick7DaysLabel,
   quickClearLabel,
+  editRecordLabel,
   saveLabel,
   savingLabel,
   savedLabel,
@@ -3643,6 +3660,7 @@ function ApplicationRecordEditor({
   quick3DaysLabel: string;
   quick7DaysLabel: string;
   quickClearLabel: string;
+  editRecordLabel: string;
   saveLabel: string;
   savingLabel: string;
   savedLabel: string;
@@ -3744,124 +3762,133 @@ function ApplicationRecordEditor({
           ? followUpTodayLabel
           : `${followUpLaterLabel} - ${formatDateOnly(record.next_action_at)}`;
 
+  const forceOpen = dirty || saveStatus === "error" || deleteStatus === "error" || confirmDelete;
+
   return (
-    <article className="application-record-card rounded-md p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-accent">{record.company || "-"}</p>
-          <h3 className="mt-1 text-sm font-semibold text-ink">{record.title || "-"}</h3>
-        </div>
-        <span className={`application-status-badge application-status-${record.status}`}>
-          {statusLabel(record.status)}
+    <details className="application-record-card application-record-row rounded-md" open={forceOpen ? true : undefined}>
+      <summary className="application-record-summary">
+        <span className="application-record-main min-w-0">
+          <span className="truncate text-xs font-semibold text-accent">{record.company || "-"}</span>
+          <span className="mt-1 block truncate text-sm font-semibold text-ink">{record.title || "-"}</span>
         </span>
-      </div>
-
-      <div className="mt-3 grid gap-2 lg:grid-cols-[0.78fr_0.9fr_1.35fr]">
-        <label>
-          <span className="mb-1.5 block text-xs font-semibold text-muted">{statusTitle}</span>
-          <select
-            value={draftStatus}
-            onChange={(event) => {
-              setDraftStatus(event.target.value as ApplicationStatus);
-              setSaveStatus("idle");
-            }}
-            className="application-record-select h-9 w-full rounded-md border border-line bg-white/85 px-2 text-xs font-semibold outline-none focus:border-accent"
-          >
-            {APPLICATION_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {statusLabel(status)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div>
-          <span className="mb-1.5 block text-xs font-semibold text-muted">{nextActionLabel}</span>
-          <input
-            aria-label={nextActionLabel}
-            type="date"
-            value={draftNextAction}
-            onChange={(event) => {
-              setDraftNextAction(event.target.value);
-              setSaveStatus("idle");
-            }}
-            className="application-record-date-input h-9 w-full rounded-md border border-line bg-white/85 px-2 text-xs font-semibold outline-none focus:border-accent"
-          />
-          <div className="mt-1.5 grid grid-cols-4 gap-1">
-            <button type="button" onClick={() => setQuickFollowUp(dateInDays(0))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
-              {quickTodayLabel}
-            </button>
-            <button type="button" onClick={() => setQuickFollowUp(dateInDays(3))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
-              {quick3DaysLabel}
-            </button>
-            <button type="button" onClick={() => setQuickFollowUp(dateInDays(7))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
-              {quick7DaysLabel}
-            </button>
-            <button type="button" onClick={() => setQuickFollowUp("")} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
-              {quickClearLabel}
-            </button>
-          </div>
-        </div>
-        <label>
-          <span className="mb-1.5 block text-xs font-semibold text-muted">{noteLabel}</span>
-          <textarea
-            value={draftNote}
-            onChange={(event) => {
-              setDraftNote(event.target.value);
-              setSaveStatus("idle");
-            }}
-            placeholder={notePlaceholder || noNoteLabel}
-            className="application-record-note-input min-h-16 w-full resize-y rounded-md border border-line bg-white/85 px-2 py-2 text-xs leading-5 outline-none focus:border-accent"
-          />
-        </label>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-muted">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1">
-            <CalendarDays className="h-3.5 w-3.5" />
-            {updatedLabel} {formatDate(record.updated_at) || "-"}
+        <span className="application-record-meta">
+          <span className={`application-status-badge application-status-${record.status}`}>
+            {statusLabel(record.status)}
           </span>
           <span className={`application-follow-up-pill application-follow-up-${followUpTone}`}>
             {followUpText}
           </span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {record.url && (
-            <a
-              href={record.url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-8 items-center gap-1 rounded-md border border-line bg-white/80 px-2 text-accent hover:border-blue-200 hover:bg-blue-50"
+          <span className="application-record-updated">
+            <CalendarDays className="h-3.5 w-3.5" />
+            {formatDate(record.updated_at) || "-"}
+          </span>
+          <span className="application-record-edit-label">{editRecordLabel}</span>
+        </span>
+      </summary>
+
+      <div className="application-record-body">
+        <div className="grid gap-3 lg:grid-cols-[0.78fr_0.9fr_minmax(260px,1.35fr)]">
+          <label>
+            <span className="mb-1.5 block text-xs font-semibold text-muted">{statusTitle}</span>
+            <select
+              value={draftStatus}
+              onChange={(event) => {
+                setDraftStatus(event.target.value as ApplicationStatus);
+                setSaveStatus("idle");
+              }}
+              className="application-record-select h-9 w-full rounded-md border border-line bg-white/85 px-2 text-xs font-semibold outline-none focus:border-accent"
             >
-              {openLabel}
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          )}
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={saveStatus === "running" || (!dirty && saveStatus === "success")}
-            className={`application-record-save inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-70 ${
-              saveStatus === "error" ? "application-record-save-error" : ""
-            }`}
-          >
-            {saveStatus === "running" ? <Clock3 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-            {saveText}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleDelete()}
-            disabled={deleteStatus === "running" || saveStatus === "running"}
-            className={`application-record-remove inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-70 ${
-              confirmDelete ? "application-record-remove-confirm" : ""
-            } ${deleteStatus === "error" ? "application-record-remove-error" : ""}`}
-          >
-            {deleteStatus === "running" ? <Clock3 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-            {deleteText}
-          </button>
+              {APPLICATION_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {statusLabel(status)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div>
+            <span className="mb-1.5 block text-xs font-semibold text-muted">{nextActionLabel}</span>
+            <input
+              aria-label={nextActionLabel}
+              type="date"
+              value={draftNextAction}
+              onChange={(event) => {
+                setDraftNextAction(event.target.value);
+                setSaveStatus("idle");
+              }}
+              className="application-record-date-input h-9 w-full rounded-md border border-line bg-white/85 px-2 text-xs font-semibold outline-none focus:border-accent"
+            />
+            <div className="mt-1.5 grid grid-cols-4 gap-1">
+              <button type="button" onClick={() => setQuickFollowUp(dateInDays(0))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+                {quickTodayLabel}
+              </button>
+              <button type="button" onClick={() => setQuickFollowUp(dateInDays(3))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+                {quick3DaysLabel}
+              </button>
+              <button type="button" onClick={() => setQuickFollowUp(dateInDays(7))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+                {quick7DaysLabel}
+              </button>
+              <button type="button" onClick={() => setQuickFollowUp("")} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+                {quickClearLabel}
+              </button>
+            </div>
+          </div>
+          <label>
+            <span className="mb-1.5 block text-xs font-semibold text-muted">{noteLabel}</span>
+            <textarea
+              value={draftNote}
+              onChange={(event) => {
+                setDraftNote(event.target.value);
+                setSaveStatus("idle");
+              }}
+              placeholder={notePlaceholder || noNoteLabel}
+              className="application-record-note-input min-h-16 w-full resize-y rounded-md border border-line bg-white/85 px-2 py-2 text-xs leading-5 outline-none focus:border-accent"
+            />
+          </label>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-muted">
+          <span className="inline-flex items-center gap-1">
+            <CalendarDays className="h-3.5 w-3.5" />
+            {updatedLabel} {formatDate(record.updated_at) || "-"}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {record.url && (
+              <a
+                href={record.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-8 items-center gap-1 rounded-md border border-line bg-white/80 px-2 text-accent hover:border-blue-200 hover:bg-blue-50"
+              >
+                {openLabel}
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={saveStatus === "running" || (!dirty && saveStatus === "success")}
+              className={`application-record-save inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-70 ${
+                saveStatus === "error" ? "application-record-save-error" : ""
+              }`}
+            >
+              {saveStatus === "running" ? <Clock3 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              {saveText}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDelete()}
+              disabled={deleteStatus === "running" || saveStatus === "running"}
+              className={`application-record-remove inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-70 ${
+                confirmDelete ? "application-record-remove-confirm" : ""
+              } ${deleteStatus === "error" ? "application-record-remove-error" : ""}`}
+            >
+              {deleteStatus === "running" ? <Clock3 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              {deleteText}
+            </button>
+          </div>
         </div>
       </div>
-    </article>
+    </details>
   );
 }
 
