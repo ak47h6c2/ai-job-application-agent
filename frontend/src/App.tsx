@@ -33,9 +33,9 @@ type Language = "en" | "zh";
 type LoadState = "loading" | "ready" | "empty" | "error";
 type AsyncStatus = "idle" | "running" | "success" | "error";
 type JobInputMode = "auto" | "browser" | "manual";
-type NavSection = "overview" | "setup" | "manual" | "jobs" | "drafts" | "history";
+type NavSection = "overview" | "applications" | "setup" | "manual" | "jobs" | "drafts" | "history";
 
-const NAV_SECTIONS: NavSection[] = ["overview", "setup", "manual", "jobs", "drafts", "history"];
+const NAV_SECTIONS: NavSection[] = ["overview", "applications", "setup", "manual", "jobs", "drafts", "history"];
 const OBSERVED_SECTION_IDS = [...NAV_SECTIONS, "job-detail"];
 
 function navSectionFromId(value: string): NavSection | undefined {
@@ -166,6 +166,7 @@ const translations = {
     navOneJob: "One job",
     navShortlist: "Shortlist",
     navDrafts: "Application package",
+    navApplications: "Applications",
     navHistory: "History",
     safeTitle: "Human approval on",
     safeBody: "No email or application is sent automatically.",
@@ -376,6 +377,13 @@ const translations = {
     applicationStatusWaiting: "Waiting",
     applicationStatusInterview: "Interview",
     applicationStatusRejected: "Rejected",
+    applicationBoard: "Application board",
+    applicationBoardHint: "Track prepared, submitted, and waiting roles in one local view.",
+    applicationBoardEmptyTitle: "No tracked applications yet",
+    applicationBoardEmptyBody: "Generate materials or save a status on a selected job, then it appears here.",
+    applicationBoardLatest: "Latest applications",
+    trackedApplications: "Tracked",
+    applicationNoNote: "No note yet.",
     resumeFocus: "Resume focus",
     coverLetter: "Cover letter",
     recruiterMessage: "Recruiter message",
@@ -441,6 +449,7 @@ const translations = {
     navOneJob: "单个岗位",
     navShortlist: "推荐职位",
     navDrafts: "申请包",
+    navApplications: "投递记录",
     navHistory: "历史记录",
     safeTitle: "人工确认",
     safeBody: "这里只生成建议和草稿，不会自动发送或投递。",
@@ -651,6 +660,13 @@ const translations = {
     applicationStatusWaiting: "等回复",
     applicationStatusInterview: "面试中",
     applicationStatusRejected: "已拒绝",
+    applicationBoard: "投递记录",
+    applicationBoardHint: "集中查看已准备、已投递、等回复和面试中的岗位，只保存在本地。",
+    applicationBoardEmptyTitle: "还没有投递记录",
+    applicationBoardEmptyBody: "生成申请材料，或在某个岗位里保存状态后，这里会自动出现记录。",
+    applicationBoardLatest: "最近记录",
+    trackedApplications: "已记录",
+    applicationNoNote: "暂无备注。",
     resumeFocus: "简历修改重点",
     coverLetter: "求职信草稿",
     recruiterMessage: "招聘方消息",
@@ -1328,10 +1344,12 @@ function App() {
         body: JSON.stringify({ since: sinceDate, top: topDrafts, min_score: minScore, language })
       });
       if (!response.ok) throw new Error(await parseApiError(response));
-      setRun((await response.json()) as AgentRun);
+      const nextRun = (await response.json()) as AgentRun;
+      setRun(nextRun);
       setSelectedIndex(0);
       setState("ready");
       await loadRuns();
+      await loadApplications();
       setRunStatus("success");
       setMessage(t.scanSuccess);
     } catch (error) {
@@ -1378,10 +1396,12 @@ function App() {
       body: JSON.stringify({ ...job, language })
     });
     if (!response.ok) throw new Error(await parseApiError(response));
-    setRun((await response.json()) as AgentRun);
+    const nextRun = (await response.json()) as AgentRun;
+    setRun(nextRun);
     setSelectedIndex(0);
     setState("ready");
     await loadRuns();
+    await loadApplications();
   }
 
   async function fetchJobUrl(urlOverride?: string) {
@@ -1741,29 +1761,41 @@ function App() {
     }
   }
 
+  async function saveApplicationRecord(payload: {
+    key?: string;
+    title: string;
+    company: string;
+    url: string;
+    status: ApplicationStatus;
+    note: string;
+  }) {
+    const response = await fetch(`${API_BASE}/api/applications`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error(await parseApiError(response));
+    const data = (await response.json()) as { record: ApplicationRecord };
+    setApplications((current) => ({ ...current, [data.record.key]: data.record }));
+    return data.record;
+  }
+
   async function saveSelectedApplicationStatus(statusOverride?: ApplicationStatus) {
     if (!selected || !selectedApplicationKey) return;
     const lead = selected.scored_lead.lead;
     const nextStatus = statusOverride ?? applicationDraftStatus;
     setApplicationStatusSaveStatus("running");
     try {
-      const response = await fetch(`${API_BASE}/api/applications`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          key: selectedApplicationKey,
-          title: lead.title,
-          company: lead.company,
-          url: lead.url,
-          status: nextStatus,
-          note: applicationDraftNote
-        })
+      const record = await saveApplicationRecord({
+        key: selectedApplicationKey,
+        title: lead.title,
+        company: lead.company,
+        url: lead.url,
+        status: nextStatus,
+        note: applicationDraftNote
       });
-      if (!response.ok) throw new Error(await parseApiError(response));
-      const data = (await response.json()) as { record: ApplicationRecord };
-      setApplications((current) => ({ ...current, [data.record.key]: data.record }));
-      setApplicationDraftStatus(data.record.status);
-      setApplicationDraftNote(data.record.note);
+      setApplicationDraftStatus(record.status);
+      setApplicationDraftNote(record.note);
       setApplicationStatusSaveStatus("success");
       setMessage(t.applicationStatusSaved);
     } catch (error) {
@@ -1775,6 +1807,20 @@ function App() {
 
   const visibleRuns = showAllRuns ? runs : runs.slice(0, 4);
   const currentRunSummary = run ? runs.find((item) => item.id === run.id) : undefined;
+  const applicationRecords = useMemo(
+    () =>
+      Object.values(applications).sort(
+        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      ),
+    [applications]
+  );
+  const applicationStatusCounts = useMemo(() => {
+    const counts = Object.fromEntries(APPLICATION_STATUSES.map((status) => [status, 0])) as Record<ApplicationStatus, number>;
+    applicationRecords.forEach((record) => {
+      counts[record.status] += 1;
+    });
+    return counts;
+  }, [applicationRecords]);
   const isInitialLoading = state === "loading" && !run;
   const resumeStatusLabel =
     uploadStatus === "running"
@@ -1905,6 +1951,7 @@ function App() {
             <NavItem href="#manual" active={activeSection === "manual"} icon={<Clipboard className="h-4 w-4" />} label={t.navOneJob} />
             <NavItem href="#jobs" active={activeSection === "jobs"} icon={<Mail className="h-4 w-4" />} label={t.navShortlist} />
             <NavItem href="#drafts" active={activeSection === "drafts"} icon={<FileText className="h-4 w-4" />} label={t.navDrafts} />
+            <NavItem href="#applications" active={activeSection === "applications"} icon={<UserCheck className="h-4 w-4" />} label={t.navApplications} />
             <NavItem href="#history" active={activeSection === "history"} icon={<History className="h-4 w-4" />} label={t.navHistory} />
           </nav>
 
@@ -1924,10 +1971,11 @@ function App() {
                 <h1 className="mt-1 text-3xl font-semibold tracking-normal text-white">{t.headline}</h1>
                 <p className="mt-2 text-sm text-blue-50">{t.subline}</p>
               </div>
-              <div className="metric-grid grid grid-cols-3 gap-2 text-center">
+              <div className="metric-grid grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
                 <Metric label={t.jobs} value={isInitialLoading ? "..." : (run?.selected_jobs.length ?? 0).toString()} />
                 <Metric label={t.drafts} value={isInitialLoading ? "..." : (run?.drafts.length ?? 0).toString()} />
                 <Metric label={t.steps} value={isInitialLoading ? "..." : (run?.steps.length ?? 0).toString()} />
+                <Metric label={t.trackedApplications} value={applicationRecords.length.toString()} />
               </div>
             </div>
           </header>
@@ -1964,6 +2012,21 @@ function App() {
               ))}
             </div>
           </section>
+
+          <ApplicationBoard
+            title={t.applicationBoard}
+            hint={t.applicationBoardHint}
+            emptyTitle={t.applicationBoardEmptyTitle}
+            emptyBody={t.applicationBoardEmptyBody}
+            latestTitle={t.applicationBoardLatest}
+            updatedLabel={t.updated}
+            openLabel={t.open}
+            noNoteLabel={t.applicationNoNote}
+            records={applicationRecords}
+            counts={applicationStatusCounts}
+            statusLabel={(status) => applicationStatusLabel(status, language)}
+            formatDate={(value) => formatIsoModified(value, language)}
+          />
 
           <section id="setup" className="fade-lift space-y-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -2975,6 +3038,96 @@ function WorkflowStepCard({ status, title, statusLabel }: { status: WorkflowStep
         <span className="block text-xs font-semibold text-muted">{statusLabel}</span>
       </span>
     </div>
+  );
+}
+
+function ApplicationBoard({
+  title,
+  hint,
+  emptyTitle,
+  emptyBody,
+  latestTitle,
+  updatedLabel,
+  openLabel,
+  noNoteLabel,
+  records,
+  counts,
+  statusLabel,
+  formatDate
+}: {
+  title: string;
+  hint: string;
+  emptyTitle: string;
+  emptyBody: string;
+  latestTitle: string;
+  updatedLabel: string;
+  openLabel: string;
+  noNoteLabel: string;
+  records: ApplicationRecord[];
+  counts: Record<ApplicationStatus, number>;
+  statusLabel: (status: ApplicationStatus) => string;
+  formatDate: (value: string) => string;
+}) {
+  const visibleRecords = records.slice(0, 6);
+  return (
+    <section id="applications" className="application-board fade-lift rounded-md p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-normal text-accent">{title}</p>
+          <h2 className="mt-1 text-lg font-semibold">{records.length ? latestTitle : emptyTitle}</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">{records.length ? hint : emptyBody}</p>
+        </div>
+        <div className="application-board-total rounded-md px-3 py-2 text-center">
+          <strong>{records.length}</strong>
+          <span>{title}</span>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+        {APPLICATION_STATUSES.map((status) => (
+          <div key={status} className={`application-summary-chip application-summary-${status}`}>
+            <span>{statusLabel(status)}</span>
+            <strong>{counts[status] ?? 0}</strong>
+          </div>
+        ))}
+      </div>
+
+      {visibleRecords.length > 0 && (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {visibleRecords.map((record) => (
+            <article key={record.key} className="application-record-card rounded-md p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-accent">{record.company || "-"}</p>
+                  <h3 className="mt-1 text-sm font-semibold text-ink">{record.title || "-"}</h3>
+                </div>
+                <span className={`application-status-badge application-status-${record.status}`}>
+                  {statusLabel(record.status)}
+                </span>
+              </div>
+              <p className="application-record-note mt-2 text-xs leading-5 text-muted">{record.note || noNoteLabel}</p>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-muted">
+                <span className="inline-flex items-center gap-1">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  {updatedLabel} {formatDate(record.updated_at) || "-"}
+                </span>
+                {record.url && (
+                  <a
+                    href={record.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-md border border-line bg-white/80 px-2 py-1 text-accent hover:border-blue-200 hover:bg-blue-50"
+                  >
+                    {openLabel}
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

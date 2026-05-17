@@ -13,7 +13,8 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from backend.app.rag.resume_index import build_resume_index, extract_pdf_text, load_resume_index, save_resume_index
-from backend.app.services.application_tracker import load_application_records, upsert_application_record
+from backend.app.models import AgentRunReport
+from backend.app.services.application_tracker import load_application_records, mark_application_draft_ready, upsert_application_record
 from backend.app.services.browser_session import BrowserSessionError, import_current_browser_job, open_login_browser
 from backend.app.services.imported_jobs import load_latest_imported_job, save_imported_job
 from backend.app.services.job_url_reader import JobUrlReadError, read_job_posting_from_url
@@ -27,6 +28,7 @@ AGENT_RUNS_DIR = PRIVATE_DATA_DIR / "agent_runs"
 DEFAULT_RESUME_INDEX_PATH = PRIVATE_DATA_DIR / "resume_index.json"
 RESUME_UPLOAD_DIR = PRIVATE_DATA_DIR / "uploads"
 MAX_RESUME_BYTES = 8 * 1024 * 1024
+DRAFT_READY_NOTE = "Application materials generated. Review before submitting. / 已生成申请材料，投递前请人工检查。"
 
 
 app = FastAPI(title="AI Job Application Agent API")
@@ -169,6 +171,23 @@ def read_drafts(path: Path) -> list[dict[str, str]]:
     return drafts
 
 
+def track_generated_application_drafts(report: AgentRunReport) -> None:
+    draft_keys = {(draft.job_title, draft.company) for draft in report.drafts}
+    for analysis in report.selected_jobs:
+        lead = analysis.scored_lead.lead
+        if (lead.title, lead.company) not in draft_keys:
+            continue
+        mark_application_draft_ready(
+            PRIVATE_DATA_DIR,
+            {
+                "title": lead.title,
+                "company": lead.company,
+                "url": lead.url,
+                "note": DRAFT_READY_NOTE,
+            },
+        )
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -245,7 +264,7 @@ def start_agent_run(request: AgentRunRequest) -> dict[str, Any]:
         )
 
     output_dir = default_agent_output_dir(PRIVATE_DATA_DIR, since)
-    run_job_application_agent(
+    report, _ = run_job_application_agent(
         since=since,
         resume_index=resume_index,
         output_dir=output_dir,
@@ -256,6 +275,7 @@ def start_agent_run(request: AgentRunRequest) -> dict[str, Any]:
         candidate_limit=request.candidate_limit,
         language=request.language,
     )
+    track_generated_application_drafts(report)
     return get_run(output_dir.name)
 
 
@@ -269,7 +289,7 @@ def start_manual_job_run(request: ManualJobRequest) -> dict[str, Any]:
         )
 
     output_dir = default_agent_output_dir(PRIVATE_DATA_DIR, f"manual-{date.today().isoformat()}")
-    run_manual_job_application(
+    report = run_manual_job_application(
         title=request.title,
         company=request.company,
         location=request.location,
@@ -279,6 +299,7 @@ def start_manual_job_run(request: ManualJobRequest) -> dict[str, Any]:
         output_dir=output_dir,
         language=request.language,
     )
+    track_generated_application_drafts(report)
     return get_run(output_dir.name)
 
 

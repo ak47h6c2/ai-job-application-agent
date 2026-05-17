@@ -5,6 +5,7 @@ from pathlib import Path
 from backend.app.services.application_tracker import (
     application_key,
     load_application_records,
+    mark_application_draft_ready,
     upsert_application_record,
 )
 
@@ -78,6 +79,33 @@ class ApplicationTrackerTests(unittest.TestCase):
             (private_dir / "application_tracker.json").write_text("{", encoding="utf-8")
 
             self.assertEqual(load_application_records(private_dir), [])
+
+    def test_mark_draft_ready_does_not_downgrade_submitted_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            private_dir = Path(tmp_dir)
+            upsert_application_record(
+                private_dir,
+                {
+                    "title": "Role",
+                    "company": "Company",
+                    "url": "https://example.com/job",
+                    "status": "waiting",
+                    "note": "Already submitted.",
+                },
+            )
+
+            record = mark_application_draft_ready(
+                private_dir,
+                {
+                    "title": "Role",
+                    "company": "Company",
+                    "url": "https://example.com/job",
+                    "note": "New draft generated.",
+                },
+            )
+
+            self.assertEqual(record["status"], "waiting")
+            self.assertEqual(load_application_records(private_dir)[0]["note"], "Already submitted.")
 
 
 if __name__ == "__main__":

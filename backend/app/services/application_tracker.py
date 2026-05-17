@@ -15,6 +15,7 @@ APPLICATION_STATUSES = {
     "interview",
     "rejected",
 }
+NON_DRAFT_STATUSES = {"applied", "waiting", "interview", "rejected"}
 
 
 def normalize_text(value: Any, *, limit: int) -> str:
@@ -93,6 +94,27 @@ def upsert_application_record(private_data_dir: Path, payload: dict[str, Any]) -
         }
     )
     records = load_application_records(private_data_dir)
+    next_records = [record for record in records if record.get("key") != incoming["key"]]
+    next_records.insert(0, incoming)
+    save_application_records(private_data_dir, next_records)
+    return incoming
+
+
+def mark_application_draft_ready(private_data_dir: Path, payload: dict[str, Any]) -> dict[str, object]:
+    incoming = normalize_application_record(
+        {
+            **payload,
+            "status": "draft_ready",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    records = load_application_records(private_data_dir)
+    existing = next((record for record in records if record.get("key") == incoming["key"]), None)
+    if existing and existing.get("status") in NON_DRAFT_STATUSES:
+        return existing
+
+    if existing and not incoming.get("note"):
+        incoming["note"] = existing.get("note", "")
     next_records = [record for record in records if record.get("key") != incoming["key"]]
     next_records.insert(0, incoming)
     save_application_records(private_data_dir, next_records)
