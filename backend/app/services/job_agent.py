@@ -78,6 +78,8 @@ def run_job_application_agent(
     limit: int = 50,
     candidate_limit: int = 250,
     language: Language = "en",
+    auto_read_job_pages: bool = True,
+    auto_read_limit: int = 3,
 ) -> tuple[AgentRunReport, IngestionResult]:
     goal = (
         "从邮件中找出求职相关内容，结合简历判断匹配度，生成申请材料，并在任何对外操作前停止。"
@@ -103,7 +105,23 @@ def run_job_application_agent(
         candidate_limit=candidate_limit,
         resume_index=resume_index,
         output_path=output_dir / "qq_mail_jobs.json",
+        auto_read_job_pages=auto_read_job_pages,
+        auto_read_limit=auto_read_limit,
     )
+    if auto_read_job_pages:
+        if language == "zh":
+            summary = (
+                f"已自动读取 {ingestion.job_page_read_attempts} 个岗位链接："
+                f"{ingestion.job_page_read_successes} 个成功，"
+                f"{ingestion.job_page_read_failures} 个需要登录浏览器或手动补充。"
+            )
+        else:
+            summary = (
+                f"Automatically read {ingestion.job_page_read_attempts} job links: "
+                f"{ingestion.job_page_read_successes} succeeded, "
+                f"{ingestion.job_page_read_failures} need the logged-in browser or manual fallback."
+            )
+        steps.append(AgentRunStep("read_job_pages", "completed", summary))
     analyses = ingestion.analyses or []
     steps.append(
         AgentRunStep(

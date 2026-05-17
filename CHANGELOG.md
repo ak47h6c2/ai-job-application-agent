@@ -4,6 +4,7 @@
 
 ### English
 
+- Added automatic job-page hydration during mailbox scans: the agent now extracts job links from emails, reads the top linked job pages when possible, and regenerates matching/drafts from the fuller JD text while marking blocked links for logged-in browser fallback.
 - Reworked the Web UI into a cleaner product workbench: tighter shell layout, calmer visual hierarchy, clearer command header, and compact application rows that expand only when the user wants to edit them.
 - Fixed the desktop app shell so the main work area scrolls independently while the left navigation stays in place.
 - Added application-board search and sorting so users can quickly find records by company, role, status, notes, or links, then order them by latest update, follow-up date, company, or status.
@@ -27,6 +28,7 @@
 
 ### 中文
 
+- 邮箱扫描新增自动读取岗位网页：系统会从邮件中提取岗位链接，优先读取匹配度靠前的岗位页面，能读到完整 JD 就用网页内容重新匹配并生成草稿；被登录或反爬拦截的链接会标记为需要登录浏览器继续读取。
 - 重构 Web UI 为更清爽的求职工作台：页面壳层更紧凑，视觉层级更明确，顶部主操作更突出，投递记录默认变成可扫读的紧凑行，点击后再展开编辑。
 - 修复桌面端应用壳滚动问题：右侧主工作区现在独立滚动，左侧导航保持固定。
 - 投递记录看板新增搜索和排序：可以按公司、岗位、状态、备注或链接快速查找，并按最近更新、跟进日期、公司或投递状态排序。

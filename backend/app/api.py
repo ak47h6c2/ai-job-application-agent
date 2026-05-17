@@ -55,6 +55,8 @@ class AgentRunRequest(BaseModel):
     limit: int = Field(default=50, ge=1, le=200)
     candidate_limit: int = Field(default=250, ge=1, le=1000)
     language: Literal["en", "zh"] = "en"
+    auto_read_job_pages: bool = True
+    auto_read_limit: int = Field(default=3, ge=0, le=10)
 
 
 class ManualJobRequest(BaseModel):
@@ -290,6 +292,8 @@ def start_agent_run(request: AgentRunRequest) -> dict[str, Any]:
         limit=request.limit,
         candidate_limit=request.candidate_limit,
         language=request.language,
+        auto_read_job_pages=request.auto_read_job_pages,
+        auto_read_limit=request.auto_read_limit,
     )
     track_generated_application_drafts(report)
     return get_run(output_dir.name)
