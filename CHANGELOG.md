@@ -4,6 +4,7 @@
 
 ### English
 
+- Added application-board search and sorting so users can quickly find records by company, role, status, notes, or links, then order them by latest update, follow-up date, company, or status.
 - Added next follow-up date controls to the selected-job application tracker, including the same Today / 3 days / 7 days / Clear shortcuts used on the application board.
 - Added application-board exports for Markdown and CSV, plus one-click copying of due follow-ups and quick follow-up date shortcuts on each record.
 - Added structured follow-up dates to the application board, with a "Needs follow-up" filter and overdue/today/upcoming visual cues.
@@ -23,6 +24,8 @@
 - Added the current report's last-updated time and clearer guidance for when to scan again versus opening history.
 
 ### 中文
+
+- 投递记录看板新增搜索和排序：可以按公司、岗位、状态、备注或链接快速查找，并按最近更新、跟进日期、公司或投递状态排序。
 
 - 当前岗位的投递进度卡新增“下次跟进日期”，并支持和投递看板一致的今天、3 天后、7 天后、清空快捷按钮。
 - 投递记录看板新增 Markdown / CSV 导出、到期跟进清单一键复制，以及每条记录的快捷跟进日期按钮。

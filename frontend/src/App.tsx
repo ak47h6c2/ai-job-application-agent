@@ -15,6 +15,7 @@ import {
   Play,
   ArrowRight,
   RefreshCw,
+  Search,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -387,6 +388,14 @@ const translations = {
     applicationNoNote: "No note yet.",
     allApplicationStatuses: "All",
     applicationBoardFilter: "Filter",
+    applicationBoardSearch: "Search",
+    applicationBoardSearchPlaceholder: "Search company, role, status, note, or link",
+    applicationBoardSearchEmpty: "No applications match this search.",
+    applicationBoardSort: "Sort",
+    applicationBoardSortUpdated: "Recently updated",
+    applicationBoardSortFollowUp: "Follow-up date",
+    applicationBoardSortCompany: "Company / role",
+    applicationBoardSortStatus: "Status",
     applicationBoardSave: "Save",
     applicationBoardSaving: "Saving...",
     applicationBoardSaved: "Saved",
@@ -696,6 +705,14 @@ const translations = {
     applicationNoNote: "暂无备注。",
     allApplicationStatuses: "全部",
     applicationBoardFilter: "筛选",
+    applicationBoardSearch: "搜索",
+    applicationBoardSearchPlaceholder: "搜公司、岗位、状态、备注或链接",
+    applicationBoardSearchEmpty: "没有找到符合搜索条件的投递记录。",
+    applicationBoardSort: "排序",
+    applicationBoardSortUpdated: "最近更新",
+    applicationBoardSortFollowUp: "跟进日期",
+    applicationBoardSortCompany: "公司 / 岗位",
+    applicationBoardSortStatus: "投递状态",
     applicationBoardSave: "保存",
     applicationBoardSaving: "保存中...",
     applicationBoardSaved: "已保存",
@@ -865,6 +882,7 @@ type QualityLabel = "strong" | "usable" | "weak";
 type WorkflowStepStatus = "done" | "active" | "blocked" | "locked";
 type ApplicationStatus = "to_review" | "draft_ready" | "applied" | "waiting" | "interview" | "rejected";
 type ApplicationFilter = ApplicationStatus | "all" | "follow_up";
+type ApplicationSort = "updated" | "follow_up" | "company" | "status";
 
 type JobQuality = {
   score: number;
@@ -2207,6 +2225,14 @@ function App() {
             filterLabel={t.applicationBoardFilter}
             allLabel={t.allApplicationStatuses}
             filteredEmptyBody={t.applicationBoardFilteredEmpty}
+            searchLabel={t.applicationBoardSearch}
+            searchPlaceholder={t.applicationBoardSearchPlaceholder}
+            searchEmptyBody={t.applicationBoardSearchEmpty}
+            sortLabel={t.applicationBoardSort}
+            sortUpdatedLabel={t.applicationBoardSortUpdated}
+            sortFollowUpLabel={t.applicationBoardSortFollowUp}
+            sortCompanyLabel={t.applicationBoardSortCompany}
+            sortStatusLabel={t.applicationBoardSortStatus}
             followUpFilterLabel={t.applicationFollowUpDue}
             statusTitle={t.applicationStatus}
             noteLabel={t.applicationNote}
@@ -3280,6 +3306,14 @@ function ApplicationBoard({
   filterLabel,
   allLabel,
   filteredEmptyBody,
+  searchLabel,
+  searchPlaceholder,
+  searchEmptyBody,
+  sortLabel,
+  sortUpdatedLabel,
+  sortFollowUpLabel,
+  sortCompanyLabel,
+  sortStatusLabel,
   followUpFilterLabel,
   statusTitle,
   noteLabel,
@@ -3328,6 +3362,14 @@ function ApplicationBoard({
   filterLabel: string;
   allLabel: string;
   filteredEmptyBody: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  searchEmptyBody: string;
+  sortLabel: string;
+  sortUpdatedLabel: string;
+  sortFollowUpLabel: string;
+  sortCompanyLabel: string;
+  sortStatusLabel: string;
   followUpFilterLabel: string;
   statusTitle: string;
   noteLabel: string;
@@ -3365,14 +3407,53 @@ function ApplicationBoard({
   onSave: (record: ApplicationRecord, status: ApplicationStatus, note: string, nextActionAt: string) => Promise<void>;
   onDelete: (record: ApplicationRecord) => Promise<void>;
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortMode, setSortMode] = useState<ApplicationSort>("updated");
+  const normalizedSearch = searchQuery.trim().toLowerCase();
   const followUpDueCount = records.filter(isApplicationFollowUpDue).length;
-  const filteredRecords =
+  const statusFilteredRecords =
     filter === "all"
       ? records
       : filter === "follow_up"
         ? records.filter(isApplicationFollowUpDue)
         : records.filter((record) => record.status === filter);
-  const visibleRecords = filteredRecords.slice(0, 8);
+  const searchedRecords = normalizedSearch
+    ? statusFilteredRecords.filter((record) =>
+        [
+          record.company,
+          record.title,
+          record.url,
+          record.note,
+          statusLabel(record.status),
+          record.next_action_at ? formatDateOnly(record.next_action_at) : "",
+          formatDate(record.updated_at)
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedSearch)
+      )
+    : statusFilteredRecords;
+  const updatedTime = (record: ApplicationRecord) => {
+    const value = new Date(record.updated_at).getTime();
+    return Number.isFinite(value) ? value : 0;
+  };
+  const sortedRecords = [...searchedRecords].sort((a, b) => {
+    if (sortMode === "follow_up") {
+      const dateCompare = (a.next_action_at || "9999-12-31").localeCompare(b.next_action_at || "9999-12-31");
+      return dateCompare || updatedTime(b) - updatedTime(a);
+    }
+    if (sortMode === "company") {
+      const nameCompare = `${a.company} ${a.title}`.localeCompare(`${b.company} ${b.title}`, undefined, { sensitivity: "base" });
+      return nameCompare || updatedTime(b) - updatedTime(a);
+    }
+    if (sortMode === "status") {
+      const statusCompare = statusLabel(a.status).localeCompare(statusLabel(b.status), undefined, { sensitivity: "base" });
+      return statusCompare || updatedTime(b) - updatedTime(a);
+    }
+    return updatedTime(b) - updatedTime(a);
+  });
+  const visibleRecords = sortedRecords.slice(0, 8);
+  const emptyResultText = normalizedSearch ? searchEmptyBody : filteredEmptyBody;
   return (
     <section id="applications" className="application-board fade-lift rounded-md p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -3434,9 +3515,42 @@ function ApplicationBoard({
         </div>
       </div>
 
+      {records.length > 0 && (
+        <div className="application-board-tools mt-3 grid gap-2 lg:grid-cols-[minmax(0,1fr)_230px]">
+          <label className="application-board-tool rounded-md px-3 py-2">
+            <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted">
+              <Search className="h-3.5 w-3.5" />
+              {searchLabel}
+            </span>
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={searchPlaceholder}
+              className="application-board-search h-9 w-full rounded-md border border-line bg-white/85 px-3 text-sm font-semibold outline-none focus:border-accent"
+            />
+          </label>
+          <label className="application-board-tool rounded-md px-3 py-2">
+            <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {sortLabel}
+            </span>
+            <select
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value as ApplicationSort)}
+              className="application-board-sort h-9 w-full rounded-md border border-line bg-white/85 px-3 text-sm font-semibold outline-none focus:border-accent"
+            >
+              <option value="updated">{sortUpdatedLabel}</option>
+              <option value="follow_up">{sortFollowUpLabel}</option>
+              <option value="company">{sortCompanyLabel}</option>
+              <option value="status">{sortStatusLabel}</option>
+            </select>
+          </label>
+        </div>
+      )}
+
       {records.length > 0 && visibleRecords.length === 0 && (
         <div className="mt-4 rounded-md border border-line bg-white/70 px-3 py-4 text-sm font-semibold text-muted">
-          {filteredEmptyBody}
+          {emptyResultText}
         </div>
       )}
 
