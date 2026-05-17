@@ -403,6 +403,14 @@ const translations = {
     applicationFollowUpToday: "Follow up today",
     applicationFollowUpOverdue: "Overdue follow-up",
     applicationFollowUpLater: "Follow-up scheduled",
+    applicationBoardExportMarkdown: "Download Markdown",
+    applicationBoardExportCsv: "Download CSV",
+    applicationBoardCopyFollowUps: "Copy follow-ups",
+    applicationBoardFollowUpsCopied: "Follow-up list copied.",
+    quickFollowUpToday: "Today",
+    quickFollowUp3Days: "3 days",
+    quickFollowUp7Days: "7 days",
+    quickFollowUpClear: "Clear",
     resumeFocus: "Resume focus",
     coverLetter: "Cover letter",
     recruiterMessage: "Recruiter message",
@@ -704,6 +712,14 @@ const translations = {
     applicationFollowUpToday: "今天跟进",
     applicationFollowUpOverdue: "已逾期",
     applicationFollowUpLater: "已安排跟进",
+    applicationBoardExportMarkdown: "下载 Markdown",
+    applicationBoardExportCsv: "下载 CSV",
+    applicationBoardCopyFollowUps: "复制跟进清单",
+    applicationBoardFollowUpsCopied: "跟进清单已复制。",
+    quickFollowUpToday: "今天",
+    quickFollowUp3Days: "3 天后",
+    quickFollowUp7Days: "7 天后",
+    quickFollowUpClear: "清空",
     resumeFocus: "简历修改重点",
     coverLetter: "求职信草稿",
     recruiterMessage: "招聘方消息",
@@ -889,6 +905,12 @@ function formatLocalDate(date: Date) {
 function dateOffset(daysAgo: number) {
   const value = new Date();
   value.setDate(value.getDate() - daysAgo);
+  return formatLocalDate(value);
+}
+
+function dateInDays(daysAhead: number) {
+  const value = new Date();
+  value.setDate(value.getDate() + daysAhead);
   return formatLocalDate(value);
 }
 
@@ -1110,8 +1132,13 @@ function safeFilePart(value: string) {
   return cleaned.slice(0, 80) || "application";
 }
 
-function downloadTextFile(filename: string, text: string) {
-  const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+function csvCell(value: string | number | undefined) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function downloadTextFile(filename: string, text: string, mimeType = "text/markdown;charset=utf-8") {
+  const blob = new Blob([text], { type: mimeType });
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -1790,6 +1817,20 @@ function App() {
   const currentReportFilename = run ? `${safeFilePart(displayRunId(run.id, language))}-report.md` : "job-agent-report.md";
   const selectedApplicationKey = selected ? applicationKeyFromLead(selected.scored_lead.lead) : "";
   const selectedApplication = selectedApplicationKey ? applications[selectedApplicationKey] : undefined;
+  const applicationRecords = useMemo(
+    () =>
+      Object.values(applications).sort(
+        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      ),
+    [applications]
+  );
+  const applicationStatusCounts = useMemo(() => {
+    const counts = Object.fromEntries(APPLICATION_STATUSES.map((status) => [status, 0])) as Record<ApplicationStatus, number>;
+    applicationRecords.forEach((record) => {
+      counts[record.status] += 1;
+    });
+    return counts;
+  }, [applicationRecords]);
 
   useEffect(() => {
     setApplicationDraftStatus(selectedApplication?.status ?? (selectedDraft ? "draft_ready" : "to_review"));
@@ -1805,6 +1846,64 @@ function App() {
   function downloadCurrentReport() {
     if (!currentReportMarkdown) return;
     downloadTextFile(currentReportFilename, currentReportMarkdown);
+  }
+
+  const applicationBoardMarkdown = useMemo(() => {
+    const lines = applicationRecords.map((record, index) =>
+      [
+        `## ${index + 1}. ${record.company || "-"} - ${record.title || "-"}`,
+        `- ${t.applicationStatus}: ${applicationStatusLabel(record.status, language)}`,
+        `- ${t.applicationNextAction}: ${record.next_action_at ? formatIsoDate(record.next_action_at, language) : t.applicationNoNextAction}`,
+        `- ${t.updated}: ${formatIsoModified(record.updated_at, language) || "-"}`,
+        record.url ? `- URL: ${record.url}` : "",
+        `- ${t.applicationNote}: ${record.note || t.applicationNoNote}`
+      ].filter(Boolean).join("\n")
+    );
+    return [`# ${t.applicationBoard}`, lines.length ? lines.join("\n\n") : t.applicationBoardEmptyBody].join("\n\n");
+  }, [applicationRecords, language, t]);
+
+  const applicationBoardCsv = useMemo(() => {
+    const headers = language === "zh"
+      ? ["公司", "岗位", "状态", "下次跟进", "备注", "链接", "更新于"]
+      : ["Company", "Role", "Status", "Next follow-up", "Note", "URL", "Updated"];
+    const rows = applicationRecords.map((record) => [
+      record.company,
+      record.title,
+      applicationStatusLabel(record.status, language),
+      record.next_action_at,
+      record.note,
+      record.url,
+      formatIsoModified(record.updated_at, language)
+    ]);
+    return [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
+  }, [applicationRecords, language]);
+
+  const dueApplicationRecords = useMemo(
+    () => applicationRecords.filter(isApplicationFollowUpDue),
+    [applicationRecords]
+  );
+
+  const followUpClipboardText = useMemo(() => {
+    if (!dueApplicationRecords.length) {
+      return language === "zh" ? "今天没有需要跟进的投递记录。" : "No application follow-ups are due today.";
+    }
+    const rows = dueApplicationRecords.map((record, index) =>
+      `${index + 1}. ${record.company || "-"} - ${record.title || "-"} | ${applicationStatusLabel(record.status, language)} | ${record.next_action_at}${record.note ? ` | ${record.note}` : ""}`
+    );
+    return [`${t.applicationFollowUpDue}: ${dateOffset(0)}`, ...rows].join("\n");
+  }, [dueApplicationRecords, language, t.applicationFollowUpDue]);
+
+  function downloadApplicationBoardMarkdown() {
+    downloadTextFile(`application-board-${dateOffset(0)}.md`, applicationBoardMarkdown);
+  }
+
+  function downloadApplicationBoardCsv() {
+    downloadTextFile(`application-board-${dateOffset(0)}.csv`, `\uFEFF${applicationBoardCsv}`, "text/csv;charset=utf-8");
+  }
+
+  async function copyApplicationFollowUps() {
+    await copyText("application-follow-ups", followUpClipboardText);
+    setMessage(t.applicationBoardFollowUpsCopied);
   }
 
   function selectJob(index: number) {
@@ -1900,20 +1999,6 @@ function App() {
 
   const visibleRuns = showAllRuns ? runs : runs.slice(0, 4);
   const currentRunSummary = run ? runs.find((item) => item.id === run.id) : undefined;
-  const applicationRecords = useMemo(
-    () =>
-      Object.values(applications).sort(
-        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      ),
-    [applications]
-  );
-  const applicationStatusCounts = useMemo(() => {
-    const counts = Object.fromEntries(APPLICATION_STATUSES.map((status) => [status, 0])) as Record<ApplicationStatus, number>;
-    applicationRecords.forEach((record) => {
-      counts[record.status] += 1;
-    });
-    return counts;
-  }, [applicationRecords]);
   const isInitialLoading = state === "loading" && !run;
   const resumeStatusLabel =
     uploadStatus === "running"
@@ -2127,6 +2212,13 @@ function App() {
             followUpTodayLabel={t.applicationFollowUpToday}
             followUpOverdueLabel={t.applicationFollowUpOverdue}
             followUpLaterLabel={t.applicationFollowUpLater}
+            exportMarkdownLabel={t.applicationBoardExportMarkdown}
+            exportCsvLabel={t.applicationBoardExportCsv}
+            copyFollowUpsLabel={copiedKey === "application-follow-ups" ? t.copied : t.applicationBoardCopyFollowUps}
+            quickTodayLabel={t.quickFollowUpToday}
+            quick3DaysLabel={t.quickFollowUp3Days}
+            quick7DaysLabel={t.quickFollowUp7Days}
+            quickClearLabel={t.quickFollowUpClear}
             saveLabel={t.applicationBoardSave}
             savingLabel={t.applicationBoardSaving}
             savedLabel={t.applicationBoardSaved}
@@ -2142,6 +2234,9 @@ function App() {
             statusLabel={(status) => applicationStatusLabel(status, language)}
             formatDate={(value) => formatIsoModified(value, language)}
             formatDateOnly={(value) => formatIsoDate(value, language)}
+            onExportMarkdown={downloadApplicationBoardMarkdown}
+            onExportCsv={downloadApplicationBoardCsv}
+            onCopyFollowUps={() => void copyApplicationFollowUps()}
             onSave={(record, status, note, nextActionAt) => saveBoardApplicationStatus(record, status, note, nextActionAt)}
             onDelete={(record) => deleteBoardApplication(record)}
           />
@@ -3180,6 +3275,13 @@ function ApplicationBoard({
   followUpTodayLabel,
   followUpOverdueLabel,
   followUpLaterLabel,
+  exportMarkdownLabel,
+  exportCsvLabel,
+  copyFollowUpsLabel,
+  quickTodayLabel,
+  quick3DaysLabel,
+  quick7DaysLabel,
+  quickClearLabel,
   saveLabel,
   savingLabel,
   savedLabel,
@@ -3195,6 +3297,9 @@ function ApplicationBoard({
   statusLabel,
   formatDate,
   formatDateOnly,
+  onExportMarkdown,
+  onExportCsv,
+  onCopyFollowUps,
   onSave,
   onDelete
 }: {
@@ -3218,6 +3323,13 @@ function ApplicationBoard({
   followUpTodayLabel: string;
   followUpOverdueLabel: string;
   followUpLaterLabel: string;
+  exportMarkdownLabel: string;
+  exportCsvLabel: string;
+  copyFollowUpsLabel: string;
+  quickTodayLabel: string;
+  quick3DaysLabel: string;
+  quick7DaysLabel: string;
+  quickClearLabel: string;
   saveLabel: string;
   savingLabel: string;
   savedLabel: string;
@@ -3233,6 +3345,9 @@ function ApplicationBoard({
   statusLabel: (status: ApplicationStatus) => string;
   formatDate: (value: string) => string;
   formatDateOnly: (value: string) => string;
+  onExportMarkdown: () => void;
+  onExportCsv: () => void;
+  onCopyFollowUps: () => void;
   onSave: (record: ApplicationRecord, status: ApplicationStatus, note: string, nextActionAt: string) => Promise<void>;
   onDelete: (record: ApplicationRecord) => Promise<void>;
 }) {
@@ -3252,9 +3367,38 @@ function ApplicationBoard({
           <h2 className="mt-1 text-lg font-semibold">{records.length ? latestTitle : emptyTitle}</h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">{records.length ? hint : emptyBody}</p>
         </div>
-        <div className="application-board-total rounded-md px-3 py-2 text-center">
-          <strong>{records.length}</strong>
-          <span>{title}</span>
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <button
+            type="button"
+            onClick={onCopyFollowUps}
+            disabled={!records.length}
+            className="application-board-action inline-flex h-9 items-center gap-2 rounded-md px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Clipboard className="h-3.5 w-3.5" />
+            {copyFollowUpsLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onExportMarkdown}
+            disabled={!records.length}
+            className="application-board-action inline-flex h-9 items-center gap-2 rounded-md px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {exportMarkdownLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onExportCsv}
+            disabled={!records.length}
+            className="application-board-action inline-flex h-9 items-center gap-2 rounded-md px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {exportCsvLabel}
+          </button>
+          <div className="application-board-total rounded-md px-3 py-2 text-center">
+            <strong>{records.length}</strong>
+            <span>{title}</span>
+          </div>
         </div>
       </div>
 
@@ -3299,6 +3443,10 @@ function ApplicationBoard({
               followUpTodayLabel={followUpTodayLabel}
               followUpOverdueLabel={followUpOverdueLabel}
               followUpLaterLabel={followUpLaterLabel}
+              quickTodayLabel={quickTodayLabel}
+              quick3DaysLabel={quick3DaysLabel}
+              quick7DaysLabel={quick7DaysLabel}
+              quickClearLabel={quickClearLabel}
               saveLabel={saveLabel}
               savingLabel={savingLabel}
               savedLabel={savedLabel}
@@ -3333,6 +3481,10 @@ function ApplicationRecordEditor({
   followUpTodayLabel,
   followUpOverdueLabel,
   followUpLaterLabel,
+  quickTodayLabel,
+  quick3DaysLabel,
+  quick7DaysLabel,
+  quickClearLabel,
   saveLabel,
   savingLabel,
   savedLabel,
@@ -3359,6 +3511,10 @@ function ApplicationRecordEditor({
   followUpTodayLabel: string;
   followUpOverdueLabel: string;
   followUpLaterLabel: string;
+  quickTodayLabel: string;
+  quick3DaysLabel: string;
+  quick7DaysLabel: string;
+  quickClearLabel: string;
   saveLabel: string;
   savingLabel: string;
   savedLabel: string;
@@ -3421,6 +3577,11 @@ function ApplicationRecordEditor({
     }
   }
 
+  function setQuickFollowUp(value: string) {
+    setDraftNextAction(value);
+    setSaveStatus("idle");
+  }
+
   const dirty = draftStatus !== record.status || draftNote !== record.note || draftNextAction !== (record.next_action_at ?? "");
   const saveText =
     saveStatus === "running"
@@ -3450,10 +3611,10 @@ function ApplicationRecordEditor({
     followUpTone === "none"
       ? noNextActionLabel
       : followUpTone === "overdue"
-        ? `${followUpOverdueLabel} · ${formatDateOnly(record.next_action_at)}`
+        ? `${followUpOverdueLabel} - ${formatDateOnly(record.next_action_at)}`
         : followUpTone === "today"
           ? followUpTodayLabel
-          : `${followUpLaterLabel} · ${formatDateOnly(record.next_action_at)}`;
+          : `${followUpLaterLabel} - ${formatDateOnly(record.next_action_at)}`;
 
   return (
     <article className="application-record-card rounded-md p-3">
@@ -3485,9 +3646,10 @@ function ApplicationRecordEditor({
             ))}
           </select>
         </label>
-        <label>
+        <div>
           <span className="mb-1.5 block text-xs font-semibold text-muted">{nextActionLabel}</span>
           <input
+            aria-label={nextActionLabel}
             type="date"
             value={draftNextAction}
             onChange={(event) => {
@@ -3496,7 +3658,21 @@ function ApplicationRecordEditor({
             }}
             className="application-record-date-input h-9 w-full rounded-md border border-line bg-white/85 px-2 text-xs font-semibold outline-none focus:border-accent"
           />
-        </label>
+          <div className="mt-1.5 grid grid-cols-4 gap-1">
+            <button type="button" onClick={() => setQuickFollowUp(dateInDays(0))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+              {quickTodayLabel}
+            </button>
+            <button type="button" onClick={() => setQuickFollowUp(dateInDays(3))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+              {quick3DaysLabel}
+            </button>
+            <button type="button" onClick={() => setQuickFollowUp(dateInDays(7))} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+              {quick7DaysLabel}
+            </button>
+            <button type="button" onClick={() => setQuickFollowUp("")} className="application-follow-up-shortcut rounded-md px-1.5 py-1 text-[11px] font-semibold">
+              {quickClearLabel}
+            </button>
+          </div>
+        </div>
         <label>
           <span className="mb-1.5 block text-xs font-semibold text-muted">{noteLabel}</span>
           <textarea

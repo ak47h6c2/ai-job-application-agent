@@ -877,6 +877,19 @@ textarea:focus-visible {
   font-weight: 700;
 }
 
+.application-board-action {
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  color: #31516b;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.application-board-action:hover {
+  border-color: rgba(37, 99, 235, 0.28);
+  color: #1d4ed8;
+  background: rgba(239, 246, 255, 0.9);
+  transform: translateY(-1px);
+}
+
 .application-summary-chip {
   display: flex;
   min-height: 44px;
@@ -1024,6 +1037,18 @@ button.application-summary-chip:hover {
   padding: 3px 7px;
   background: rgba(248, 250, 252, 0.86);
   color: #64748b;
+}
+
+.application-follow-up-shortcut {
+  border: 1px solid rgba(203, 213, 225, 0.78);
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.application-follow-up-shortcut:hover {
+  border-color: rgba(37, 99, 235, 0.26);
+  color: #1d4ed8;
+  background: rgba(239, 246, 255, 0.84);
 }
 
 .application-follow-up-today {
