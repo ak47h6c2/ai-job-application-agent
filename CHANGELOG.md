@@ -4,6 +4,8 @@
 
 ### English
 
+- Added bilingual user documentation with screenshots: a full user manual and a quick-start tutorial under `docs/`.
+- Added manual browser-test screenshots for overview, setup, one-job mode, job results, draft review, and the application board.
 - Added an actionable mail review queue: job-related messages that did not parse into structured leads can now be previewed from the Web UI and moved into the single-JD workflow.
 - Added `/api/mail/preview` for local QQ Mail message previews, detected links, and re-parsing without sending or modifying mail.
 - Improved job-page validation so LinkedIn/company job list and search-result pages are rejected instead of being treated as single JDs.
@@ -34,6 +36,8 @@
 
 ### 中文
 
+- 新增带截图的中英双语用户文档：在 `docs/` 下补充完整使用手册和快速上手教程。
+- 新增手动浏览器测试截图，覆盖总览、开始、单个岗位、推荐职位、申请包和投递记录页面。
 - 新增可操作的邮件复查队列：看起来和求职有关、但没有解析成结构化岗位的邮件，现在可以在 Web UI 里直接读取摘要，并带到“单个岗位”流程继续处理。
 - 新增 `/api/mail/preview`：本地读取 QQ 邮件摘要、识别链接并重新解析岗位，不发送、不修改邮件。
 - 优化岗位网页校验：LinkedIn / 公司官网的岗位列表页、搜索结果页会被拒绝，不再当成单个 JD 使用。

@@ -15,6 +15,7 @@ An AI-assisted, bilingual job application workflow for candidates applying acros
 - [项目背景](#项目背景)
 - [当前功能](#当前功能)
 - [使用方法](#使用方法)
+- [文档与截图教程](#文档与截图教程)
 - [版本更新摘要](#版本更新摘要)
 - [技术架构](#技术架构)
 - [项目结构](#项目结构)
@@ -132,6 +133,15 @@ cd frontend
 npm run build
 ```
 
+## 文档与截图教程
+
+| 文档 | 说明 |
+| --- | --- |
+| [USER_MANUAL.zh-en.md](./docs/USER_MANUAL.zh-en.md) | 中英双语使用手册：说明主界面、简历上传、邮箱扫描、单个 JD、推荐职位、申请包、投递记录和安全边界。 |
+| [QUICK_START_TUTORIAL.zh-en.md](./docs/QUICK_START_TUTORIAL.zh-en.md) | 中英双语快速上手教程：按真实使用顺序从上传简历走到生成材料，并附本地浏览器手动测试截图。 |
+
+截图存放在 [`docs/assets/manual/`](./docs/assets/manual/)，来自本地 Web UI 的手动浏览器测试。
+
 ## 版本更新摘要
 
 完整更新记录见 [CHANGELOG.md](./CHANGELOG.md)。
@@ -189,6 +199,9 @@ data/
   sample_emails/           # Synthetic examples only
 docs/
   architecture.md          # Architecture notes
+  USER_MANUAL.zh-en.md     # Bilingual user manual with screenshots
+  QUICK_START_TUTORIAL.zh-en.md
+  assets/manual/           # Manual-test screenshots used by docs
 frontend/
   src/App.tsx              # Bilingual React Web UI
 tests/
