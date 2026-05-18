@@ -530,6 +530,52 @@ def looks_like_blocked_or_login_page(
     return False
 
 
+def looks_like_listing_or_search_page(
+    *,
+    url: str,
+    title: str,
+    description: str,
+    has_jobposting: bool,
+) -> bool:
+    if has_jobposting:
+        return False
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+    path = parsed.path.lower()
+    combined = f"{title} {description}".lower()
+
+    if "linkedin." in host and "/jobs/view" not in path and "/comm/jobs/view" not in path:
+        if "/jobs" in path or "/company/" in path:
+            return True
+
+    listing_url_markers = (
+        "/jobs/search",
+        "/jobs/results",
+        "/search/jobs",
+        "/jobsearch",
+        "/vacancies",
+    )
+    if any(marker in path for marker in listing_url_markers):
+        return True
+
+    listing_text_markers = (
+        "jobs found",
+        "job results",
+        "search results",
+        "recommended jobs",
+        "similar jobs",
+        "people also viewed",
+        "view all jobs",
+        "create job alert",
+    )
+    if any(marker in combined for marker in listing_text_markers):
+        jd_hits = sum(1 for marker in JOB_DESCRIPTION_MARKERS if marker in combined)
+        action_repeats = len(re.findall(r"\b(?:apply now|save job|view job)\b", combined))
+        if jd_hits == 0 or action_repeats >= 3:
+            return True
+    return False
+
+
 def preview_from_html(page_html: str, url: str) -> JobUrlPreview:
     parser = JobPageParser()
     parser.feed(page_html)
@@ -563,6 +609,16 @@ def preview_from_html(page_html: str, url: str) -> JobUrlPreview:
         has_jobposting=bool(jobposting),
     ):
         raise JobUrlReadError("This site returned a login, captcha, or access-blocked page instead of the job post.")
+    if looks_like_listing_or_search_page(
+        url=url,
+        title=title,
+        description=description,
+        has_jobposting=bool(jobposting),
+    ):
+        raise JobUrlReadError(
+            "This page looks like a job list or search result, not a single job description. "
+            "Open one specific job detail page or paste the full JD manually."
+        )
 
     preview_title = normalize_text(title)[:160]
     preview_description = description[:12000]

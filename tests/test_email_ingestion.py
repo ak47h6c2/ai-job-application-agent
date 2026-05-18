@@ -253,6 +253,8 @@ class EmailIngestionTests(unittest.TestCase):
             result.scan_metadata["attention_items"],
             [{"name": "UNSW / CSA", "reason": "job_mail_without_leads", "job_messages": 1, "scanned": 1}],
         )
+        self.assertEqual(result.scan_metadata["review_messages"][0]["uid"], "3100")
+        self.assertEqual(result.scan_metadata["review_messages"][0]["source_name"], "UNSW / CSA")
 
     def test_scan_qq_mail_auto_reads_job_links(self) -> None:
         def fake_reader(url: str) -> JobUrlPreview:

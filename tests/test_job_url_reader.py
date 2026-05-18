@@ -108,6 +108,28 @@ class JobUrlReaderTests(unittest.TestCase):
         with self.assertRaises(JobUrlReadError):
             preview_from_html(html, "https://www.linkedin.com/jobs/view/123/")
 
+    def test_preview_rejects_job_list_pages_instead_of_single_jd(self) -> None:
+        html = """
+        <html>
+          <head>
+            <meta property="og:title" content="Software Engineer jobs at Example">
+            <meta property="og:site_name" content="LinkedIn">
+          </head>
+          <body>
+            <main>
+              Software Engineer jobs at Example. Jobs found. Create job alert.
+              Backend Engineer View job Save job Apply now.
+              Data Engineer View job Save job Apply now.
+              Systems Engineer View job Save job Apply now.
+              Recommended jobs People also viewed.
+            </main>
+          </body>
+        </html>
+        """
+
+        with self.assertRaises(JobUrlReadError):
+            preview_from_html(html, "https://www.linkedin.com/company/example/jobs/")
+
     def test_preview_requires_enough_information(self) -> None:
         with self.assertRaises(JobUrlReadError):
             preview_from_html("<html><title>x</title></html>", "https://example.com")

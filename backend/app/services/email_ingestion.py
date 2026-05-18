@@ -206,6 +206,7 @@ def build_scan_metadata(
     scanned_counts: dict[str, int] = {}
     job_counts: dict[str, int] = {}
     lead_counts: dict[str, int] = {}
+    message_lead_counts: dict[str, int] = {}
     samples: dict[str, list[str]] = {}
     source_by_message: dict[str, str] = {}
     for message in scanned:
@@ -220,17 +221,40 @@ def build_scan_metadata(
     for lead in leads:
         label = source_by_message.get(lead.source, "Other")
         lead_counts[label] = lead_counts.get(label, 0) + 1
+        message_lead_counts[lead.source] = message_lead_counts.get(lead.source, 0) + 1
 
     labels = sorted(
         set(scanned_counts) | set(job_counts) | set(lead_counts),
         key=lambda label: (lead_counts.get(label, 0), job_counts.get(label, 0), scanned_counts.get(label, 0), label),
         reverse=True,
     )
+    review_messages = [
+        {
+            "message_key": mail_message_key(message),
+            "uid": message.uid,
+            "folder": message.folder,
+            "subject": message.subject,
+            "sender": message.sender,
+            "date": message.date,
+            "source_name": mail_source_label(message),
+            "reason": "job_mail_without_leads",
+        }
+        for message in job_messages
+        if message_lead_counts.get(mail_message_key(message), 0) == 0
+    ]
+    review_source_names = {item["source_name"] for item in review_messages}
     source_counts = []
     for label in labels:
         leads_for_source = lead_counts.get(label, 0)
         job_messages_for_source = job_counts.get(label, 0)
-        status = "parsed" if leads_for_source else "needs_review" if job_messages_for_source else "checked"
+        if leads_for_source and label in review_source_names:
+            status = "partial"
+        elif leads_for_source:
+            status = "parsed"
+        elif job_messages_for_source:
+            status = "needs_review"
+        else:
+            status = "checked"
         source_counts.append(
             {
                 "name": label,
@@ -249,7 +273,7 @@ def build_scan_metadata(
             "scanned": source["scanned"],
         }
         for source in source_counts
-        if source["status"] == "needs_review"
+        if source["status"] in {"needs_review", "partial"}
     ]
     return {
         "folder": folder,
@@ -261,6 +285,7 @@ def build_scan_metadata(
         "lead_count": len(leads),
         "source_counts": source_counts,
         "attention_items": attention_items,
+        "review_messages": review_messages[:12],
         "backfill_sources": list(TARGETED_MAIL_FROM_SEARCHES),
     }
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
 from pathlib import Path
 from typing import Any, Literal
@@ -22,9 +23,11 @@ from backend.app.services.application_tracker import (
 )
 from backend.app.services.browser_session import BrowserSessionError, import_current_browser_job, open_login_browser
 from backend.app.services.imported_jobs import load_latest_imported_job, save_imported_job
+from backend.app.parsers.job_email_parser import parse_job_email
 from backend.app.services.job_url_reader import JobUrlReadError, read_job_posting_from_url
 from backend.app.services.job_agent import default_agent_output_dir, run_job_application_agent
 from backend.app.services.manual_job import run_manual_job_application
+from backend.app.tools.qq_mail_mcp_client import QQMailMCPClient, QQMailToolError
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -70,6 +73,12 @@ class ManualJobRequest(BaseModel):
 
 class JobUrlPreviewRequest(BaseModel):
     url: str = Field(min_length=8, max_length=500)
+
+
+class MailPreviewRequest(BaseModel):
+    uid: str = Field(min_length=1, max_length=80)
+    folder: str = Field(default="INBOX", min_length=1, max_length=80)
+    max_chars: int = Field(default=6000, ge=1000, le=20000)
 
 
 class BrowserOpenRequest(BaseModel):
@@ -181,6 +190,11 @@ def read_drafts(path: Path) -> list[dict[str, str]]:
             }
         )
     return drafts
+
+
+def compact_text(value: str, limit: int = 6000) -> str:
+    text = re.sub(r"\n{3,}", "\n\n", value.replace("\r\n", "\n")).strip()
+    return text[:limit]
 
 
 def track_generated_application_drafts(report: AgentRunReport) -> None:
@@ -339,6 +353,37 @@ def preview_job_url(request: JobUrlPreviewRequest) -> dict[str, Any]:
                 "Use manual paste mode for this link."
             ),
         }
+
+
+@app.post("/api/mail/preview")
+def preview_mail_message(request: MailPreviewRequest) -> dict[str, Any]:
+    try:
+        payload = QQMailMCPClient().read_message(
+            uid=request.uid,
+            folder=request.folder,
+            max_chars=request.max_chars,
+        )
+    except QQMailToolError as exc:
+        return {"ok": False, "detail": str(exc)}
+
+    subject = str(payload.get("subject", ""))
+    text = compact_text(str(payload.get("text", "")), request.max_chars)
+    source = f"{request.folder}:{request.uid}"
+    email_text = "\n".join(value for value in (f"Subject: {subject}", text) if value)
+    parsed_leads = [lead.to_dict() for lead in parse_job_email(email_text, source=source)]
+    urls = list(dict.fromkeys(re.findall(r"https?://[^\s<>)\"']+", email_text)))[:8]
+    return {
+        "ok": True,
+        "folder": request.folder,
+        "uid": request.uid,
+        "subject": subject,
+        "sender": str(payload.get("from", "")),
+        "date": str(payload.get("date", "")),
+        "text": text,
+        "text_truncated": bool(payload.get("text_truncated", False)),
+        "detected_urls": urls,
+        "parsed_leads": parsed_leads,
+    }
 
 
 @app.post("/api/imported-jobs")

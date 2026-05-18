@@ -40,7 +40,8 @@ body,
 body {
   margin: 0;
   min-width: 320px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: #edf3f0;
 }
 
@@ -102,9 +103,9 @@ select:focus-visible {
 
 .app-backdrop {
   position: relative;
-  height: 100vh;
+  min-height: 100vh;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: visible;
   background:
     linear-gradient(180deg, rgba(246, 249, 248, 0.94), rgba(236, 244, 242, 0.92)),
     linear-gradient(135deg, #dfeff0 0%, #f8fafc 42%, #eef4e7 100%);
@@ -518,6 +519,42 @@ select:focus-visible {
 .mail-source-status-checked {
   background: rgba(100, 116, 139, 0.12);
   color: #475569;
+}
+
+.mail-review-queue {
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.mail-review-count {
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+}
+
+.mail-review-item {
+  border: 1px solid rgba(125, 141, 163, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 252, 251, 0.78)),
+    linear-gradient(90deg, rgba(245, 158, 11, 0.06), transparent);
+}
+
+.mail-review-preview {
+  border: 1px solid rgba(125, 141, 163, 0.16);
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.resume-improvement-panel {
+  border: 1px solid rgba(37, 99, 235, 0.13);
+  background:
+    linear-gradient(135deg, rgba(239, 246, 255, 0.82), rgba(255, 255, 255, 0.78)),
+    linear-gradient(90deg, rgba(15, 138, 122, 0.08), transparent);
+}
+
+.resume-improvement-item {
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  color: #334155;
 }
 
 .draft-card {
@@ -1203,14 +1240,16 @@ button.application-summary-chip:hover {
 @media (min-width: 1024px) {
   .app-backdrop,
   .workbench-grid {
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    height: auto;
+    overflow: visible;
   }
 
   .content-shell {
-    height: 100vh;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    min-height: 100vh;
+    height: auto;
+    overflow-y: visible;
+    overscroll-behavior: auto;
     scroll-behavior: smooth;
   }
 }

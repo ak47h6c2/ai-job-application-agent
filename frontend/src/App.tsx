@@ -28,6 +28,7 @@ import { ChangeEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useSta
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
 const RESUME_UPLOAD_TIMEOUT_MS = 45000;
 const JOB_URL_READ_TIMEOUT_MS = 18000;
+const MAIL_PREVIEW_TIMEOUT_MS = 18000;
 const LOGIN_BROWSER_OPEN_TIMEOUT_MS = 30000;
 const LOGIN_BROWSER_READ_TIMEOUT_MS = 20000;
 
@@ -339,11 +340,25 @@ const translations = {
     mailCoverageEmpty: "No mail coverage data saved for this report.",
     mailCoverageCountsHint: "checked / job mail / leads",
     mailCoverageParsed: "parsed",
+    mailCoveragePartial: "partial",
     mailCoverageNeedsReview: "needs review",
     mailCoverageCheckedOnly: "checked only",
     mailCoverageAttentionTitle: "Needs review",
     mailCoverageAttentionBody: "These sources had job-related mail, but no structured job lead was parsed. Open the original mail or paste the JD manually if a role is important.",
     mailCoverageExamples: "Examples",
+    mailReviewQueueTitle: "Review queue",
+    mailReviewQueueBody: "These messages looked job-related but did not contain enough structured role detail. Read the message, then send useful text to One job.",
+    mailReviewRead: "Read mail",
+    mailReviewReading: "Reading...",
+    mailReviewUseAsJd: "Use in One job",
+    mailReviewPreviewTitle: "Mail preview",
+    mailReviewParsedLeads: "Parsed leads",
+    mailReviewNoParsed: "No structured role found in this mail yet.",
+    mailReviewDetectedLinks: "Links found",
+    mailReviewNoText: "No readable mail text returned.",
+    mailReviewLoaded: "Mail preview loaded.",
+    mailReviewMovedToManual: "Mail text moved to One job. Check title, company, and JD before generating.",
+    mailPreviewError: "Could not read this mail. Open it in QQ Mail and paste the useful JD text manually.",
     downloadReport: "Download report",
     resultJobs: "Shortlisted jobs",
     resultDrafts: "Drafts ready",
@@ -377,6 +392,13 @@ const translations = {
     missingKeywords: "Keyword gaps",
     noKeywordGap: "No obvious gaps",
     noEvidence: "No strong resume evidence found.",
+    resumeImprovementPlan: "Resume improvement plan",
+    resumeImprovementHint: "Use these as project or bullet-point upgrades before applying to similar roles.",
+    resumeProjectAgent: "Add an AI agent/RAG project: mail ingestion, JD extraction, resume matching, and human approval workflow.",
+    resumeProjectDeploy: "Package the project with Docker and a clear README so recruiters can run the demo quickly.",
+    resumeProjectData: "Add a data pipeline example that stores job leads, statuses, and follow-up metrics in SQL.",
+    resumeProjectFrontend: "Polish the React/TypeScript dashboard with screenshots, interaction states, and a short demo flow.",
+    resumeProjectKeyword: "Turn the missing keywords into measurable resume bullets with concrete tools and outcomes.",
     applicationDraft: "Draft",
     draftReviewHint: "Review in order: resume edits first, then copy the message that matches the employer language.",
     reviewRequired: "review required",
@@ -673,11 +695,25 @@ const translations = {
     mailCoverageEmpty: "这份旧报告没有保存邮箱覆盖数据。",
     mailCoverageCountsHint: "已检查 / 求职邮件 / 岗位线索",
     mailCoverageParsed: "已解析岗位",
+    mailCoveragePartial: "部分需复查",
     mailCoverageNeedsReview: "建议复查",
     mailCoverageCheckedOnly: "仅检查到邮件",
     mailCoverageAttentionTitle: "需要复查",
     mailCoverageAttentionBody: "这些来源有求职相关邮件，但没有解析出结构化岗位。重要岗位建议打开原邮件确认，或者把完整 JD 手动粘贴进来。",
     mailCoverageExamples: "邮件示例",
+    mailReviewQueueTitle: "复查队列",
+    mailReviewQueueBody: "这些邮件看起来和求职有关，但内容里暂时没有足够清晰的岗位名称、公司或 JD。可以先读取邮件摘要，再把有用内容带到“单个岗位”。",
+    mailReviewRead: "读取邮件",
+    mailReviewReading: "读取中...",
+    mailReviewUseAsJd: "带到单个岗位",
+    mailReviewPreviewTitle: "邮件摘要",
+    mailReviewParsedLeads: "识别出的岗位",
+    mailReviewNoParsed: "这封邮件暂时没有识别出结构化岗位。",
+    mailReviewDetectedLinks: "识别到的链接",
+    mailReviewNoText: "没有读取到可用邮件正文。",
+    mailReviewLoaded: "邮件摘要已读取。",
+    mailReviewMovedToManual: "邮件内容已带到单个岗位区。请检查岗位名称、公司和 JD 后再生成。",
+    mailPreviewError: "暂时无法读取这封邮件。可以去 QQ 邮箱打开原邮件，再把有用的 JD 手动粘贴进来。",
     downloadReport: "下载报告",
     resultJobs: "推荐岗位",
     resultDrafts: "已生成草稿",
@@ -711,6 +747,13 @@ const translations = {
     missingKeywords: "可补关键词",
     noKeywordGap: "暂无明显缺口",
     noEvidence: "暂未找到强匹配的简历内容。",
+    resumeImprovementPlan: "简历与项目补强",
+    resumeImprovementHint: "这些建议可以变成项目功能、简历 bullet point，或者面试时讲的项目亮点。",
+    resumeProjectAgent: "补一个 AI agent / RAG 项目亮点：邮件读取、JD 抽取、简历匹配、人工确认流程都可以写进项目。",
+    resumeProjectDeploy: "把项目 Docker 化，并在 README 里写清楚快速启动和演示流程，让招聘方能直接看到工程能力。",
+    resumeProjectData: "补数据链路：把岗位线索、投递状态、跟进记录存进 SQL，并做简单统计看板。",
+    resumeProjectFrontend: "强化 React / TypeScript 前端：补截图、加载状态、错误状态和完整演示流程。",
+    resumeProjectKeyword: "把缺失关键词改写成可量化经历，比如用了什么工具、解决什么问题、结果是什么。",
     applicationDraft: "申请草稿",
     draftReviewHint: "按顺序检查：先改简历，再复制符合招聘方语言的草稿。",
     reviewRequired: "待你确认",
@@ -881,7 +924,7 @@ type Draft = {
   approval_required: boolean;
 };
 
-type ScanSourceStatus = "parsed" | "needs_review" | "checked";
+type ScanSourceStatus = "parsed" | "partial" | "needs_review" | "checked";
 
 type ScanSourceCount = {
   name: string;
@@ -890,6 +933,17 @@ type ScanSourceCount = {
   leads?: number;
   status?: ScanSourceStatus;
   sample_subjects?: string[];
+};
+
+type ScanReviewMessage = {
+  message_key: string;
+  uid: string;
+  folder: string;
+  subject: string;
+  sender: string;
+  date: string;
+  source_name: string;
+  reason: string;
 };
 
 type ScanMetadata = {
@@ -907,7 +961,22 @@ type ScanMetadata = {
     job_messages: number;
     scanned: number;
   }>;
+  review_messages?: ScanReviewMessage[];
   backfill_sources?: string[];
+};
+
+type MailPreview = {
+  ok?: boolean;
+  detail?: string;
+  folder: string;
+  uid: string;
+  subject: string;
+  sender: string;
+  date: string;
+  text: string;
+  text_truncated?: boolean;
+  detected_urls?: string[];
+  parsed_leads?: Lead[];
 };
 
 type AgentRun = {
@@ -1092,12 +1161,14 @@ function scanSourceName(name: string, language: Language) {
 function scanSourceStatusLabel(status: ScanSourceStatus | undefined, language: Language) {
   const t = translations[language];
   if (status === "parsed") return t.mailCoverageParsed;
+  if (status === "partial") return t.mailCoveragePartial;
   if (status === "needs_review") return t.mailCoverageNeedsReview;
   return t.mailCoverageCheckedOnly;
 }
 
 function scanSourceStatusClass(status: ScanSourceStatus | undefined) {
   if (status === "parsed") return "mail-source-status mail-source-status-parsed";
+  if (status === "partial") return "mail-source-status mail-source-status-review";
   if (status === "needs_review") return "mail-source-status mail-source-status-review";
   return "mail-source-status mail-source-status-checked";
 }
@@ -1140,6 +1211,26 @@ function applicationStatusLabel(status: ApplicationStatus, language: Language) {
     rejected: t.applicationStatusRejected
   };
   return labels[status];
+}
+
+function resumeImprovementSuggestions(keywords: string[], language: Language) {
+  const t = translations[language];
+  const normalized = keywords.join(" ").toLowerCase();
+  const suggestions: string[] = [];
+  if (/(agent|rag|llm|openai|langchain|大模型|智能体|人工智能)/i.test(normalized)) {
+    suggestions.push(t.resumeProjectAgent);
+  }
+  if (/(docker|cloud|aws|deploy|kubernetes|云)/i.test(normalized)) {
+    suggestions.push(t.resumeProjectDeploy);
+  }
+  if (/(sql|database|data|数据|数据库)/i.test(normalized)) {
+    suggestions.push(t.resumeProjectData);
+  }
+  if (/(react|typescript|frontend|前端)/i.test(normalized)) {
+    suggestions.push(t.resumeProjectFrontend);
+  }
+  suggestions.push(t.resumeProjectKeyword);
+  return Array.from(new Set(suggestions)).slice(0, 4);
 }
 
 function isApplicationFollowUpDue(record: ApplicationRecord) {
@@ -1308,6 +1399,8 @@ function App() {
   const [selectedApplyStatus, setSelectedApplyStatus] = useState<AsyncStatus>("idle");
   const [browserOpenStatus, setBrowserOpenStatus] = useState<AsyncStatus>("idle");
   const [applicationStatusSaveStatus, setApplicationStatusSaveStatus] = useState<AsyncStatus>("idle");
+  const [mailPreviewStatus, setMailPreviewStatus] = useState<Record<string, AsyncStatus>>({});
+  const [mailPreviews, setMailPreviews] = useState<Record<string, MailPreview>>({});
   const [jobInputMode, setJobInputMode] = useState<JobInputMode>(getInitialJobInputMode);
   const [resumeFileName, setResumeFileName] = useState("");
   const [manualJob, setManualJob] = useState<ManualJobForm>({
@@ -1579,6 +1672,55 @@ function App() {
       url: lead.url || "",
       description
     };
+  }
+
+  function mailReviewKey(item: ScanReviewMessage) {
+    return item.message_key || `${item.folder}:${item.uid}`;
+  }
+
+  async function readMailReviewMessage(item: ScanReviewMessage) {
+    const key = mailReviewKey(item);
+    setMailPreviewStatus((current) => ({ ...current, [key]: "running" }));
+    setMessage("");
+    try {
+      const response = await fetchWithTimeout(
+        `${API_BASE}/api/mail/preview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: item.uid, folder: item.folder, max_chars: 8000 })
+        },
+        MAIL_PREVIEW_TIMEOUT_MS
+      );
+      if (!response.ok) throw new Error(await parseApiError(response));
+      const preview = (await response.json()) as MailPreview;
+      if (preview.ok === false) throw new Error(preview.detail || t.mailPreviewError);
+      setMailPreviews((current) => ({ ...current, [key]: preview }));
+      setMailPreviewStatus((current) => ({ ...current, [key]: "success" }));
+      setMessage(t.mailReviewLoaded);
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : t.mailPreviewError;
+      setMailPreviewStatus((current) => ({ ...current, [key]: "error" }));
+      setMessage(friendlyError(rawMessage, t.mailPreviewError));
+    }
+  }
+
+  function useMailPreviewInManualJob(preview: MailPreview) {
+    const firstLead = preview.parsed_leads?.[0];
+    const senderName = preview.sender.split("<")[0].trim();
+    const nextJob = {
+      title: firstLead?.title || manualJob.title || preview.subject.slice(0, 150),
+      company: firstLead?.company || manualJob.company || senderName.slice(0, 150),
+      location: firstLead?.location || manualJob.location || "",
+      url: firstLead?.url || preview.detected_urls?.[0] || manualJob.url,
+      description: preview.text || manualJob.description
+    };
+    setManualJob(nextJob);
+    setJobQuality(clientJobQuality(nextJob));
+    setJobInputMode("manual");
+    setJobLeadNote("");
+    setMessage(t.mailReviewMovedToManual);
+    document.getElementById("manual")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function readJobPreview(targetUrl: string) {
@@ -2136,8 +2278,9 @@ function App() {
     (scanMetadata?.diagnostic_version === 2 ||
       scanSourceCounts.some((source) => typeof source.leads === "number" || Boolean(source.status)));
   const scanAttentionItems = hasSourceDiagnostics
-    ? scanSourceCounts.filter((source) => (source.job_messages ?? 0) > 0 && (source.leads ?? 0) === 0)
+    ? scanSourceCounts.filter((source) => source.status === "needs_review" || source.status === "partial")
     : [];
+  const scanReviewMessages = hasSourceDiagnostics ? scanMetadata?.review_messages ?? [] : [];
   const scanBackfillSources = hasScanMetadata ? compactSourceList(scanMetadata?.backfill_sources, 6) : "";
   const isInitialLoading = state === "loading" && !run;
   const resumeStatusLabel =
@@ -2858,6 +3001,83 @@ function App() {
                         ))}
                       </div>
                     )}
+                    {scanReviewMessages.length > 0 && (
+                      <div className="mail-review-queue mt-3 rounded-md p-3">
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold">{t.mailReviewQueueTitle}</p>
+                            <p className="mt-1 text-xs leading-5 text-muted">{t.mailReviewQueueBody}</p>
+                          </div>
+                          <span className="mail-review-count rounded-md px-2 py-1 text-xs font-bold">
+                            {scanReviewMessages.length}
+                          </span>
+                        </div>
+                        <div className="mt-3 grid gap-2">
+                          {scanReviewMessages.slice(0, 4).map((item) => {
+                            const key = mailReviewKey(item);
+                            const preview = mailPreviews[key];
+                            const status = mailPreviewStatus[key] ?? "idle";
+                            return (
+                              <div key={key} className="mail-review-item rounded-md p-3">
+                                <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className="mail-source-status mail-source-status-review">
+                                        {scanSourceName(item.source_name, language)}
+                                      </span>
+                                      <span className="text-xs font-semibold text-muted">{item.folder}:{item.uid}</span>
+                                    </div>
+                                    <p className="mt-1 break-words text-sm font-semibold">{item.subject}</p>
+                                    <p className="mt-1 truncate text-xs text-muted">{item.sender}</p>
+                                  </div>
+                                  <div className="flex shrink-0 flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => void readMailReviewMessage(item)}
+                                      disabled={status === "running"}
+                                      className="inline-flex h-9 items-center gap-2 rounded-md border border-line bg-white px-3 text-xs font-semibold hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {status === "running" ? <Clock3 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                                      {status === "running" ? t.mailReviewReading : t.mailReviewRead}
+                                    </button>
+                                    {preview && (
+                                      <button
+                                        type="button"
+                                        onClick={() => useMailPreviewInManualJob(preview)}
+                                        className="inline-flex h-9 items-center gap-2 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700"
+                                      >
+                                        <ArrowRight className="h-3.5 w-3.5" />
+                                        {t.mailReviewUseAsJd}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                                {preview && (
+                                  <div className="mail-review-preview mt-3 rounded-md p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-normal text-accent">{t.mailReviewPreviewTitle}</p>
+                                    <p className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap text-xs leading-5 text-muted">
+                                      {preview.text || t.mailReviewNoText}
+                                    </p>
+                                    {preview.parsed_leads?.length ? (
+                                      <p className="mt-2 text-xs font-semibold text-emerald-700">
+                                        {t.mailReviewParsedLeads}: {preview.parsed_leads.map((lead) => `${lead.company} - ${lead.title}`).join(language === "zh" ? "；" : "; ")}
+                                      </p>
+                                    ) : (
+                                      <p className="mt-2 text-xs font-semibold text-amber-700">{t.mailReviewNoParsed}</p>
+                                    )}
+                                    {preview.detected_urls?.length ? (
+                                      <p className="mt-1 break-all text-xs text-muted">
+                                        {t.mailReviewDetectedLinks}: {preview.detected_urls.slice(0, 2).join(" ")}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     {scanBackfillSources && (
                       <p className="mt-3 text-xs leading-5 text-muted">
                         {t.mailCoverageBackfill}: {scanBackfillSources}
@@ -3142,6 +3362,23 @@ function App() {
                           </div>
                         </InfoBlock>
                       </div>
+
+                      <section className="resume-improvement-panel mt-3 rounded-md p-3">
+                        <div className="flex items-start gap-2">
+                          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                          <div>
+                            <p className="text-sm font-semibold">{t.resumeImprovementPlan}</p>
+                            <p className="mt-1 text-xs leading-5 text-muted">{t.resumeImprovementHint}</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 grid gap-2 md:grid-cols-2">
+                          {resumeImprovementSuggestions(selected.missing_keywords, language).map((suggestion) => (
+                            <div key={suggestion} className="resume-improvement-item rounded-md px-3 py-2 text-xs leading-5">
+                              {suggestion}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
                     </section>
                   )}
 

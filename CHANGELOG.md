@@ -4,6 +4,10 @@
 
 ### English
 
+- Added an actionable mail review queue: job-related messages that did not parse into structured leads can now be previewed from the Web UI and moved into the single-JD workflow.
+- Added `/api/mail/preview` for local QQ Mail message previews, detected links, and re-parsing without sending or modifying mail.
+- Improved job-page validation so LinkedIn/company job list and search-result pages are rejected instead of being treated as single JDs.
+- Added resume/project improvement suggestions in the selected-job view, turning missing keywords into concrete portfolio upgrades such as agent/RAG, Docker, SQL tracking, and React polish.
 - Upgraded mail coverage into a scan diagnosis view: each source now shows checked mail, job mail, parsed leads, parsing status, sample subjects, and a warning when job-related mail needs manual review.
 - Added mail-scan coverage metadata to new reports, including checked message count, job-mail count, parsed lead count, source buckets, and targeted platform backfill sources.
 - Added automatic job-page hydration during mailbox scans: the agent now extracts job links from emails, reads the top linked job pages when possible, and regenerates matching/drafts from the fuller JD text while marking blocked links for logged-in browser fallback.
@@ -30,6 +34,10 @@
 
 ### 中文
 
+- 新增可操作的邮件复查队列：看起来和求职有关、但没有解析成结构化岗位的邮件，现在可以在 Web UI 里直接读取摘要，并带到“单个岗位”流程继续处理。
+- 新增 `/api/mail/preview`：本地读取 QQ 邮件摘要、识别链接并重新解析岗位，不发送、不修改邮件。
+- 优化岗位网页校验：LinkedIn / 公司官网的岗位列表页、搜索结果页会被拒绝，不再当成单个 JD 使用。
+- 岗位详情页新增“简历与项目补强”：把缺失关键词转成可执行的项目建议，例如 agent/RAG、Docker、SQL 投递追踪和 React 展示优化。
 - 邮箱覆盖情况升级为扫描诊断：每个来源会显示已检查邮件、求职邮件、解析出的岗位线索、解析状态和邮件示例；如果有求职邮件但没解析出岗位，会直接提示需要复查。
 - 新增邮箱扫描覆盖信息：新生成的报告会记录本次检查了多少邮件、识别出多少求职邮件、解析出多少岗位线索，以及 LinkedIn、SEEK Grad、UNSW / CSA、公司招聘系统等来源分布。
 - 邮箱扫描新增自动读取岗位网页：系统会从邮件中提取岗位链接，优先读取匹配度靠前的岗位页面，能读到完整 JD 就用网页内容重新匹配并生成草稿；被登录或反爬拦截的链接会标记为需要登录浏览器继续读取。
