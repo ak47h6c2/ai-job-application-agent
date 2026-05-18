@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,21 +23,51 @@ from backend.app.services.matcher import rank_job_leads
 from backend.app.tools.qq_mail_mcp_client import QQMailMCPClient
 
 
-JOB_EMAIL_KEYWORDS = (
-    "linkedin",
-    "\u9886\u82f1",
-    "job",
-    "jobs",
+JOB_ALERT_SENDERS = (
+    "jobalerts-noreply@linkedin.com",
+    "jobs-listings@linkedin.com",
+)
+LINKEDIN_NON_JOB_SUBJECT_MARKERS = (
+    "\u6210\u4e3a\u597d\u53cb",
+    "\u65b0\u6d88\u606f",
+    "\u767b\u5f55\u63d0\u9192",
+    "\u767b\u9304\u63d0\u9192",
+    "\u5e10\u53f7\u767b\u5f55",
+    "\u8d26\u53f7\u767b\u5f55",
+    "connection",
+    "message",
+    "login",
+    "security",
+    "password",
+)
+CHINESE_JOB_KEYWORDS = (
     "\u804c\u4f4d",
     "\u62db\u8058",
+    "\u6b63\u5728\u62db\u8058",
+    "\u5b9e\u4e60",
+    "\u5b9e\u4e60\u751f",
+    "\u5de5\u7a0b\u5e08",
+    "\u8f6f\u4ef6\u5de5\u7a0b",
+    "\u5f00\u53d1",
+    "\u6821\u62db",
+)
+ENGLISH_JOB_TERMS = (
+    "job",
+    "jobs",
+    "role",
+    "roles",
+    "career",
+    "careers",
     "recruit",
+    "recruiting",
     "intern",
     "internship",
     "engineer",
+    "engineering",
     "developer",
     "graduate",
-    "51job",
-    "\u524d\u7a0b\u65e0\u5fe7",
+    "hiring",
+    "position",
 )
 
 JobPageReader = Callable[[str], JobUrlPreview]
@@ -56,14 +87,30 @@ class IngestionResult:
 
 
 def is_job_related_message(summary: dict[str, Any]) -> bool:
-    searchable = " ".join(
-        [
-            str(summary.get("subject", "")),
-            str(summary.get("from", "")),
-            str(summary.get("sender", "")),
-        ]
-    ).lower()
-    return any(keyword.lower() in searchable for keyword in JOB_EMAIL_KEYWORDS)
+    subject = str(summary.get("subject", ""))
+    sender = " ".join([str(summary.get("from", "")), str(summary.get("sender", ""))])
+    subject_lower = subject.lower()
+    sender_lower = sender.lower()
+    searchable = f"{subject} {sender}".lower()
+
+    if "linkedin" in sender_lower or "\u9886\u82f1" in sender:
+        if any(marker in subject_lower for marker in LINKEDIN_NON_JOB_SUBJECT_MARKERS):
+            return False
+        if any(sender_marker in sender_lower for sender_marker in JOB_ALERT_SENDERS):
+            return True
+        return has_job_keyword(subject)
+
+    return has_job_keyword(searchable)
+
+
+def has_job_keyword(text: str) -> bool:
+    lowered = text.lower()
+    if any(keyword in text for keyword in CHINESE_JOB_KEYWORDS):
+        return True
+    return any(
+        re.search(rf"(?<![a-z0-9]){re.escape(term)}(?![a-z0-9])", lowered)
+        for term in ENGLISH_JOB_TERMS
+    )
 
 
 def email_summary_from_tool_payload(payload: dict[str, Any], folder: str) -> EmailSummary:
@@ -222,7 +269,14 @@ def scan_qq_mail_for_jobs(
         if not uid:
             continue
         payload = mail_client.read_message(uid=uid, folder=folder, max_chars=max_chars)
-        email_text = str(payload.get("text", ""))
+        email_text = "\n".join(
+            value
+            for value in (
+                f"Subject: {message.get('subject', '')}",
+                str(payload.get("text", "")),
+            )
+            if value
+        )
         source = f"{folder}:{uid}"
         leads.extend(parse_job_email(email_text, source=source))
 

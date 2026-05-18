@@ -69,6 +69,48 @@ class JobEmailParserTests(unittest.TestCase):
         self.assertEqual(leads[0].signals, ())
         self.assertIn("actively hiring", leads[1].signals)
 
+    def test_parse_job_email_extracts_linkedin_chinese_company_hiring_insights(self) -> None:
+        text = """
+        软件工程实习生: Atlassian和亚马逊在您附近招聘了职位
+        过去一周的软件工程实习生职位趋势
+        本周在澳洲招聘的软件工程实习生职位
+        招聘您的职位的公司
+        Atlassian
+        1 新入职员工
+        查看职位
+        https://www.linkedin.com/comm/company/atlassian/jobs?trackingId=abc
+        亚马逊
+        1 新入职员工
+        查看职位
+        https://www.linkedin.com/comm/company/amazon/jobs?trackingId=abc
+        寻找与您相似的会员的公司
+        谷歌
+        软件开发
+        """
+
+        leads = parse_job_email(text, source="sample")
+
+        self.assertEqual(len(leads), 2)
+        self.assertEqual(leads[0].title, "Software Engineering Intern")
+        self.assertEqual(leads[0].company, "Atlassian")
+        self.assertEqual(leads[0].location, "Australia")
+        self.assertEqual(leads[0].url, "https://www.linkedin.com/comm/company/atlassian/jobs")
+        self.assertEqual(leads[1].company, "亚马逊")
+
+    def test_parse_job_email_extracts_linkedin_direct_hiring_subject(self) -> None:
+        text = """
+        Care GP正在招聘Software Engineering Intern (Founding Team)
+        查看职位
+        https://www.linkedin.com/jobs/view/123/?trackingId=abc
+        """
+
+        leads = parse_job_email(text, source="sample")
+
+        self.assertEqual(len(leads), 1)
+        self.assertEqual(leads[0].company, "Care GP")
+        self.assertEqual(leads[0].title, "Software Engineering Intern (Founding Team)")
+        self.assertEqual(leads[0].location, "Location not stated")
+
 
 if __name__ == "__main__":
     unittest.main()

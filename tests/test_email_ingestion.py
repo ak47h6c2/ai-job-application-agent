@@ -41,6 +41,37 @@ class FakeQQMailClient:
         }
 
 
+class SubjectOnlyQQMailClient:
+    def list_messages(self, *, folder: str, since: str, limit: int, candidate_limit: int):
+        return [
+            {
+                "uid": "8427",
+                "subject": "软件工程实习生: Atlassian和亚马逊在您附近招聘了职位",
+                "from": "领英 <messages-noreply@linkedin.com>",
+                "date": "Fri, 08 May 2026 10:00:00 +0000",
+                "seen": False,
+            },
+        ]
+
+    def read_message(self, *, uid: str, folder: str, max_chars: int):
+        return {
+            "text": """
+            过去一周的软件工程实习生职位趋势
+            18
+            本周在澳洲招聘的软件工程实习生职位
+            招聘您的职位的公司
+            Atlassian
+            1 新入职员工
+            查看职位
+            https://www.linkedin.com/comm/company/atlassian/jobs?trackingId=abc
+            亚马逊
+            1 新入职员工
+            查看职位
+            https://www.linkedin.com/comm/company/amazon/jobs?trackingId=abc
+            """,
+        }
+
+
 class EmailIngestionTests(unittest.TestCase):
     def test_is_job_related_message_matches_subject_and_sender(self) -> None:
         self.assertTrue(
@@ -60,6 +91,32 @@ class EmailIngestionTests(unittest.TestCase):
             )
         )
 
+    def test_is_job_related_message_ignores_linkedin_social_and_international_noise(self) -> None:
+        self.assertFalse(
+            is_job_related_message(
+                {
+                    "subject": "您有 1 条新消息",
+                    "from": "领英 <notifications-noreply@linkedin.com>",
+                }
+            )
+        )
+        self.assertFalse(
+            is_job_related_message(
+                {
+                    "subject": "Introducing LIVE in Australia, a community for international students",
+                    "from": "Vic <victor@example.org>",
+                }
+            )
+        )
+        self.assertTrue(
+            is_job_related_message(
+                {
+                    "subject": "软件工程实习生: Atlassian和亚马逊在您附近招聘了职位",
+                    "from": "领英 <messages-noreply@linkedin.com>",
+                }
+            )
+        )
+
     def test_scan_qq_mail_for_jobs_reads_only_job_related_messages(self) -> None:
         result = scan_qq_mail_for_jobs(
             since="2026-05-08",
@@ -71,6 +128,19 @@ class EmailIngestionTests(unittest.TestCase):
         self.assertEqual(len(result.job_messages), 1)
         self.assertEqual(len(result.leads), 1)
         self.assertEqual(result.leads[0].title, "Software Engineer Intern")
+
+    def test_scan_qq_mail_for_jobs_uses_subject_when_parsing_job_alerts(self) -> None:
+        result = scan_qq_mail_for_jobs(
+            since="2026-05-08",
+            client=SubjectOnlyQQMailClient(),
+            auto_read_job_pages=False,
+        )
+
+        self.assertEqual(len(result.job_messages), 1)
+        self.assertEqual(len(result.leads), 2)
+        self.assertEqual(result.leads[0].title, "Software Engineering Intern")
+        self.assertEqual(result.leads[0].company, "Atlassian")
+        self.assertEqual(result.leads[0].location, "Australia")
 
     def test_scan_qq_mail_auto_reads_job_links(self) -> None:
         def fake_reader(url: str) -> JobUrlPreview:
