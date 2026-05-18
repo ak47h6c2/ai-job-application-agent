@@ -337,6 +337,13 @@ const translations = {
     mailCoverageFolder: "Folder",
     mailCoverageBackfill: "Backfill sources",
     mailCoverageEmpty: "No mail coverage data saved for this report.",
+    mailCoverageCountsHint: "checked / job mail / leads",
+    mailCoverageParsed: "parsed",
+    mailCoverageNeedsReview: "needs review",
+    mailCoverageCheckedOnly: "checked only",
+    mailCoverageAttentionTitle: "Needs review",
+    mailCoverageAttentionBody: "These sources had job-related mail, but no structured job lead was parsed. Open the original mail or paste the JD manually if a role is important.",
+    mailCoverageExamples: "Examples",
     downloadReport: "Download report",
     resultJobs: "Shortlisted jobs",
     resultDrafts: "Drafts ready",
@@ -664,6 +671,13 @@ const translations = {
     mailCoverageFolder: "文件夹",
     mailCoverageBackfill: "补扫来源",
     mailCoverageEmpty: "这份旧报告没有保存邮箱覆盖数据。",
+    mailCoverageCountsHint: "已检查 / 求职邮件 / 岗位线索",
+    mailCoverageParsed: "已解析岗位",
+    mailCoverageNeedsReview: "建议复查",
+    mailCoverageCheckedOnly: "仅检查到邮件",
+    mailCoverageAttentionTitle: "需要复查",
+    mailCoverageAttentionBody: "这些来源有求职相关邮件，但没有解析出结构化岗位。重要岗位建议打开原邮件确认，或者把完整 JD 手动粘贴进来。",
+    mailCoverageExamples: "邮件示例",
     downloadReport: "下载报告",
     resultJobs: "推荐岗位",
     resultDrafts: "已生成草稿",
@@ -867,20 +881,32 @@ type Draft = {
   approval_required: boolean;
 };
 
+type ScanSourceStatus = "parsed" | "needs_review" | "checked";
+
 type ScanSourceCount = {
   name: string;
   scanned: number;
   job_messages: number;
+  leads?: number;
+  status?: ScanSourceStatus;
+  sample_subjects?: string[];
 };
 
 type ScanMetadata = {
   folder?: string;
   since?: string;
   scan_strategy?: string;
+  diagnostic_version?: number;
   scanned_count?: number;
   job_message_count?: number;
   lead_count?: number;
   source_counts?: ScanSourceCount[];
+  attention_items?: Array<{
+    name: string;
+    reason: string;
+    job_messages: number;
+    scanned: number;
+  }>;
   backfill_sources?: string[];
 };
 
@@ -1061,6 +1087,19 @@ function scanSourceName(name: string, language: Language) {
     "Other": "其他邮件"
   };
   return names[name] ?? name;
+}
+
+function scanSourceStatusLabel(status: ScanSourceStatus | undefined, language: Language) {
+  const t = translations[language];
+  if (status === "parsed") return t.mailCoverageParsed;
+  if (status === "needs_review") return t.mailCoverageNeedsReview;
+  return t.mailCoverageCheckedOnly;
+}
+
+function scanSourceStatusClass(status: ScanSourceStatus | undefined) {
+  if (status === "parsed") return "mail-source-status mail-source-status-parsed";
+  if (status === "needs_review") return "mail-source-status mail-source-status-review";
+  return "mail-source-status mail-source-status-checked";
 }
 
 function compactSourceList(items: string[] | undefined, limit = 5) {
@@ -2092,6 +2131,13 @@ function App() {
   const scanMetadata = run?.scan_metadata;
   const hasScanMetadata = typeof scanMetadata?.scanned_count === "number";
   const scanSourceCounts = hasScanMetadata ? scanMetadata?.source_counts ?? [] : [];
+  const hasSourceDiagnostics =
+    hasScanMetadata &&
+    (scanMetadata?.diagnostic_version === 2 ||
+      scanSourceCounts.some((source) => typeof source.leads === "number" || Boolean(source.status)));
+  const scanAttentionItems = hasSourceDiagnostics
+    ? scanSourceCounts.filter((source) => (source.job_messages ?? 0) > 0 && (source.leads ?? 0) === 0)
+    : [];
   const scanBackfillSources = hasScanMetadata ? compactSourceList(scanMetadata?.backfill_sources, 6) : "";
   const isInitialLoading = state === "loading" && !run;
   const resumeStatusLabel =
@@ -2770,13 +2816,43 @@ function App() {
                       <ResultMetric label={t.mailCoverageJobMail} value={(scanMetadata?.job_message_count ?? 0).toString()} />
                       <ResultMetric label={t.mailCoverageLeads} value={(scanMetadata?.lead_count ?? 0).toString()} />
                     </div>
+                    {hasSourceDiagnostics && <p className="mt-2 text-xs font-semibold text-muted">{t.mailCoverageCountsHint}</p>}
+                    {scanAttentionItems.length > 0 && (
+                      <div className="mail-coverage-attention mt-3 rounded-md px-3 py-2">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                          <div>
+                            <p className="text-sm font-semibold">{t.mailCoverageAttentionTitle}</p>
+                            <p className="mt-1 text-xs leading-5">{t.mailCoverageAttentionBody}</p>
+                            <p className="mt-1 text-xs font-semibold">
+                              {scanAttentionItems.map((source) => scanSourceName(source.name, language)).join(language === "zh" ? "、" : ", ")}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {scanSourceCounts.length > 0 && (
                       <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                         {scanSourceCounts.slice(0, 6).map((source) => (
                           <div key={source.name} className="mail-source-row rounded-md">
-                            <span className="truncate text-sm font-semibold">{scanSourceName(source.name, language)}</span>
-                            <span className="text-xs text-muted">
+                            <div className="min-w-0">
+                              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                <span className="truncate text-sm font-semibold">{scanSourceName(source.name, language)}</span>
+                                {hasSourceDiagnostics && (
+                                  <span className={scanSourceStatusClass(source.status)}>
+                                    {scanSourceStatusLabel(source.status, language)}
+                                  </span>
+                                )}
+                              </div>
+                              {source.sample_subjects?.length ? (
+                                <p className="mt-1 truncate text-xs text-muted">
+                                  {t.mailCoverageExamples}: {source.sample_subjects[0]}
+                                </p>
+                              ) : null}
+                            </div>
+                            <span className="mail-source-count text-xs text-muted">
                               {source.scanned} / {source.job_messages}
+                              {hasSourceDiagnostics ? ` / ${source.leads ?? 0}` : ""}
                             </span>
                           </div>
                         ))}

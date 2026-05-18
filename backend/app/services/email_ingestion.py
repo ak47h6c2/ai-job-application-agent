@@ -186,43 +186,81 @@ def mail_source_label(message: EmailSummary) -> str:
     return "Other"
 
 
+def mail_message_key(message: EmailSummary) -> str:
+    return f"{message.folder}:{message.uid}"
+
+
+def sample_subject(subject: str, limit: int = 96) -> str:
+    compact = " ".join(subject.split())
+    return compact if len(compact) <= limit else f"{compact[:limit]}..."
+
+
 def build_scan_metadata(
     *,
     folder: str,
     since: str,
     scanned: list[EmailSummary],
     job_messages: list[EmailSummary],
-    lead_count: int,
+    leads: list[JobLead],
 ) -> dict[str, object]:
     scanned_counts: dict[str, int] = {}
     job_counts: dict[str, int] = {}
+    lead_counts: dict[str, int] = {}
+    samples: dict[str, list[str]] = {}
+    source_by_message: dict[str, str] = {}
     for message in scanned:
         label = mail_source_label(message)
         scanned_counts[label] = scanned_counts.get(label, 0) + 1
+        source_by_message[mail_message_key(message)] = label
+        if len(samples.get(label, [])) < 2:
+            samples.setdefault(label, []).append(sample_subject(message.subject))
     for message in job_messages:
         label = mail_source_label(message)
         job_counts[label] = job_counts.get(label, 0) + 1
+    for lead in leads:
+        label = source_by_message.get(lead.source, "Other")
+        lead_counts[label] = lead_counts.get(label, 0) + 1
 
     labels = sorted(
-        scanned_counts,
-        key=lambda label: (job_counts.get(label, 0), scanned_counts[label], label),
+        set(scanned_counts) | set(job_counts) | set(lead_counts),
+        key=lambda label: (lead_counts.get(label, 0), job_counts.get(label, 0), scanned_counts.get(label, 0), label),
         reverse=True,
     )
+    source_counts = []
+    for label in labels:
+        leads_for_source = lead_counts.get(label, 0)
+        job_messages_for_source = job_counts.get(label, 0)
+        status = "parsed" if leads_for_source else "needs_review" if job_messages_for_source else "checked"
+        source_counts.append(
+            {
+                "name": label,
+                "scanned": scanned_counts.get(label, 0),
+                "job_messages": job_messages_for_source,
+                "leads": leads_for_source,
+                "status": status,
+                "sample_subjects": samples.get(label, []),
+            }
+        )
+    attention_items = [
+        {
+            "name": source["name"],
+            "reason": "job_mail_without_leads",
+            "job_messages": source["job_messages"],
+            "scanned": source["scanned"],
+        }
+        for source in source_counts
+        if source["status"] == "needs_review"
+    ]
     return {
         "folder": folder,
         "since": since,
         "scan_strategy": "recent_plus_source_backfill",
+        "diagnostic_version": 2,
         "scanned_count": len(scanned),
         "job_message_count": len(job_messages),
-        "lead_count": lead_count,
-        "source_counts": [
-            {
-                "name": label,
-                "scanned": scanned_counts[label],
-                "job_messages": job_counts.get(label, 0),
-            }
-            for label in labels
-        ],
+        "lead_count": len(leads),
+        "source_counts": source_counts,
+        "attention_items": attention_items,
         "backfill_sources": list(TARGETED_MAIL_FROM_SEARCHES),
     }
 
@@ -495,7 +533,7 @@ def scan_qq_mail_for_jobs(
         since=since,
         scanned=scanned,
         job_messages=job_summaries,
-        lead_count=len(leads),
+        leads=leads,
     )
     result = IngestionResult(
         scanned_messages=scanned,

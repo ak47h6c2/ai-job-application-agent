@@ -474,6 +474,12 @@ select:focus-visible {
   padding: 5px 8px;
 }
 
+.mail-coverage-attention {
+  border: 1px solid rgba(217, 119, 6, 0.24);
+  background: linear-gradient(135deg, rgba(255, 251, 235, 0.92), rgba(255, 255, 255, 0.78));
+  color: #92400e;
+}
+
 .mail-source-row {
   display: flex;
   min-width: 0;
@@ -483,6 +489,35 @@ select:focus-visible {
   border: 1px solid rgba(125, 141, 163, 0.18);
   background: rgba(255, 255, 255, 0.72);
   padding: 9px 10px;
+}
+
+.mail-source-count {
+  flex-shrink: 0;
+  font-weight: 800;
+}
+
+.mail-source-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 7px;
+  padding: 3px 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.mail-source-status-parsed {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.mail-source-status-review {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+}
+
+.mail-source-status-checked {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
 }
 
 .draft-card {

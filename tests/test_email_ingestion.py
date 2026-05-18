@@ -124,6 +124,22 @@ class TargetedSearchQQMailClient:
         return {"text": ""}
 
 
+class UnparsedJobMailClient:
+    def list_messages(self, *, folder: str, since: str, limit: int, candidate_limit: int):
+        return [
+            {
+                "uid": "3100",
+                "subject": "New jobs matching your search",
+                "from": "UNSWConnect <careers@unsw.edu.au>",
+                "date": "Fri, 08 May 2026 10:00:00 +0000",
+                "seen": False,
+            },
+        ]
+
+    def read_message(self, *, uid: str, folder: str, max_chars: int):
+        return {"text": "Open the portal to view roles. No job title, company, or location is included here."}
+
+
 class EmailIngestionTests(unittest.TestCase):
     def test_is_job_related_message_matches_subject_and_sender(self) -> None:
         self.assertTrue(
@@ -206,12 +222,36 @@ class EmailIngestionTests(unittest.TestCase):
         self.assertEqual(result.leads[0].company, "Google")
         self.assertEqual(result.leads[0].title, "Software Engineering Internship, Summer 2026/27")
         self.assertEqual(result.scan_metadata["scanned_count"], 2)
+        self.assertEqual(result.scan_metadata["diagnostic_version"], 2)
         self.assertEqual(result.scan_metadata["job_message_count"], 1)
         self.assertEqual(result.scan_metadata["lead_count"], 1)
         self.assertIn("gradconnection", result.scan_metadata["backfill_sources"])
-        self.assertIn(
-            {"name": "SEEK Grad / GradConnection", "scanned": 1, "job_messages": 1},
-            result.scan_metadata["source_counts"],
+        grad_source = next(
+            source
+            for source in result.scan_metadata["source_counts"]
+            if source["name"] == "SEEK Grad / GradConnection"
+        )
+        self.assertEqual(grad_source["scanned"], 1)
+        self.assertEqual(grad_source["job_messages"], 1)
+        self.assertEqual(grad_source["leads"], 1)
+        self.assertEqual(grad_source["status"], "parsed")
+
+    def test_scan_metadata_flags_job_mail_without_parsed_leads(self) -> None:
+        result = scan_qq_mail_for_jobs(
+            since="2026-05-08",
+            client=UnparsedJobMailClient(),
+            auto_read_job_pages=False,
+        )
+
+        self.assertEqual(len(result.job_messages), 1)
+        self.assertEqual(len(result.leads), 0)
+        unsw_source = result.scan_metadata["source_counts"][0]
+        self.assertEqual(unsw_source["name"], "UNSW / CSA")
+        self.assertEqual(unsw_source["status"], "needs_review")
+        self.assertEqual(unsw_source["sample_subjects"], ["New jobs matching your search"])
+        self.assertEqual(
+            result.scan_metadata["attention_items"],
+            [{"name": "UNSW / CSA", "reason": "job_mail_without_leads", "job_messages": 1, "scanned": 1}],
         )
 
     def test_scan_qq_mail_auto_reads_job_links(self) -> None:

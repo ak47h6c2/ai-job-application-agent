@@ -4,6 +4,7 @@
 
 ### English
 
+- Upgraded mail coverage into a scan diagnosis view: each source now shows checked mail, job mail, parsed leads, parsing status, sample subjects, and a warning when job-related mail needs manual review.
 - Added mail-scan coverage metadata to new reports, including checked message count, job-mail count, parsed lead count, source buckets, and targeted platform backfill sources.
 - Added automatic job-page hydration during mailbox scans: the agent now extracts job links from emails, reads the top linked job pages when possible, and regenerates matching/drafts from the fuller JD text while marking blocked links for logged-in browser fallback.
 - Reworked the Web UI into a cleaner product workbench: tighter shell layout, calmer visual hierarchy, clearer command header, and compact application rows that expand only when the user wants to edit them.
@@ -29,8 +30,8 @@
 
 ### 中文
 
+- 邮箱覆盖情况升级为扫描诊断：每个来源会显示已检查邮件、求职邮件、解析出的岗位线索、解析状态和邮件示例；如果有求职邮件但没解析出岗位，会直接提示需要复查。
 - 新增邮箱扫描覆盖信息：新生成的报告会记录本次检查了多少邮件、识别出多少求职邮件、解析出多少岗位线索，以及 LinkedIn、SEEK Grad、UNSW / CSA、公司招聘系统等来源分布。
-
 - 邮箱扫描新增自动读取岗位网页：系统会从邮件中提取岗位链接，优先读取匹配度靠前的岗位页面，能读到完整 JD 就用网页内容重新匹配并生成草稿；被登录或反爬拦截的链接会标记为需要登录浏览器继续读取。
 - 重构 Web UI 为更清爽的求职工作台：页面壳层更紧凑，视觉层级更明确，顶部主操作更突出，投递记录默认变成可扫读的紧凑行，点击后再展开编辑。
 - 修复桌面端应用壳滚动问题：右侧主工作区现在独立滚动，左侧导航保持固定。
