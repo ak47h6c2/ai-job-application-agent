@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -125,6 +125,7 @@ class IngestionResult:
     job_page_read_attempts: int = 0
     job_page_read_successes: int = 0
     job_page_read_failures: int = 0
+    scan_metadata: dict[str, object] = field(default_factory=dict)
 
 
 def is_job_related_message(summary: dict[str, Any]) -> bool:
@@ -163,6 +164,67 @@ def email_summary_from_tool_payload(payload: dict[str, Any], folder: str) -> Ema
         folder=folder,
         seen=bool(payload.get("seen", False)),
     )
+
+
+def mail_source_label(message: EmailSummary) -> str:
+    searchable = f"{message.subject} {message.sender}".lower()
+    if "linkedin" in searchable or "\u9886\u82f1" in searchable:
+        return "LinkedIn"
+    if "gradconnection" in searchable or "seek grad" in searchable:
+        return "SEEK Grad / GradConnection"
+    if "unsw" in searchable or "csa" in searchable:
+        return "UNSW / CSA"
+    if any(marker in searchable for marker in ("careerhub", "prosple", "handshake")):
+        return "Career platforms"
+    if any(
+        marker in searchable
+        for marker in ("workday", "greenhouse", "lever", "smartrecruiters", "successfactors", "ashby")
+    ):
+        return "Company ATS"
+    if any(marker in searchable for marker in ("career", "careers", "recruit")):
+        return "Recruiting mail"
+    return "Other"
+
+
+def build_scan_metadata(
+    *,
+    folder: str,
+    since: str,
+    scanned: list[EmailSummary],
+    job_messages: list[EmailSummary],
+    lead_count: int,
+) -> dict[str, object]:
+    scanned_counts: dict[str, int] = {}
+    job_counts: dict[str, int] = {}
+    for message in scanned:
+        label = mail_source_label(message)
+        scanned_counts[label] = scanned_counts.get(label, 0) + 1
+    for message in job_messages:
+        label = mail_source_label(message)
+        job_counts[label] = job_counts.get(label, 0) + 1
+
+    labels = sorted(
+        scanned_counts,
+        key=lambda label: (job_counts.get(label, 0), scanned_counts[label], label),
+        reverse=True,
+    )
+    return {
+        "folder": folder,
+        "since": since,
+        "scan_strategy": "recent_plus_source_backfill",
+        "scanned_count": len(scanned),
+        "job_message_count": len(job_messages),
+        "lead_count": lead_count,
+        "source_counts": [
+            {
+                "name": label,
+                "scanned": scanned_counts[label],
+                "job_messages": job_counts.get(label, 0),
+            }
+            for label in labels
+        ],
+        "backfill_sources": list(TARGETED_MAIL_FROM_SEARCHES),
+    }
 
 
 def merge_message_payloads(messages: list[dict[str, Any]], folder: str) -> list[dict[str, Any]]:
@@ -259,6 +321,7 @@ def serialize_ingestion_result(result: IngestionResult) -> dict[str, object]:
             "succeeded": result.job_page_read_successes,
             "failed": result.job_page_read_failures,
         },
+        "scan_metadata": result.scan_metadata,
     }
 
 
@@ -427,6 +490,13 @@ def scan_qq_mail_for_jobs(
         )
         ranked = rank_job_leads(leads, profile)
     analyses = analyze_ranked_leads(ranked, resume_index) if resume_index else None
+    scan_metadata = build_scan_metadata(
+        folder=folder,
+        since=since,
+        scanned=scanned,
+        job_messages=job_summaries,
+        lead_count=len(leads),
+    )
     result = IngestionResult(
         scanned_messages=scanned,
         job_messages=job_summaries,
@@ -437,6 +507,7 @@ def scan_qq_mail_for_jobs(
         job_page_read_attempts=page_attempts,
         job_page_read_successes=page_successes,
         job_page_read_failures=page_failures,
+        scan_metadata=scan_metadata,
     )
     if output_path:
         save_ingestion_result(result, output_path)

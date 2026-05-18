@@ -460,6 +460,31 @@ select:focus-visible {
   animation: chip-in 460ms ease both;
 }
 
+.mail-coverage-card {
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.84), rgba(244, 250, 255, 0.78)),
+    linear-gradient(90deg, rgba(15, 138, 122, 0.08), transparent);
+}
+
+.mail-coverage-pill {
+  border: 1px solid rgba(125, 141, 163, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 5px 8px;
+}
+
+.mail-source-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(125, 141, 163, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 9px 10px;
+}
+
 .draft-card {
   border: 1px solid rgba(113, 128, 150, 0.2);
   background:

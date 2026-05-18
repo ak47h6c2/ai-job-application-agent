@@ -328,6 +328,15 @@ const translations = {
     showLessRuns: "Show less",
     currentResult: "Current result",
     currentResultBody: "This is the report currently open on screen. To check newer mail, run a new scan above; to compare older work, open History below.",
+    mailCoverageTitle: "Mail coverage",
+    mailCoverageBody: "Shows what this scan actually checked, including recent mail and targeted platform backfill.",
+    mailCoverageScanned: "checked",
+    mailCoverageJobMail: "job mail",
+    mailCoverageLeads: "job leads",
+    mailCoverageSince: "Since",
+    mailCoverageFolder: "Folder",
+    mailCoverageBackfill: "Backfill sources",
+    mailCoverageEmpty: "No mail coverage data saved for this report.",
     downloadReport: "Download report",
     resultJobs: "Shortlisted jobs",
     resultDrafts: "Drafts ready",
@@ -646,6 +655,15 @@ const translations = {
     showLessRuns: "收起历史",
     currentResult: "当前结果",
     currentResultBody: "这里显示的是当前打开的报告，可能是刚生成的，也可能是从历史里打开的。想看更新邮件，请回到上方重新扫描；想对比旧结果，请看下方历史。",
+    mailCoverageTitle: "邮箱覆盖情况",
+    mailCoverageBody: "这里显示本次到底扫了哪些来源：包括最近邮件，也包括求职平台发件人的补扫。",
+    mailCoverageScanned: "已检查",
+    mailCoverageJobMail: "求职邮件",
+    mailCoverageLeads: "岗位线索",
+    mailCoverageSince: "起始日期",
+    mailCoverageFolder: "文件夹",
+    mailCoverageBackfill: "补扫来源",
+    mailCoverageEmpty: "这份旧报告没有保存邮箱覆盖数据。",
     downloadReport: "下载报告",
     resultJobs: "推荐岗位",
     resultDrafts: "已生成草稿",
@@ -849,6 +867,23 @@ type Draft = {
   approval_required: boolean;
 };
 
+type ScanSourceCount = {
+  name: string;
+  scanned: number;
+  job_messages: number;
+};
+
+type ScanMetadata = {
+  folder?: string;
+  since?: string;
+  scan_strategy?: string;
+  scanned_count?: number;
+  job_message_count?: number;
+  lead_count?: number;
+  source_counts?: ScanSourceCount[];
+  backfill_sources?: string[];
+};
+
 type AgentRun = {
   id: string;
   goal: string;
@@ -856,6 +891,7 @@ type AgentRun = {
   selected_jobs: Analysis[];
   drafts: Draft[];
   output_dir: string;
+  scan_metadata?: ScanMetadata;
   external_actions_blocked: boolean;
 };
 
@@ -1011,6 +1047,27 @@ function displayRunId(id: string, language: Language) {
 
 function reasonName(reason: string, language: Language) {
   return reasonLabels[language][reason.toLowerCase()] ?? reason;
+}
+
+function scanSourceName(name: string, language: Language) {
+  if (language !== "zh") return name;
+  const names: Record<string, string> = {
+    "LinkedIn": "LinkedIn / 领英",
+    "SEEK Grad / GradConnection": "SEEK Grad / GradConnection",
+    "UNSW / CSA": "UNSW / CSA",
+    "Career platforms": "其他求职平台",
+    "Company ATS": "公司招聘系统",
+    "Recruiting mail": "招聘邮件",
+    "Other": "其他邮件"
+  };
+  return names[name] ?? name;
+}
+
+function compactSourceList(items: string[] | undefined, limit = 5) {
+  const values = (items ?? []).filter(Boolean);
+  if (!values.length) return "";
+  const shown = values.slice(0, limit).join(", ");
+  return values.length > limit ? `${shown} +${values.length - limit}` : shown;
 }
 
 function joinList(items: string[] | undefined, language: Language) {
@@ -2032,6 +2089,10 @@ function App() {
 
   const visibleRuns = showAllRuns ? runs : runs.slice(0, 4);
   const currentRunSummary = run ? runs.find((item) => item.id === run.id) : undefined;
+  const scanMetadata = run?.scan_metadata;
+  const hasScanMetadata = typeof scanMetadata?.scanned_count === "number";
+  const scanSourceCounts = hasScanMetadata ? scanMetadata?.source_counts ?? [] : [];
+  const scanBackfillSources = hasScanMetadata ? compactSourceList(scanMetadata?.backfill_sources, 6) : "";
   const isInitialLoading = state === "loading" && !run;
   const resumeStatusLabel =
     uploadStatus === "running"
@@ -2686,6 +2747,48 @@ function App() {
                   <Download className="h-4 w-4" />
                   {t.downloadReport}
                 </button>
+              </div>
+              <div className="mail-coverage-card mt-4 rounded-md p-3">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">{t.mailCoverageTitle}</p>
+                    <p className="mt-1 max-w-2xl text-xs leading-5 text-muted">
+                      {hasScanMetadata ? t.mailCoverageBody : t.mailCoverageEmpty}
+                    </p>
+                  </div>
+                  {hasScanMetadata && (
+                    <div className="flex flex-wrap gap-1.5 text-xs font-semibold text-muted">
+                      {scanMetadata?.folder && <span className="mail-coverage-pill">{t.mailCoverageFolder}: {scanMetadata.folder}</span>}
+                      {scanMetadata?.since && <span className="mail-coverage-pill">{t.mailCoverageSince}: {scanMetadata.since}</span>}
+                    </div>
+                  )}
+                </div>
+                {hasScanMetadata && (
+                  <>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      <ResultMetric label={t.mailCoverageScanned} value={(scanMetadata?.scanned_count ?? 0).toString()} />
+                      <ResultMetric label={t.mailCoverageJobMail} value={(scanMetadata?.job_message_count ?? 0).toString()} />
+                      <ResultMetric label={t.mailCoverageLeads} value={(scanMetadata?.lead_count ?? 0).toString()} />
+                    </div>
+                    {scanSourceCounts.length > 0 && (
+                      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                        {scanSourceCounts.slice(0, 6).map((source) => (
+                          <div key={source.name} className="mail-source-row rounded-md">
+                            <span className="truncate text-sm font-semibold">{scanSourceName(source.name, language)}</span>
+                            <span className="text-xs text-muted">
+                              {source.scanned} / {source.job_messages}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {scanBackfillSources && (
+                      <p className="mt-3 text-xs leading-5 text-muted">
+                        {t.mailCoverageBackfill}: {scanBackfillSources}
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
               <div className="mt-4 grid gap-2 md:grid-cols-3">
                 <a className="next-step-link rounded-md px-3 py-2" href="#jobs">

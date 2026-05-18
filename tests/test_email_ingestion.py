@@ -205,6 +205,14 @@ class EmailIngestionTests(unittest.TestCase):
         self.assertEqual(len(result.job_messages), 1)
         self.assertEqual(result.leads[0].company, "Google")
         self.assertEqual(result.leads[0].title, "Software Engineering Internship, Summer 2026/27")
+        self.assertEqual(result.scan_metadata["scanned_count"], 2)
+        self.assertEqual(result.scan_metadata["job_message_count"], 1)
+        self.assertEqual(result.scan_metadata["lead_count"], 1)
+        self.assertIn("gradconnection", result.scan_metadata["backfill_sources"])
+        self.assertIn(
+            {"name": "SEEK Grad / GradConnection", "scanned": 1, "job_messages": 1},
+            result.scan_metadata["source_counts"],
+        )
 
     def test_scan_qq_mail_auto_reads_job_links(self) -> None:
         def fake_reader(url: str) -> JobUrlPreview:

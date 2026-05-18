@@ -155,6 +155,7 @@ class AgentRunReport:
     selected_jobs: tuple[JobApplicationAnalysis, ...]
     drafts: tuple[ApplicationDraft, ...]
     output_dir: str
+    scan_metadata: dict[str, object] = field(default_factory=dict)
     external_actions_blocked: bool = True
 
     def to_dict(self) -> dict[str, object]:
@@ -164,5 +165,6 @@ class AgentRunReport:
             "selected_jobs": [job.to_dict() for job in self.selected_jobs],
             "drafts": [draft.to_dict() for draft in self.drafts],
             "output_dir": self.output_dir,
+            "scan_metadata": self.scan_metadata,
             "external_actions_blocked": self.external_actions_blocked,
         }

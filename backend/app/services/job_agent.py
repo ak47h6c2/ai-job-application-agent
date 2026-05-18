@@ -167,6 +167,7 @@ def run_job_application_agent(
         selected_jobs=selected,
         drafts=drafts,
         output_dir=str(output_dir),
+        scan_metadata=ingestion.scan_metadata,
         external_actions_blocked=True,
     )
     save_agent_run(report, output_dir, language)
