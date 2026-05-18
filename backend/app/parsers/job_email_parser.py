@@ -51,10 +51,24 @@ def strip_subject_prefix(line: str) -> str:
     return line
 
 
+def has_title_keyword(line: str) -> bool:
+    lowered = line.lower()
+    return any(
+        re.search(r"(?<![a-z0-9])ai(?![a-z0-9])", lowered)
+        if keyword == "ai"
+        else keyword in lowered
+        for keyword in TITLE_KEYWORDS
+    )
+
+
 def looks_like_title(line: str) -> bool:
     if URL_RE.search(line):
         return False
     if line.lower().startswith("subject:"):
+        return False
+    if line.lower().startswith(("role:", "who:", "where:", "what:", "the skills:", "application deadline:")):
+        return False
+    if re.search(r"\bis looking for\b", line.lower()):
         return False
     if line.startswith("\u804c\u4f4d\u8ba2\u9605:") or line.startswith("\u804c\u4f4d\u8ba2\u9605\uff1a"):
         return False
@@ -62,9 +76,8 @@ def looks_like_title(line: str) -> bool:
         return False
     if "\u804c\u4f4d\u8d8b\u52bf" in line or re.search(r"\u672c\u5468\u5728.+?\u62db\u8058\u7684.+?\u804c\u4f4d", line):
         return False
-    lowered = line.lower()
     return (
-        any(keyword in lowered for keyword in TITLE_KEYWORDS)
+        has_title_keyword(line)
         or any(keyword in line for keyword in CHINESE_TITLE_KEYWORDS)
     ) and len(line) <= 120
 
@@ -306,6 +319,106 @@ def parse_linkedin_subject_hiring_alerts(
             )
 
 
+def extract_subject(lines: list[str]) -> str:
+    for line in lines[:8]:
+        if line.lower().startswith("subject:"):
+            return strip_subject_prefix(line)
+    return ""
+
+
+def infer_company_from_subject(subject: str) -> str:
+    patterns = (
+        r"(?P<company>[A-Z][A-Za-z0-9& .'-]+?)\s+invites you to join",
+        r"(?P<company>[A-Z][A-Za-z0-9& .'-]+?)\s+is hiring",
+        r"apply for (?P<company>[A-Z][A-Za-z0-9& .'-]+?)(?:'s|\u2019s)\s+internship",
+        r"(?P<company>[A-Z][A-Za-z0-9& .'-]+?)(?:'s|\u2019s)\s+\d{4}",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, subject)
+        if match:
+            return normalize_line(match.group("company"))
+    return ""
+
+
+def infer_company_from_body(lines: list[str]) -> str:
+    for line in lines[:12]:
+        match = re.match(r"(?P<company>[A-Z][A-Za-z0-9& .'-]+?)\s+is looking for", line)
+        if match:
+            return normalize_line(match.group("company"))
+    return ""
+
+
+def infer_gradconnection_location(lines: list[str]) -> str:
+    for line in lines:
+        if line.lower().startswith("where:"):
+            value = line.split(":", 1)[1]
+            lowered = value.lower()
+            if "sydney" in lowered:
+                return "Sydney, NSW"
+            if "melbourne" in lowered:
+                return "Melbourne, VIC"
+            if "brisbane" in lowered:
+                return "Brisbane, QLD"
+            if "perth" in lowered:
+                return "Perth, WA"
+            if "australia" in lowered:
+                return "Australia"
+            return normalize_location_value(value)
+    return "Location not stated"
+
+
+def parse_gradconnection_alerts(
+    lines: list[str],
+    source: str,
+    leads: list[JobLead],
+    seen: set[tuple[str, str, str]],
+) -> None:
+    searchable = "\n".join(lines[:30]).lower()
+    if "seek grad team" not in searchable and "gradconnection" not in searchable:
+        return
+
+    subject = extract_subject(lines)
+    company = infer_company_from_subject(subject) or infer_company_from_body(lines)
+    if not company:
+        return
+
+    location = infer_gradconnection_location(lines)
+    titles: list[tuple[str, int]] = []
+    for index, line in enumerate(lines):
+        if line.lower().startswith("role:"):
+            title = normalize_line(line.split(":", 1)[1])
+            if title:
+                titles.append((title, index))
+
+    apply_index = next((index for index, line in enumerate(lines) if line.lower() in {"apply now", "ready to apply?"}), None)
+    if apply_index is not None:
+        for index in range(apply_index + 1, min(len(lines), apply_index + 8)):
+            line = lines[index]
+            if line.lower().startswith(("good luck", "the seek grad team", "visit ")):
+                break
+            if looks_like_title(line):
+                titles.append((line, index))
+
+    if not titles:
+        subject_title_match = re.search(r"join their (?P<title>.+?)(?:!|$)", subject)
+        if subject_title_match:
+            titles.append((normalize_line(subject_title_match.group("title")), 0))
+
+    for title, index in titles:
+        block_end = min(len(lines), index + 12)
+        add_lead(
+            leads,
+            seen,
+            title=title,
+            company=company,
+            location=location,
+            source=source,
+            url=extract_url(lines, index, block_end),
+            signals=("SEEK Grad / GradConnection alert",),
+            raw_excerpt="\n".join(lines[max(0, index - 3) : block_end]),
+        )
+
+
 def has_job_shape(lines: list[str], index: int) -> bool:
     if not looks_like_title(lines[index]):
         return False
@@ -328,9 +441,14 @@ def find_block_end(lines: list[str], start_index: int) -> int:
 def extract_url(lines: list[str], start_index: int, end_index: int) -> str:
     for line in lines[start_index:end_index]:
         match = URL_RE.search(line)
-        if match:
+        if match and not should_skip_url(match.group(0)):
             return clean_url(match.group(0))
     return ""
+
+
+def should_skip_url(url: str) -> bool:
+    lowered = url.lower()
+    return any(marker in lowered for marker in ("unsubscribe", "emailunsub", "/help/", "securityhelp"))
 
 
 def clean_url(url: str) -> str:
@@ -391,5 +509,6 @@ def parse_job_email(text: str, source: str = "email") -> list[JobLead]:
 
     parse_linkedin_company_hiring_insights(lines, source, leads, seen)
     parse_linkedin_subject_hiring_alerts(lines, source, leads, seen)
+    parse_gradconnection_alerts(lines, source, leads, seen)
 
     return leads

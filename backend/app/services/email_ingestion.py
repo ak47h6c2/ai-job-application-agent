@@ -42,6 +42,9 @@ LINKEDIN_NON_JOB_SUBJECT_MARKERS = (
 )
 CHINESE_JOB_KEYWORDS = (
     "\u804c\u4f4d",
+    "\u804c\u4e1a\u673a\u4f1a",
+    "\u6c42\u804c",
+    "\u5c97\u4f4d",
     "\u62db\u8058",
     "\u6b63\u5728\u62db\u8058",
     "\u5b9e\u4e60",
@@ -50,6 +53,7 @@ CHINESE_JOB_KEYWORDS = (
     "\u8f6f\u4ef6\u5de5\u7a0b",
     "\u5f00\u53d1",
     "\u6821\u62db",
+    "\u5185\u63a8",
 )
 ENGLISH_JOB_TERMS = (
     "job",
@@ -66,8 +70,45 @@ ENGLISH_JOB_TERMS = (
     "engineering",
     "developer",
     "graduate",
+    "graduate program",
     "hiring",
     "position",
+)
+TARGETED_MAIL_FROM_SEARCHES = (
+    "gradconnection",
+    "seek",
+    "career",
+    "careers",
+    "recruit",
+    "unsw",
+    "connect",
+    "careerhub",
+    "prosple",
+    "handshake",
+    "workday",
+    "greenhouse",
+    "lever",
+    "smartrecruiters",
+    "successfactors",
+    "ashby",
+)
+TARGETED_MAIL_SUBJECT_SEARCHES = (
+    "internship",
+    "intern",
+    "graduate",
+    "graduate program",
+    "job",
+    "jobs",
+    "career",
+    "hiring",
+    "recruit",
+    "\u804c\u4e1a",
+    "\u804c\u4e1a\u673a\u4f1a",
+    "\u6c42\u804c",
+    "\u62db\u8058",
+    "\u5b9e\u4e60",
+    "\u5c97\u4f4d",
+    "\u5185\u63a8",
 )
 
 JobPageReader = Callable[[str], JobUrlPreview]
@@ -122,6 +163,87 @@ def email_summary_from_tool_payload(payload: dict[str, Any], folder: str) -> Ema
         folder=folder,
         seen=bool(payload.get("seen", False)),
     )
+
+
+def merge_message_payloads(messages: list[dict[str, Any]], folder: str) -> list[dict[str, Any]]:
+    unique: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for message in messages:
+        uid = str(message.get("uid", ""))
+        message_folder = str(message.get("folder") or folder)
+        key = (message_folder, uid)
+        if not uid or key in seen:
+            continue
+        seen.add(key)
+        unique.append(message)
+    return unique
+
+
+def collect_mail_scan_pool(
+    mail_client: Any,
+    *,
+    folder: str,
+    since: str,
+    limit: int,
+    candidate_limit: int,
+) -> list[dict[str, Any]]:
+    list_job_scan_pool = getattr(mail_client, "list_job_scan_pool", None)
+    if callable(list_job_scan_pool):
+        try:
+            return merge_message_payloads(
+                list_job_scan_pool(
+                    folder=folder,
+                    since=since,
+                    limit=limit,
+                    candidate_limit=candidate_limit,
+                    from_terms=TARGETED_MAIL_FROM_SEARCHES,
+                    subject_terms=TARGETED_MAIL_SUBJECT_SEARCHES,
+                ),
+                folder,
+            )
+        except Exception:
+            pass
+
+    messages = mail_client.list_messages(
+        folder=folder,
+        since=since,
+        limit=limit,
+        candidate_limit=candidate_limit,
+    )
+
+    search_messages = getattr(mail_client, "search_messages", None)
+    if not callable(search_messages):
+        return merge_message_payloads(messages, folder)
+
+    targeted_limit = min(max(limit, 50), 100)
+    for sender in TARGETED_MAIL_FROM_SEARCHES:
+        try:
+            messages.extend(
+                search_messages(
+                    folder=folder,
+                    since=since,
+                    limit=targeted_limit,
+                    candidate_limit=candidate_limit,
+                    from_contains=sender,
+                )
+            )
+        except Exception:
+            continue
+    for subject in TARGETED_MAIL_SUBJECT_SEARCHES:
+        try:
+            messages.extend(
+                search_messages(
+                    folder=folder,
+                    since=since,
+                    limit=targeted_limit,
+                    candidate_limit=candidate_limit,
+                    subject_contains=subject,
+                )
+            )
+        except Exception:
+            continue
+
+    return merge_message_payloads(messages, folder)
 
 
 def serialize_ingestion_result(result: IngestionResult) -> dict[str, object]:
@@ -253,7 +375,8 @@ def scan_qq_mail_for_jobs(
     job_page_reader: JobPageReader | None = None,
 ) -> IngestionResult:
     mail_client = client or QQMailMCPClient()
-    raw_messages = mail_client.list_messages(
+    raw_messages = collect_mail_scan_pool(
+        mail_client,
         folder=folder,
         since=since,
         limit=limit,
@@ -264,11 +387,22 @@ def scan_qq_mail_for_jobs(
     job_summaries = [email_summary_from_tool_payload(message, folder) for message in job_candidates]
 
     leads: list[JobLead] = []
+    bulk_payloads: dict[str, dict[str, Any]] = {}
+    read_messages_bulk = getattr(mail_client, "read_messages_bulk", None)
+    if callable(read_messages_bulk):
+        try:
+            bulk_payloads = read_messages_bulk(
+                uids=[str(message.get("uid", "")) for message in job_candidates if message.get("uid")],
+                folder=folder,
+                max_chars=max_chars,
+            )
+        except Exception:
+            bulk_payloads = {}
     for message in job_candidates:
         uid = str(message.get("uid", ""))
         if not uid:
             continue
-        payload = mail_client.read_message(uid=uid, folder=folder, max_chars=max_chars)
+        payload = bulk_payloads.get(uid) or mail_client.read_message(uid=uid, folder=folder, max_chars=max_chars)
         email_text = "\n".join(
             value
             for value in (

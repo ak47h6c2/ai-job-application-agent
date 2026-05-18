@@ -72,6 +72,58 @@ class SubjectOnlyQQMailClient:
         }
 
 
+class TargetedSearchQQMailClient:
+    def list_messages(self, *, folder: str, since: str, limit: int, candidate_limit: int):
+        return [
+            {
+                "uid": "9000",
+                "subject": "Receipt from a shop",
+                "from": "Shop <promo@example.com>",
+                "date": "Thu, 23 Apr 2026 02:00:00 +0000",
+                "seen": False,
+            }
+        ]
+
+    def search_messages(
+        self,
+        *,
+        folder: str,
+        since: str,
+        limit: int,
+        candidate_limit: int,
+        from_contains: str = "",
+        subject_contains: str = "",
+    ):
+        if from_contains == "gradconnection":
+            return [
+                {
+                    "uid": "7215",
+                    "subject": "Google invites you to join their Software Engineering Internship!",
+                    "from": "SEEK Grad <mail@gradconnection.com>",
+                    "date": "Thu, 23 Apr 2026 01:20:51 +0000",
+                    "seen": False,
+                }
+            ]
+        return []
+
+    def read_message(self, *, uid: str, folder: str, max_chars: int):
+        if uid == "7215":
+            return {
+                "text": """
+                Hi Cheng,
+                Google is looking for curious students to join our Software Engineering Internship program in Sydney.
+                The Details
+                Role: Software Engineering Internship, Summer 2026/27
+                Where: Our Google Sydney HQ.
+                Apply Now
+                Good Luck!
+                The SEEK Grad Team
+                Visit https://au.gradconnection.com/unsubscribe/example to unsubscribe from the mailing list
+                """,
+            }
+        return {"text": ""}
+
+
 class EmailIngestionTests(unittest.TestCase):
     def test_is_job_related_message_matches_subject_and_sender(self) -> None:
         self.assertTrue(
@@ -141,6 +193,18 @@ class EmailIngestionTests(unittest.TestCase):
         self.assertEqual(result.leads[0].title, "Software Engineering Intern")
         self.assertEqual(result.leads[0].company, "Atlassian")
         self.assertEqual(result.leads[0].location, "Australia")
+
+    def test_scan_qq_mail_for_jobs_includes_targeted_platform_search_results(self) -> None:
+        result = scan_qq_mail_for_jobs(
+            since="2026-04-18",
+            client=TargetedSearchQQMailClient(),
+            auto_read_job_pages=False,
+        )
+
+        self.assertEqual(len(result.scanned_messages), 2)
+        self.assertEqual(len(result.job_messages), 1)
+        self.assertEqual(result.leads[0].company, "Google")
+        self.assertEqual(result.leads[0].title, "Software Engineering Internship, Summer 2026/27")
 
     def test_scan_qq_mail_auto_reads_job_links(self) -> None:
         def fake_reader(url: str) -> JobUrlPreview:

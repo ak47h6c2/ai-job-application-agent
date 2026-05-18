@@ -111,6 +111,51 @@ class JobEmailParserTests(unittest.TestCase):
         self.assertEqual(leads[0].title, "Software Engineering Intern (Founding Team)")
         self.assertEqual(leads[0].location, "Location not stated")
 
+    def test_parse_job_email_extracts_seek_grad_role_details(self) -> None:
+        text = """
+        Subject: Google invites you to join their Software Engineering Internship!
+        Hi Cheng,
+        Google is looking for curious, driven students to join our Software Engineering Internship program in Sydney.
+        The Details
+        Role: Software Engineering Internship, Summer 2026/27
+        Who: Students in a BS, MS, or PhD program.
+        Where: Our Google Sydney HQ.
+        Application Deadline: May 8, 2026.
+        Apply Now
+        Good Luck!
+        The SEEK Grad Team
+        Visit https://au.gradconnection.com/unsubscribe/example to unsubscribe from the mailing list
+        """
+
+        leads = parse_job_email(text, source="sample")
+
+        self.assertEqual(len(leads), 1)
+        self.assertEqual(leads[0].company, "Google")
+        self.assertEqual(leads[0].title, "Software Engineering Internship, Summer 2026/27")
+        self.assertEqual(leads[0].location, "Sydney, NSW")
+        self.assertEqual(leads[0].url, "")
+
+    def test_parse_job_email_extracts_seek_grad_multiple_internship_titles(self) -> None:
+        text = """
+        Subject: Last chance! You’ve been selected to apply for Optiver’s internship roles
+        Applications close soon for Optiver's 2026/27 Summer Internships.
+        Apply now
+        Quantitative Trading Internship
+        Quantitative Researcher Internship
+        Software Developer Internship
+        Good Luck!
+        The SEEK Grad Team
+        """
+
+        leads = parse_job_email(text, source="sample")
+
+        self.assertEqual([lead.title for lead in leads], [
+            "Quantitative Trading Internship",
+            "Quantitative Researcher Internship",
+            "Software Developer Internship",
+        ])
+        self.assertTrue(all(lead.company == "Optiver" for lead in leads))
+
 
 if __name__ == "__main__":
     unittest.main()
