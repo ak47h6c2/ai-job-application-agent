@@ -118,6 +118,12 @@ async function handle(message: Request, sender: chrome.runtime.MessageSender): P
     case "focus-field":
       if (tabId !== undefined) await sendToFrame(tabId, message.frameId, { type: "focus-frame-field", id: message.id });
       return true;
+    case "describe-all": {
+      if (tabId === undefined) return [];
+      const frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? [{ frameId: 0 }];
+      const described = await Promise.all(frames.map(async (frame) => ({ frameId: frame.frameId, ...((await sendToFrame<object>(tabId, frame.frameId, { type: "describe-frame" })) ?? {}) })));
+      return described.filter((frame) => "controls" in frame);
+    }
     case "clear-marks":
       if (tabId !== undefined) {
         const frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? [];

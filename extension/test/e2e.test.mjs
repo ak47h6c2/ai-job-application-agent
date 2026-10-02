@@ -137,3 +137,19 @@ test("extension: manual mapping of an unrecognized field is remembered for the s
   assert.equal(await page.$eval("#odd", (element) => element.value), "liming@example.com");
   await page.close();
 });
+
+test("extension: exports the form structure without any filled-in values", async () => {
+  const page = await context.newPage();
+  await page.goto(`${base}/test/fixtures/iframe-host.html`);
+  await shadow(page, ".launcher").click({ timeout: 8000 });
+  await shadow(page, "text=一键填写本页").click();
+  await shadow(page, "text=再填一次").waitFor({ timeout: 60000 });
+  const [download] = await Promise.all([page.waitForEvent("download"), shadow(page, "text=导出页面结构（用于适配新网站）").click()]);
+  const exported = readFileSync(await download.path(), "utf8");
+  const data = JSON.parse(exported);
+  const controls = data.frames.flatMap((frame) => frame.controls);
+  assert.ok(controls.some((control) => control.label === "学校名称" && control.recognizedAs === "education.school"));
+  assert.ok(data.frames.some((frame) => frame.headings.some((heading) => heading.section === "education")));
+  for (const secret of ["李明", "13800138000", "liming@example.com", "北京大学"]) assert.ok(!exported.includes(secret), `export leaks ${secret}`);
+  await page.close();
+});

@@ -335,11 +335,24 @@ export class Panel {
     ].filter(Boolean) as Node[];
   }
 
+  /** Downloads the form structure (labels and widget types, no values) for adapting a new site. */
+  private async exportStructure(): Promise<void> {
+    const frames = await send<unknown[]>({ type: "describe-all" });
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), frames }, null, 2)], { type: "application/json" });
+    const link = h("a", { href: URL.createObjectURL(blob), download: `form-structure-${location.hostname}.json` });
+    this.shadow?.append(link);
+    link.click();
+    link.remove();
+    this.message = "已导出页面结构（只有栏位名称和组件类型，不含你填写的内容）。把这个文件发给开发者即可适配这个网站。";
+    this.render();
+  }
+
   private footer(): Node {
     const learnedCount = this.learned.size;
     return h(
       "div",
       { className: "footer" },
+      h("button", { className: "link small", title: "导出栏位名称和组件类型，不含你填写的内容", onClick: () => void this.exportStructure() }, "导出页面结构（用于适配新网站）"),
       learnedCount > 0 && h("button", { className: "secondary", onClick: () => void this.saveLearned() }, `记住我填的 ${learnedCount} 条答案`),
       this.submitted && !this.recorded
         ? h(

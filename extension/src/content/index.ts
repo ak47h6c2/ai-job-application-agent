@@ -1,6 +1,7 @@
 import { looksLikeApplicationForm } from "../engine/discover";
 import { isVisible } from "../engine/dom";
-import { send, type ExtensionSettings, type FrameCommand } from "../messages";
+import { send, type ExtensionSettings, type FillContext, type FrameCommand } from "../messages";
+import { describeFrame } from "./describe";
 import { clearMarks, fillFrame, fillOne, focusField, setText, watchSubmit } from "./frame";
 import { Panel } from "./panel";
 
@@ -30,6 +31,11 @@ if (!window.__jobAutofillLoaded) {
       case "set-frame-text":
         sendResponse(setText(message.id, message.text));
         return false;
+      case "describe-frame":
+        send<FillContext>({ type: "get-context", host: location.host })
+          .then((context) => sendResponse(describeFrame(context?.profile ?? null)))
+          .catch(() => sendResponse(describeFrame(null)));
+        return true;
       case "clear-frame-marks":
         clearMarks();
         sendResponse(true);

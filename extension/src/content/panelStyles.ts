@@ -25,6 +25,7 @@ header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; borde
 .big { padding: 11px 12px; font-size: 14px; }
 .secondary { background: #f0fdfa; color: #0f766e; border: 1px solid #99f6e4; border-radius: 8px; padding: 7px 10px; font-weight: 600; width: 100%; }
 .link { background: none; border: none; color: #0f766e; padding: 2px 0; text-align: left; }
+.link.small { color: #9ca3af; font-size: 12px; order: 9; }
 .check { display: flex; align-items: center; gap: 6px; color: #6b7280; font-size: 12px; }
 .message { background: #f8fafc; border-radius: 8px; padding: 8px 10px; color: #334155; }
 .note { color: #92400e; font-size: 12px; }
