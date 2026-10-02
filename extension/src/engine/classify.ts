@@ -188,14 +188,19 @@ export function classify(control: Control, info: LabelInfo, options: ClassifyOpt
     const answer = matchAnswer(info.label || info.placeholder, options.answers);
     if (answer && (!best || answer.score >= best.score)) return answer;
   }
-  return best && best.score >= 45 ? best : null;
+  // Open questions ("请描述你遇到的最大困难…？") should not be forced onto a profile field by a weak match.
+  const threshold = QUESTION_LIKE.test(info.label) && info.label.length >= 8 ? 75 : 45;
+  return best && best.score >= threshold ? best : null;
 }
+
+const QUESTION_LIKE = /[?？]|为什么|为何|请简述|请描述|简述|谈谈|说说|如何看待|举例|why|describe|tell us|explain/i;
 
 export function matchAnswer(rawLabel: string, answers: Answer[]): Target | null {
   const label = labelCore(normalizeLabel(rawLabel));
   if (label.length < 2) return null;
   let best: Target | null = null;
   for (const answer of answers) {
+    if (!answer.answer?.trim()) continue;
     const question = labelCore(normalizeLabel(answer.question));
     if (!question) continue;
     let score = 0;

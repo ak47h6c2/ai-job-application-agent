@@ -38,6 +38,13 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(saved["answers"][0]["source"], "manual")
         self.assertEqual(self.client.get("/api/profile").json()["profile"]["basic"]["email"], "a@b.com")
 
+    def test_questions_without_answers_are_kept(self) -> None:
+        saved = self.client.put(
+            "/api/profile", json={"profile": {"answers": [{"question": "你为什么选择我们公司？", "answer": ""}, {"question": "", "answer": "orphan"}]}}
+        ).json()["profile"]
+        self.assertEqual([answer["question"] for answer in saved["answers"]], ["你为什么选择我们公司？"])
+        self.assertEqual(saved["answers"][0]["answer"], "")
+
     def test_learned_answers_merge_by_question(self) -> None:
         self.client.put("/api/profile", json={"profile": {"answers": [{"question": "期望薪资：", "answer": "面议", "source": "manual"}]}})
         answers = self.client.post(

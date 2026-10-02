@@ -300,6 +300,7 @@ export class FillSession {
     }
 
     if (target.scope === "answer") {
+      if (!target.answer.answer?.trim()) return this.record(item, "empty", { reason: "answer-not-written" });
       const desired: Desired = { kind: "text", text: target.answer.answer, fallback: false };
       return this.outcome(item, await fillControl(control, desired, { precision: "month" }), desired);
     }

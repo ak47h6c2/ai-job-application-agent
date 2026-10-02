@@ -68,7 +68,8 @@ def _clean_answer(answer: Any) -> dict[str, Any] | None:
         return None
     question = _clean_text(answer.get("question")).strip()[:500]
     text = _clean_text(answer.get("answer")).strip()
-    if not question or not text:
+    # A question may be saved before it has an answer (e.g. picked from the common-questions list).
+    if not question:
         return None
     lang = answer.get("lang") if answer.get("lang") in ("zh", "en", "any") else "any"
     source = answer.get("source") if answer.get("source") in ("manual", "learned") else "manual"
@@ -118,7 +119,7 @@ def merge_answers(incoming: list[Any]) -> list[dict[str, Any]]:
     index = {normalize_question(answer["question"]): position for position, answer in enumerate(answers)}
     for raw in incoming:
         answer = _clean_answer(raw)
-        if not answer:
+        if not answer or not answer["answer"]:
             continue
         answer["updatedAt"] = datetime.now(timezone.utc).isoformat()
         key = normalize_question(answer["question"])

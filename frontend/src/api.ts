@@ -120,6 +120,8 @@ export const api = {
   saveSettings: (body: { provider: AIProvider; base_url: string; model: string; api_key?: string }) =>
     request<{ ai: AISettings }>("/api/settings", json("PUT", body)),
   testAI: () => request<{ ok: boolean; reply: string }>("/api/ai/test", { method: "POST" }, 90000),
+  aiAnswer: (question: string, lang: "zh" | "en") =>
+    request<{ answer: string }>("/api/ai/answer", json("POST", { question, lang }), 240000),
   translate: (target: "en" | "zh", profile: ProfileData) =>
     request<{ profile: ProfileData; translated: number }>("/api/ai/translate", json("POST", { target, profile }), 300000),
 

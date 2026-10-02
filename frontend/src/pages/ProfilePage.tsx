@@ -182,7 +182,7 @@ export function ProfilePage({ online, aiReady, profile, loadError, reload, updat
           <SectionCard key={section.key} section={section} profile={profile} contentLang={contentLang} update={update} />
         ))}
         <div className="h-3" />
-        <AnswersCard profile={profile} update={update} />
+        <AnswersCard profile={profile} update={update} aiReady={aiReady} contentLang={contentLang} />
         <AttachmentsCard attachments={attachments} onChanged={loadAttachments} />
       </div>
 

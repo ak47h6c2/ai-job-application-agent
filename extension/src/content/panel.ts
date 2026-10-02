@@ -29,6 +29,7 @@ const STATUS_TEXT: Record<string, string> = {
   "missing-region-level": "资料里的地区少一级（比如缺区县）",
   "chose-other": "列表里没有，已选「其他」，请补充填写",
   "not-a-number": "这里只能填数字",
+  "answer-not-written": "问答库里这题还没写答案",
   "other-language": "用了另一种语言的资料",
   truncated: "超出字数，已截断",
   sensitive: "敏感信息，默认不填",
@@ -122,6 +123,8 @@ export class Panel {
     if (open) {
       this.hideLauncher();
       this.job = { ...guessJob(), ...(this.recorded ? this.job : {}) };
+      // Always start from the latest profile and AI settings (they may have just been edited in the Web UI).
+      await send({ type: "refresh-profile" }).catch(() => undefined);
       this.ctx = await send<FillContext>({ type: "get-context", host: location.host });
       if (this.ctx.settings) this.lang = this.lang === "auto" ? this.ctx.settings.langMode : this.lang;
       this.render();
@@ -244,6 +247,14 @@ export class Panel {
     }
   }
 
+  /** Drafts every open question on the page one after another. */
+  private async draftAll(items: TaggedField[]): Promise<void> {
+    for (const item of items) {
+      if (this.message.startsWith("AI 起草失败")) break;
+      await this.draft(item);
+    }
+  }
+
   private async saveLearned(): Promise<void> {
     const answers = Array.from(this.learned.values());
     const result = await send<{ error?: string }>({ type: "save-answers", answers });
@@ -332,14 +343,19 @@ export class Panel {
       this.group("需要你检查", check.map((item) => this.row(item))),
       this.group(
         "开放题",
-        questions.map((item) =>
+        [
+          ...(ai && questions.length > 1
+            ? [h("button", { className: "mini wide", disabled: this.drafting.size > 0, onClick: () => void this.draftAll(questions) }, this.drafting.size > 0 ? "起草中…" : `AI 全部起草（${questions.length}）`)]
+            : []),
+          ...questions.map((item) =>
           this.row(
             item,
             ai
               ? h("button", { className: "mini", disabled: this.drafting.has(item.id), onClick: () => void this.draft(item) }, this.drafting.has(item.id) ? "起草中…" : "AI 起草")
               : undefined,
           ),
-        ),
+          ),
+        ],
         ai ? undefined : "在设置里配置 AI 后可一键起草；你手写的答案会被记住。",
       ),
       this.group(

@@ -166,3 +166,46 @@ test("extension: on a read-only resume page it offers to click 编辑, then fill
   assert.equal(await page.$eval("#political", (element) => element.value), "共青团员");
   await page.close();
 });
+
+test("extension: AI drafts every open question on the page (fake OpenAI-compatible model)", async () => {
+  const { createServer } = await import("node:http");
+  const fake = createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => (body += chunk));
+    request.on("end", () => {
+      const question = JSON.parse(body).messages.at(-1).content.split("\n")[0].replace("Question: ", "");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ choices: [{ message: { content: `草稿：${question}` } }] }));
+    });
+  });
+  await new Promise((resolve) => fake.listen(0, "127.0.0.1", resolve));
+  await fetch(`${API}/api/settings`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ provider: "openai", base_url: `http://127.0.0.1:${fake.address().port}/v1`, model: "fake", api_key: "sk-test-12345678" }),
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto(`${base}/test/fixtures/native.html`);
+    await page.evaluate(() => {
+      const item = document.createElement("div");
+      item.className = "form-item";
+      item.innerHTML = "<label>请描述你遇到的最大困难以及如何解决？</label><textarea id='hard'></textarea>";
+      const second = document.createElement("div");
+      second.className = "form-item";
+      second.innerHTML = "<label>谈谈你对数字化转型的理解？</label><textarea id='digital'></textarea>";
+      document.querySelector("#why").closest(".form-item").after(item, second);
+    });
+    await shadow(page, ".launcher").click({ timeout: 8000 });
+    await shadow(page, "text=一键填写本页").click();
+    await shadow(page, "text=再填一次").waitFor({ timeout: 60000 });
+    await shadow(page, "text=AI 全部起草").click();
+    await page.waitForFunction(() => document.querySelector("#hard").value && document.querySelector("#digital").value, null, { timeout: 30000 });
+    assert.equal(await page.$eval("#hard", (element) => element.value), "草稿：请描述你遇到的最大困难以及如何解决？");
+    assert.equal(await page.$eval("#digital", (element) => element.value), "草稿：谈谈你对数字化转型的理解？");
+    await page.close();
+  } finally {
+    await fetch(`${API}/api/settings`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider: "openai", base_url: "", model: "", api_key: "" }) });
+    fake.close();
+  }
+});
