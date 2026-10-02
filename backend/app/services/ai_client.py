@@ -11,7 +11,7 @@ from backend.app.services.storage import private_data_dir, read_json, write_json
 PROVIDERS = {"openai", "anthropic"}
 DEFAULT_SETTINGS: dict[str, Any] = {"provider": "openai", "base_url": "", "model": "", "api_key": ""}
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
-REQUEST_TIMEOUT_SECONDS = 90
+REQUEST_TIMEOUT_SECONDS = 240
 
 
 class AIError(RuntimeError):

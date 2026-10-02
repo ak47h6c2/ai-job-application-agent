@@ -113,15 +113,15 @@ export const api = {
   parseResume: (file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return request<ResumeParseResult>("/api/resume/parse", { method: "POST", body: form }, 120000);
+    return request<ResumeParseResult>("/api/resume/parse", { method: "POST", body: form }, 300000);
   },
 
   getSettings: () => request<{ ai: AISettings; data_dir: string }>("/api/settings"),
   saveSettings: (body: { provider: AIProvider; base_url: string; model: string; api_key?: string }) =>
     request<{ ai: AISettings }>("/api/settings", json("PUT", body)),
-  testAI: () => request<{ ok: boolean; reply: string }>("/api/ai/test", { method: "POST" }, 45000),
+  testAI: () => request<{ ok: boolean; reply: string }>("/api/ai/test", { method: "POST" }, 90000),
   translate: (target: "en" | "zh", profile: ProfileData) =>
-    request<{ profile: ProfileData; translated: number }>("/api/ai/translate", json("POST", { target, profile }), 180000),
+    request<{ profile: ProfileData; translated: number }>("/api/ai/translate", json("POST", { target, profile }), 300000),
 
   listApplications: () => request<{ records: ApplicationRecord[] }>("/api/applications"),
   saveApplication: (record: ApplicationInput) => request<{ record: ApplicationRecord }>("/api/applications", json("POST", record)),

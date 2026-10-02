@@ -147,7 +147,7 @@ async function handle(message: Request, sender: chrome.runtime.MessageSender): P
       const result = await api<{ answer: string }>(
         "/api/ai/answer",
         { method: "POST", body: JSON.stringify({ question: message.question, lang: message.lang, job: message.job }) },
-        90_000,
+        240_000,
       );
       if (tabId !== undefined) await sendToFrame(tabId, message.frameId, { type: "set-frame-text", id: message.id, text: result.answer });
       return result;
@@ -156,7 +156,7 @@ async function handle(message: Request, sender: chrome.runtime.MessageSender): P
       return api<{ mappings: { index: number; key: string | null }[] }>(
         "/api/ai/map-fields",
         { method: "POST", body: JSON.stringify({ fields: message.fields, lang: message.lang }) },
-        60_000,
+        240_000,
       );
     case "learned":
     case "submitted":
