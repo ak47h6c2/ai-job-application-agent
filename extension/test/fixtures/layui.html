@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>国企网申 - Layui</title>
+<link rel="stylesheet" href="/node_modules/layui/dist/css/layui.css">
+<script src="/node_modules/layui/dist/layui.js"></script>
+<style>body{padding:20px;max-width:900px}</style></head>
+<body>
+<form class="layui-form" lay-filter="apply">
+  <fieldset class="layui-elem-field"><legend>基本信息</legend></fieldset>
+  <div class="layui-form-item"><label class="layui-form-label">姓名</label><div class="layui-input-block"><input type="text" name="name" class="layui-input"></div></div>
+  <div class="layui-form-item"><label class="layui-form-label">性别</label><div class="layui-input-block"><input type="radio" name="sex" value="男" title="男"><input type="radio" name="sex" value="女" title="女"></div></div>
+  <div class="layui-form-item"><label class="layui-form-label">出生日期</label><div class="layui-input-block"><input type="text" name="birth" id="birth" class="layui-input" readonly placeholder="yyyy-MM-dd"></div></div>
+  <div class="layui-form-item"><label class="layui-form-label">政治面貌</label><div class="layui-input-block"><select name="political"><option value="">请选择</option><option value="1">中共党员</option><option value="2">共青团员</option><option value="3">群众</option></select></div></div>
+  <div class="layui-form-item"><label class="layui-form-label">最高学历</label><div class="layui-input-block"><select name="degree" lay-search><option value="">直接选择或搜索选择</option><option value="1">大专</option><option value="2">大学本科</option><option value="3">硕士研究生</option><option value="4">博士研究生</option></select></div></div>
+  <div class="layui-form-item"><label class="layui-form-label">毕业时间</label><div class="layui-input-block"><input type="text" name="grad" id="grad" class="layui-input" placeholder="yyyy-MM"></div></div>
+  <div class="layui-form-item"><label class="layui-form-label">手机</label><div class="layui-input-block"><input type="text" name="phone" class="layui-input"></div></div>
+  <div class="layui-form-item"><label class="layui-form-label">是否服从分配</label><div class="layui-input-block"><input type="radio" name="adjust" value="1" title="是"><input type="radio" name="adjust" value="0" title="否"></div></div>
+</form>
+<script>
+layui.use(["form", "laydate"], function () {
+  layui.laydate.render({ elem: "#birth", type: "date" });
+  layui.laydate.render({ elem: "#grad", type: "month" });
+  layui.form.render();
+  window.read = () => layui.form.val("apply");
+  window.ready = true;
+});
+</script>
+</body></html>

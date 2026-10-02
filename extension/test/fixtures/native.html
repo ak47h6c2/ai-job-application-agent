@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>网申 - 某国企校园招聘</title>
+<style>body{font:14px sans-serif;padding:20px} td{padding:4px} .block{border:1px solid #ccc;margin:8px 0;padding:8px} .form-item{margin:4px 0}</style></head>
+<body>
+<h3>基本信息</h3>
+<table>
+  <tr><td>姓名<span style="color:red">*</span></td><td><input name="xm" id="xm"></td></tr>
+  <tr><td>性别</td><td><label><input type="radio" name="xb" value="1">男</label><label><input type="radio" name="xb" value="2">女</label></td></tr>
+  <tr><td>出生日期</td><td><input type="date" id="csrq"></td></tr>
+  <tr><td>政治面貌</td><td><select id="zzmm"><option value="">请选择</option><option value="01">中共党员</option><option value="03">共青团员</option><option value="13">群众</option></select></td></tr>
+  <tr><td>民族</td><td><select id="mz"><option value="">--请选择--</option><option>汉族</option><option>回族</option><option>满族</option></select></td></tr>
+  <tr><td><label for="sj">手机号码：</label></td><td><input type="tel" id="sj"></td></tr>
+  <tr><td>电子邮箱</td><td><input id="yx" name="email"></td></tr>
+  <tr><td>籍贯</td><td><input id="jg"></td></tr>
+  <tr><td>身份证号</td><td><input id="sfz"></td></tr>
+  <tr><td>是否服从调剂</td><td><label><input type="radio" name="tj" value="Y">是</label><label><input type="radio" name="tj" value="N">否</label></td></tr>
+</table>
+
+<h3>教育经历</h3>
+<div id="edu-list"></div>
+<button type="button" id="add-edu">+ 添加教育经历</button>
+
+<h3>实习经历</h3>
+<div id="work-list"></div>
+<button type="button" id="add-work">添加实习经历</button>
+
+<h3>家庭成员</h3>
+<div class="block">
+  <div class="form-item"><label>姓名</label><input class="fm-name"></div>
+  <div class="form-item"><label>与本人关系</label><input class="fm-rel"></div>
+  <div class="form-item"><label>工作单位</label><input class="fm-company"></div>
+  <div class="form-item"><label>联系电话</label><input class="fm-phone"></div>
+</div>
+
+<h3>其他信息</h3>
+<div class="form-item"><label>您是从哪里得知本次招聘信息的？</label><input id="source"></div>
+<div class="form-item"><label>您为什么选择我们公司？</label><textarea id="why"></textarea></div>
+<div class="form-item"><label>上传简历</label><input type="file" id="cv" accept=".pdf"></div>
+<label><input type="checkbox" id="agree"> 我已阅读并同意隐私协议</label>
+<button type="submit">提交申请</button>
+
+<template id="edu-tpl">
+  <div class="block edu">
+    <div class="form-item"><label>学校名称</label><input class="school"></div>
+    <div class="form-item"><label>专业</label><input class="major"></div>
+    <div class="form-item"><label>学历</label><select class="degree"><option value="">请选择</option><option value="bk">本科</option><option value="ss">硕士研究生</option><option value="bs">博士研究生</option></select></div>
+    <div class="form-item"><label>入学时间</label><input type="month" class="start"></div>
+    <div class="form-item"><label>毕业时间</label><input type="month" class="end"></div>
+  </div>
+</template>
+<template id="work-tpl">
+  <div class="block work">
+    <div class="form-item"><label>实习单位</label><input class="company"></div>
+    <div class="form-item"><label>职位</label><input class="title"></div>
+    <div class="form-item"><label>起止时间</label><input type="month" class="start"> 至 <input type="month" class="end"> <label><input type="checkbox" class="present">至今</label></div>
+    <div class="form-item"><label>工作内容</label><textarea class="desc"></textarea></div>
+  </div>
+</template>
+<script>
+  const add = (tpl, list) => document.getElementById(list).appendChild(document.getElementById(tpl).content.cloneNode(true));
+  add("edu-tpl", "edu-list");
+  document.getElementById("add-edu").onclick = () => add("edu-tpl", "edu-list");
+  document.getElementById("add-work").onclick = () => add("work-tpl", "work-list");
+</script>
+</body></html>

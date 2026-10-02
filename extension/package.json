@@ -1,0 +1,27 @@
+{
+  "name": "job-autofill-extension",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node build.mjs --test && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "antd": "^5.22.0",
+    "dayjs": "^1.11.13",
+    "element-plus": "^2.9.0",
+    "element-ui": "^2.15.14",
+    "esbuild": "^0.24.0",
+    "layui": "^2.9.20",
+    "playwright-core": "1.56.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.8.0",
+    "vue2": "npm:vue@^2.7.16",
+    "vue3": "npm:vue@^3.5.13"
+  }
+}
