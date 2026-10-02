@@ -76,17 +76,14 @@ def _openai_chat(settings: dict[str, Any], system: str, user: str, max_tokens: i
     url = settings["base_url"].rstrip("/")
     if not url.endswith("/chat/completions"):
         url = f"{url}/chat/completions"
-    response = httpx.post(
-        url,
-        headers={"Authorization": f"Bearer {settings['api_key']}", "Content-Type": "application/json"},
-        json={
-            "model": settings["model"],
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            "max_tokens": max_tokens,
-            "temperature": 0.3,
-        },
-        timeout=REQUEST_TIMEOUT_SECONDS,
-    )
+    headers = {"Authorization": f"Bearer {settings['api_key']}", "Content-Type": "application/json"}
+    messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+    body: dict[str, Any] = {"model": settings["model"], "messages": messages, "max_tokens": max_tokens, "temperature": 0.3}
+    response = httpx.post(url, headers=headers, json=body, timeout=REQUEST_TIMEOUT_SECONDS)
+    if response.status_code == 400 and re.search(r"max_tokens|max_completion_tokens|temperature", response.text):
+        # Newer OpenAI models (reasoning / GPT-5 family) only accept max_completion_tokens and the default temperature.
+        body = {"model": settings["model"], "messages": messages, "max_completion_tokens": max_tokens * 4}
+        response = httpx.post(url, headers=headers, json=body, timeout=REQUEST_TIMEOUT_SECONDS)
     if response.status_code >= 400:
         raise AIError(f"AI service returned {response.status_code}: {response.text[:300]}")
     try:
