@@ -1,9 +1,21 @@
 import { build, context } from "esbuild";
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
-import { resolve } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 const watch = process.argv.includes("--watch");
 const testOnly = process.argv.includes("--test");
+
+// fs.cpSync crashes on Windows with Node 24 when the path contains non-ASCII characters
+// (e.g. a project folder named in Chinese), so copy files one by one.
+function copyDir(from, to) {
+  mkdirSync(to, { recursive: true });
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    const source = join(from, entry.name);
+    const target = join(to, entry.name);
+    if (entry.isDirectory()) copyDir(source, target);
+    else copyFileSync(source, target);
+  }
+}
 
 const common = { bundle: true, format: "iife", target: "chrome110", logLevel: "info", legalComments: "none" };
 
@@ -14,7 +26,7 @@ if (testOnly) {
 
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist", { recursive: true });
-cpSync("static", "dist", { recursive: true });
+copyDir("static", "dist");
 
 const options = {
   ...common,
