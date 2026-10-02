@@ -86,6 +86,7 @@ export class Panel {
   private message = "";
   private drafting = new Set<string>();
   private mapping = false;
+  private editFrame: number | null = null;
 
   private ensureHost(): ShadowRoot {
     if (this.shadow) return this.shadow;
@@ -157,7 +158,10 @@ export class Panel {
     this.render();
     try {
       this.reports = await send<FrameReport[]>({ type: "fill-all", lang: this.lang, overwrite: this.overwrite });
-      if (!this.reports.length) this.message = "这个页面上没有找到可以填写的栏位。";
+      const readOnly = this.reports.find((report) => !report.items.length && report.notes.some((note) => note.startsWith("edit-buttons:")));
+      this.editFrame = this.items().length === 0 && readOnly ? readOnly.frameId : null;
+      if (this.editFrame !== null) this.message = "这一页是展示模式，没有输入框。先打开页面上的「编辑 / 添加」，表单出现后再填写。";
+      else if (!this.items().length) this.message = "这个页面上没有找到可以填写的栏位。";
       else if (this.reports.every((report) => report.notes.includes("no-profile"))) this.message = "还没有资料：先在资料库里填写或上传简历。";
     } catch (error) {
       this.message = `填写失败：${(error as Error).message}`;
@@ -196,6 +200,20 @@ export class Panel {
       this.drafting.delete(item.id);
       this.render();
     }
+  }
+
+  /** Opens a read-only section by clicking its 编辑 button, then fills the form that appears. */
+  private async editAndFill(): Promise<void> {
+    if (this.editFrame === null) return;
+    const clicked = await send<string | null>({ type: "click-edit", frameId: this.editFrame });
+    this.editFrame = null;
+    if (!clicked) {
+      this.message = "没找到可以点的「编辑」按钮，请手动打开表单后再点一键填写。";
+      this.render();
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await this.fill();
   }
 
   /** Lets the AI map fields the rules could not recognize, then fills (and remembers) them. */
@@ -384,9 +402,10 @@ export class Panel {
         "div",
         { className: "body" },
         this.profileLine(),
-        h("button", { className: "primary big", disabled: this.busy || !this.ctx?.profile, onClick: () => void this.fill() }, this.busy ? "正在填写…" : this.reports.length ? "再填一次" : "一键填写本页"),
+        h("button", { className: "primary big", disabled: this.busy || !this.ctx?.profile, onClick: () => void this.fill() }, this.busy ? "正在填写…" : this.items().length ? "再填一次" : "一键填写本页"),
         h("label", { className: "check" }, overwrite, "覆盖已有内容"),
         this.message && h("div", { className: "message" }, this.message),
+        this.editFrame !== null && h("button", { className: "secondary", disabled: this.busy, onClick: () => void this.editAndFill() }, "帮我点「编辑」并填写"),
         ...this.results(),
       ),
       this.footer(),

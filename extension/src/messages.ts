@@ -56,6 +56,7 @@ export type Request =
   | { type: "focus-field"; frameId: number; id: string }
   | { type: "clear-marks" }
   | { type: "describe-all" }
+  | { type: "click-edit"; frameId: number }
   | { type: "save-answers"; answers: LearnedAnswer[] }
   | { type: "record-application"; job: JobInfo; note?: string }
   | { type: "ai-answer"; frameId: number; id: string; question: string; lang: Lang; job: JobInfo }
@@ -76,6 +77,7 @@ export type FrameCommand =
   | { type: "set-frame-text"; id: string; text: string }
   | { type: "clear-frame-marks" }
   | { type: "describe-frame" }
+  | { type: "click-edit" }
   | { type: "learned"; answer: LearnedAnswer; key: string }
   | { type: "submitted" }
   | { type: "open-panel"; fill?: boolean };

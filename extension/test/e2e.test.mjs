@@ -152,3 +152,17 @@ test("extension: exports the form structure without any filled-in values", async
   for (const secret of ["李明", "13800138000", "liming@example.com", "北京大学"]) assert.ok(!exported.includes(secret), `export leaks ${secret}`);
   await page.close();
 });
+
+test("extension: on a read-only resume page it offers to click 编辑, then fills the form", async () => {
+  const page = await context.newPage();
+  await page.goto(`${base}/test/fixtures/readonly-resume.html`);
+  await shadow(page, ".launcher").click({ timeout: 8000 });
+  await shadow(page, "text=一键填写本页").click();
+  await shadow(page, "text=/展示模式/").waitFor({ timeout: 30000 });
+  await shadow(page, "text=帮我点「编辑」并填写").click();
+  await page.waitForFunction(() => document.querySelector("#name").value === "李明", null, { timeout: 60000 });
+  await shadow(page, "text=再填一次").waitFor({ timeout: 60000 });
+  assert.equal(await page.$eval("#phone", (element) => element.value), "13800138000");
+  assert.equal(await page.$eval("#political", (element) => element.value), "共青团员");
+  await page.close();
+});

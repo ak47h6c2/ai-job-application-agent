@@ -2,7 +2,7 @@ import { looksLikeApplicationForm } from "../engine/discover";
 import { isVisible } from "../engine/dom";
 import { send, type ExtensionSettings, type FillContext, type FrameCommand } from "../messages";
 import { describeFrame } from "./describe";
-import { clearMarks, fillFrame, fillOne, focusField, setText, watchSubmit } from "./frame";
+import { clearMarks, clickEdit, fillFrame, fillOne, findEditButtons, focusField, setText, watchSubmit } from "./frame";
 import { Panel } from "./panel";
 
 declare global {
@@ -31,6 +31,9 @@ if (!window.__jobAutofillLoaded) {
       case "set-frame-text":
         sendResponse(setText(message.id, message.text));
         return false;
+      case "click-edit":
+        clickEdit().then(sendResponse, () => sendResponse(null));
+        return true;
       case "describe-frame":
         send<FillContext>({ type: "get-context", host: location.host })
           .then((context) => sendResponse(describeFrame(context?.profile ?? null)))
@@ -67,7 +70,9 @@ if (!window.__jobAutofillLoaded) {
     const check = async () => {
       settings ??= await send<ExtensionSettings>({ type: "get-settings" }).catch(() => null);
       if (!settings?.showLauncher || settings.hiddenHosts.includes(location.host)) return;
-      if (looksLikeApplicationForm(document) || hasLargeFrame()) panel.showLauncher();
+      // Resume pages often show saved data read-only with 编辑 / 添加 buttons and no inputs.
+      const resumeView = () => /(简历|个人信息|基本信息|教育经历|resume|my experience)/i.test(document.title + (document.body?.innerText ?? "").slice(0, 3000)) && findEditButtons().length > 0;
+      if (looksLikeApplicationForm(document) || hasLargeFrame() || resumeView()) panel.showLauncher();
     };
     const schedule = () => {
       window.clearTimeout(timer);

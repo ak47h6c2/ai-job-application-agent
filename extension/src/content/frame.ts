@@ -1,5 +1,5 @@
 import { type Lang } from "../../../shared/profileSchema";
-import { isVisible, setNativeValue, textOf } from "../engine/dom";
+import { isVisible, realClick, setNativeValue, textOf, waitForIdle } from "../engine/dom";
 import { fillPage, fillWithTarget, rememberKey, type FieldReport, type FillReport } from "../engine/engine";
 import { send, type FillContext } from "../messages";
 
@@ -89,10 +89,48 @@ export async function fillFrame(lang: Lang | "auto", overwrite: boolean): Promis
     });
     filledOnce = true;
     watchForAnswers(report.items, report.lang);
+    if (!report.items.length) {
+      const editButtons = findEditButtons().length;
+      if (editButtons) report.notes.push(`edit-buttons:${editButtons}`);
+    }
     return report;
   } finally {
     programmatic = false;
   }
+}
+
+const EDIT_TEXT = /^(编辑|修改|完善|去完善|立即完善|去填写|填写|添加|新增|\+添加|\+新增|edit|add|addnew)$/i;
+
+/** "编辑 / 去完善 / 添加" buttons on pages that show the resume read-only until you open a section. */
+export function findEditButtons(): HTMLElement[] {
+  const seen = new Set<Element>();
+  return Array.from(document.querySelectorAll<HTMLElement>("button, a, [role=button], span, div, i"))
+    .filter((element) => {
+      if (element.closest("[data-jaf-ui]") || !isVisible(element)) return false;
+      const text = (element.textContent ?? "").replace(/[\s:：]+/g, "");
+      if (!text || text.length > 6 || !EDIT_TEXT.test(text)) return false;
+      // Keep the innermost clickable element only.
+      if (Array.from(element.children).some((child) => EDIT_TEXT.test((child.textContent ?? "").replace(/[\s:：]+/g, "")))) return false;
+      const target = (element.closest("button, a, [role=button]") as HTMLElement | null) ?? element;
+      if (seen.has(target)) return false;
+      seen.add(target);
+      return true;
+    })
+    .map((element) => (element.closest("button, a, [role=button]") as HTMLElement | null) ?? element);
+}
+
+/** Clicks the first visible edit button (preferring one in view), so the form opens for filling. */
+export async function clickEdit(): Promise<string | null> {
+  const buttons = findEditButtons();
+  const inView = buttons.find((button) => {
+    const rect = button.getBoundingClientRect();
+    return rect.top >= 0 && rect.bottom <= window.innerHeight;
+  });
+  const button = inView ?? buttons[0];
+  if (!button) return null;
+  realClick(button);
+  await waitForIdle(document.body, 400, 3000);
+  return textOf(button, 20);
 }
 
 export async function fillOne(id: string, target: string, lang: Lang): Promise<FieldReport | null> {

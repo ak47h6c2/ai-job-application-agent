@@ -90,7 +90,8 @@ async function fillAllFrames(tabId: number, lang: FrameCommand & { type: "fill-f
   const reports: FrameReport[] = [];
   for (const frame of ordered) {
     const report = await sendToFrame<FrameReport>(tabId, frame.frameId, lang);
-    if (report && report.items?.length) reports.push({ ...report, frameId: frame.frameId });
+    const editable = report?.notes?.some((note) => note.startsWith("edit-buttons:"));
+    if (report && (report.items?.length || editable)) reports.push({ ...report, frameId: frame.frameId });
   }
   return reports;
 }
@@ -118,6 +119,9 @@ async function handle(message: Request, sender: chrome.runtime.MessageSender): P
     case "focus-field":
       if (tabId !== undefined) await sendToFrame(tabId, message.frameId, { type: "focus-frame-field", id: message.id });
       return true;
+    case "click-edit":
+      if (tabId === undefined) return null;
+      return sendToFrame(tabId, message.frameId, { type: "click-edit" });
     case "describe-all": {
       if (tabId === undefined) return [];
       const frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? [{ frameId: 0 }];
