@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
-import { PROFILE, startServer } from "./helpers.mjs";
+import { PROFILE, browserOptions, startServer } from "./helpers.mjs";
 
 const EXTENSION = fileURLToPath(new URL("../dist", import.meta.url));
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
@@ -27,7 +27,7 @@ async function waitHealthy() {
 
 before(async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "jaf-e2e-"));
-  backend = spawn("python3", ["-c", `import uvicorn; uvicorn.run("backend.app.api:app", host="127.0.0.1", port=${API_PORT}, log_level="warning")`], {
+  backend = spawn(process.env.PYTHON ?? "python3", ["-c", `import uvicorn; uvicorn.run("backend.app.api:app", host="127.0.0.1", port=${API_PORT}, log_level="warning")`], {
     cwd: REPO,
     env: { ...process.env, JOB_AGENT_DATA_DIR: dataDir },
     stdio: "inherit",
@@ -41,8 +41,7 @@ before(async () => {
 
   ({ server, base } = await startServer());
   context = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), "jaf-profile-")), {
-    executablePath: process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
-    headless: true,
+    ...browserOptions(),
     args: [`--disable-extensions-except=${EXTENSION}`, `--load-extension=${EXTENSION}`, "--headless=new"],
     viewport: { width: 1280, height: 900 },
   });

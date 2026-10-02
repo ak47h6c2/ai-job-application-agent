@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
@@ -25,9 +26,16 @@ export async function startServer() {
   return { server, base: `http://127.0.0.1:${server.address().port}` };
 }
 
+const DEFAULT_CHROMIUM = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+
+/** Uses CHROMIUM_PATH or a preinstalled Chromium; otherwise Playwright's own full Chromium (needed for extensions). */
+export function browserOptions() {
+  const executablePath = process.env.CHROMIUM_PATH ?? (existsSync(DEFAULT_CHROMIUM) ? DEFAULT_CHROMIUM : undefined);
+  return executablePath ? { executablePath, headless: true } : { channel: "chromium", headless: true };
+}
+
 export async function launch() {
-  const executablePath = process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-  return chromium.launch({ executablePath, headless: true });
+  return chromium.launch(browserOptions());
 }
 
 export async function openFixture(browser, base, name, { viewport = { width: 1280, height: 900 } } = {}) {
