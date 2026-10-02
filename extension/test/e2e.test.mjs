@@ -71,7 +71,7 @@ test("extension: launcher -> panel -> fill (Element UI page), review list, recor
   assert.equal(form.work.length, 2);
   const chips = await shadow(page, ".chips").innerText();
   assert.match(chips, /已填 \d+/);
-  await page.screenshot({ path: fileURLToPath(new URL("../../docs/assets/ui/extension-panel.png", import.meta.url)) });
+  if (process.env.UPDATE_SCREENSHOTS) await page.screenshot({ path: fileURLToPath(new URL("../../docs/assets/ui/extension-panel.png", import.meta.url)) });
 
   // Simulate submitting the application, then record it from the panel.
   await shadow(page, "text=记录这次投递").click();
