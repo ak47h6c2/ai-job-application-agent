@@ -45,11 +45,15 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: extension/package-lock.json
+          cache-dependency-path: |
+            extension/package-lock.json
+            extension/test/package-lock.json
       - run: npm ci
         working-directory: extension
+      - run: npm ci
+        working-directory: extension/test
       - run: npx playwright-core install --with-deps chromium
-        working-directory: extension
+        working-directory: extension/test
       - run: npm run typecheck
         working-directory: extension
       # Engine tests on real component libraries + end-to-end tests with the built extension and a live backend.

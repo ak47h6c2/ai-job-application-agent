@@ -75,7 +75,7 @@ tests/                       # 后端测试
 
 ```bash
 python -m pytest tests              # 后端
-cd extension && npm test            # 填表引擎（6 类网申页面）+ 插件端到端测试
+cd extension && npm install --prefix test && npm test   # 填表引擎（6 类网申页面）+ 插件端到端测试
 cd frontend && npm run build        # Web UI 类型检查与构建
 ```
 
