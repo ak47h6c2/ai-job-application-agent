@@ -1,5 +1,22 @@
 # Changelog / 更新日志
 
+## 2026-10-02 — 0.2.0：投递自动填表助手
+
+### 中文
+
+项目从「求职邮件分析 + 草稿生成」改成「资料填一次，网申一键填写」。
+
+- 新增**求职资料库**（`shared/profile-schema.json` 定义，三端共用）：基本信息、联系方式、国内网申常用（政治面貌、籍贯、户口、生源地…）、澳洲常用（work rights、签证、notice period）、求职意向、自我描述，以及教育、实习/工作、项目、校园经历、获奖、语言、证书、家庭成员多段经历；中英两套资料；常用问答；附件（中/英文简历、证件照、成绩单、求职信）。
+- 新增**浏览器插件**（`extension/`）：一键填写文本框、原生和自定义下拉（含可搜索、远程搜索、虚拟滚动长列表）、省市区级联、日期/月份/区间选择器、单选按钮组、「至今」、文件上传；自动点「添加」补足多段经历（支持行内展开和弹窗新增）；iframe 内嵌表单；本站字段记忆；记住手写答案；提交后记录投递。支持 Element UI、Element Plus、Ant Design、Layui、原生 HTML 和 Workday 风格英文网申，均有自动化测试。
+- **AI 改为可选**：支持 OpenAI 兼容接口（DeepSeek、通义千问、Kimi、智谱、OpenAI）和 Claude，用于简历识别、中译英、开放题起草、识别剩余栏位。不配置 AI 时用规则识别简历。
+- **Web UI 重写**：从一个 4500 行的页面改成「资料库 / 投递记录 / 设置」三页，自动保存，文字更少，手机可用。
+- 投递状态改为：待投递、已投递、笔试/测评、面试中、Offer、未通过（旧记录自动迁移）。
+- **移除**：QQ 邮箱扫描、邮件复查队列、关键词打分、模板草稿、书签导入、Playwright 登录浏览器导入、命令行流程。代码保留在 Git 历史（`ba5ea1d` 及之前）。
+
+### English
+
+The project is now a fill-once, autofill-everywhere job application assistant: a shared profile schema, a local profile library with Chinese and English versions, a Manifest V3 browser extension with an autofill engine tested against Element UI, Element Plus, Ant Design, Layui, native HTML and Workday-style forms, optional AI (OpenAI-compatible or Claude), and a rewritten three-page Web UI. The mail-scanning and draft-generation pipeline was removed (see git history up to `ba5ea1d`).
+
 ## 2026-05-15
 
 ### English

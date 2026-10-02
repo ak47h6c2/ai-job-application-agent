@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "网申助手 Job Autofill",
+  "version": "0.2.0",
+  "description": "资料填一次，网申页面一键填写。One profile, autofill every job application form.",
+  "permissions": ["storage", "webNavigation", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    { "matches": ["http://*/*", "https://*/*"], "js": ["content.js"], "all_frames": true, "run_at": "document_idle" }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "网申助手", "default_icon": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png" } },
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "commands": {
+    "fill-page": { "suggested_key": { "default": "Alt+Shift+F" }, "description": "一键填写当前页面" }
+  }
+}

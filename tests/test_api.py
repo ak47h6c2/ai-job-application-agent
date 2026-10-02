@@ -130,6 +130,15 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result["profile"]["basic"]["name"], {"zh": "张三", "en": "San Zhang"})
         self.assertEqual(result["profile"]["sections"]["education"][0]["school"]["en"], "Peking University")
 
+    def test_ai_map_fields_keeps_only_known_keys(self) -> None:
+        self.client.put("/api/settings", json={"provider": "openai", "base_url": "https://x", "model": "m", "api_key": "sk-abcdefgh"})
+        reply = [{"index": 0, "key": "basic.phone"}, {"index": 1, "key": "education.school"}, {"index": 2, "key": "basic.madeUp"}, {"index": 3, "key": "answer"}]
+        with mock.patch("backend.app.services.ai_tasks.chat_json", return_value=reply):
+            result = self.client.post(
+                "/api/ai/map-fields", json={"fields": [{"index": i, "label": f"field {i}"} for i in range(4)], "lang": "zh"}
+            ).json()
+        self.assertEqual([item["key"] for item in result["mappings"]], ["basic.phone", "education.school", None, "answer"])
+
     def test_application_records_from_extension(self) -> None:
         record = self.client.post(
             "/api/applications", json={"title": "后端开发", "company": "示例", "url": "https://jobs.example.com/1", "source": "extension"}

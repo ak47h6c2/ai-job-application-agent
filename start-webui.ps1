@@ -6,6 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $FrontendDir = Join-Path $Root "frontend"
+$ExtensionDir = Join-Path $Root "extension"
 $BackendLog = Join-Path $Root "backend-dev.log"
 $FrontendLog = Join-Path $Root "frontend-dev.log"
 $BackendUrl = "http://127.0.0.1:8000/api/health"
@@ -50,14 +51,20 @@ Write-Host "Project: $Root"
 if ($Install) {
     Write-Host "Installing backend dependencies..." -ForegroundColor Yellow
     python -m pip install -e .
-    Write-Host "Installing Playwright browser runtime..." -ForegroundColor Yellow
-    python -m playwright install chromium
 }
 
 if ($Install -or -not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
     Write-Host "Installing frontend dependencies..." -ForegroundColor Yellow
     Push-Location $FrontendDir
     npm install
+    Pop-Location
+}
+
+if ($Install -or -not (Test-Path (Join-Path $ExtensionDir "dist\manifest.json"))) {
+    Write-Host "Building the browser extension..." -ForegroundColor Yellow
+    Push-Location $ExtensionDir
+    npm install
+    npm run build
     Pop-Location
 }
 
@@ -95,6 +102,8 @@ if (-not $frontendReady) {
 }
 
 Write-Host "Ready: $FrontendUrl" -ForegroundColor Green
+Write-Host "Browser extension folder (load unpacked in chrome://extensions or edge://extensions):" -ForegroundColor Cyan
+Write-Host "  $(Join-Path $ExtensionDir 'dist')"
 
 if (-not $NoBrowser) {
     Start-Process $FrontendUrl
