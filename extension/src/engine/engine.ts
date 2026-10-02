@@ -202,6 +202,7 @@ const PRIMARY_KEYS: Record<string, string> = {
   projects: "name",
   campus: "organization",
   awards: "name",
+  publications: "title",
   languages: "language",
   certificates: "name",
   family: "name",

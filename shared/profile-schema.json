@@ -682,6 +682,18 @@
           ]
         },
         {
+          "key": "religion",
+          "zh": "宗教信仰",
+          "en": "Religion",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "宗教信仰",
+            "宗教",
+            "religion"
+          ]
+        },
+        {
           "key": "politicalStatus",
           "zh": "政治面貌",
           "en": "Political status",
@@ -743,7 +755,21 @@
           "not": [
             "类型",
             "type",
-            "有效期"
+            "有效期",
+            "expiry"
+          ]
+        },
+        {
+          "key": "idExpiry",
+          "zh": "证件有效期",
+          "en": "ID expiry",
+          "type": "text",
+          "match": [
+            "证件有效期",
+            "身份证有效期",
+            "有效期限",
+            "证件到期日",
+            "id expiry"
           ]
         },
         {
@@ -764,6 +790,27 @@
           "match": [
             "体重",
             "weight"
+          ]
+        },
+        {
+          "key": "bloodType",
+          "zh": "血型",
+          "en": "Blood type",
+          "type": "text",
+          "match": [
+            "血型",
+            "blood type"
+          ]
+        },
+        {
+          "key": "eyesight",
+          "zh": "视力",
+          "en": "Eyesight",
+          "type": "text",
+          "match": [
+            "视力",
+            "裸眼视力",
+            "矫正视力"
           ]
         },
         {
@@ -1192,6 +1239,24 @@
           ]
         },
         {
+          "key": "schoolLevel",
+          "zh": "院校类型（985/211/双一流）",
+          "en": "University tier",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "院校类型",
+            "学校类型",
+            "院校层次",
+            "学校层次",
+            "是否985",
+            "是否211",
+            "是否双一流",
+            "985/211",
+            "毕业院校类型"
+          ]
+        },
+        {
           "key": "graduationDate",
           "zh": "毕业时间",
           "en": "Graduation date",
@@ -1222,6 +1287,20 @@
             "应届毕业生",
             "fresh graduate",
             "new graduate"
+          ]
+        },
+        {
+          "key": "graduateType",
+          "zh": "毕业生类型",
+          "en": "Graduate type",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "毕业生类型",
+            "生源类型",
+            "毕业类型",
+            "学生类型",
+            "考生类别"
           ]
         },
         {
@@ -1304,6 +1383,67 @@
             "专项计划",
             "专项类别",
             "招聘专项"
+          ]
+        },
+        {
+          "key": "hasRelatives",
+          "zh": "是否有亲属在本单位工作",
+          "en": "Relatives working here",
+          "type": "enum",
+          "enum": "yesno",
+          "match": [
+            "亲属在本",
+            "亲属在我",
+            "直系亲属在",
+            "亲属是否在",
+            "回避关系",
+            "近亲属在"
+          ]
+        },
+        {
+          "key": "hasCriminalRecord",
+          "zh": "是否有违法违纪记录",
+          "en": "Criminal / disciplinary record",
+          "type": "enum",
+          "enum": "yesno",
+          "match": [
+            "违法违纪",
+            "违法犯罪",
+            "刑事处罚",
+            "处分记录",
+            "受过处分",
+            "犯罪记录",
+            "失信",
+            "违纪记录"
+          ]
+        },
+        {
+          "key": "hasDriverLicense",
+          "zh": "是否有驾照",
+          "en": "Driver licence",
+          "type": "enum",
+          "enum": "yesno",
+          "match": [
+            "驾照",
+            "驾驶证",
+            "机动车驾驶",
+            "driver licence",
+            "driver's license",
+            "driving licence"
+          ]
+        },
+        {
+          "key": "computerLevel",
+          "zh": "计算机水平",
+          "en": "Computer skills level",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "计算机水平",
+            "计算机等级",
+            "计算机能力",
+            "计算机技能",
+            "ncre"
           ]
         }
       ]
@@ -1416,6 +1556,24 @@
           ]
         },
         {
+          "key": "expectedOrg",
+          "zh": "意向机构/分行",
+          "en": "Preferred branch / office",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "意向机构",
+            "意向分行",
+            "意向单位",
+            "应聘机构",
+            "应聘单位",
+            "报考单位",
+            "意向分支机构",
+            "报考机构",
+            "申请机构"
+          ]
+        },
+        {
           "key": "expectedCity",
           "zh": "期望城市",
           "en": "Preferred location",
@@ -1478,6 +1636,37 @@
             "earliest start date",
             "when can you start",
             "available from"
+          ]
+        },
+        {
+          "key": "acceptRelocation",
+          "zh": "是否接受异地/外派",
+          "en": "Willing to relocate",
+          "type": "enum",
+          "enum": "yesno",
+          "match": [
+            "接受异地",
+            "服从异地",
+            "外派",
+            "接受出差",
+            "willing to relocate",
+            "relocate",
+            "relocation"
+          ]
+        },
+        {
+          "key": "careerPlan",
+          "zh": "职业规划",
+          "en": "Career plan",
+          "type": "longtext",
+          "localized": true,
+          "match": [
+            "职业规划",
+            "职业发展规划",
+            "职业目标",
+            "未来规划",
+            "career plan",
+            "career goals"
           ]
         }
       ]
@@ -1566,7 +1755,10 @@
         "academic background",
         "education background",
         "academic history",
-        "qualifications"
+        "qualifications",
+        "教育经历信息",
+        "学习背景",
+        "受教育经历"
       ],
       "fields": [
         {
@@ -1638,6 +1830,21 @@
           ]
         },
         {
+          "key": "minor",
+          "zh": "辅修/双学位",
+          "en": "Minor / double degree",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "辅修",
+            "双学位",
+            "第二学位",
+            "辅修专业",
+            "minor",
+            "double degree"
+          ]
+        },
+        {
           "key": "degree",
           "zh": "学历",
           "en": "Degree",
@@ -1653,7 +1860,8 @@
             "qualification",
             "degree type",
             "level of study",
-            "education level"
+            "education level",
+            "学位类型"
           ],
           "not": [
             "最高"
@@ -1673,6 +1881,16 @@
             "是否全日制",
             "study mode",
             "mode of study"
+          ]
+        },
+        {
+          "key": "duration",
+          "zh": "学制",
+          "en": "Program length",
+          "type": "text",
+          "match": [
+            "学制",
+            "学制年限"
           ]
         },
         {
@@ -1767,6 +1985,34 @@
           ]
         },
         {
+          "key": "supervisor",
+          "zh": "导师",
+          "en": "Supervisor",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "导师",
+            "导师姓名",
+            "指导老师",
+            "supervisor"
+          ]
+        },
+        {
+          "key": "thesis",
+          "zh": "毕业论文题目",
+          "en": "Thesis title",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "论文题目",
+            "毕业论文",
+            "毕业设计",
+            "学位论文",
+            "thesis",
+            "dissertation"
+          ]
+        },
+        {
           "key": "courses",
           "zh": "主修课程",
           "en": "Relevant courses",
@@ -1842,7 +2088,12 @@
         "professional experience",
         "employment",
         "work history",
-        "internships"
+        "internships",
+        "工作（实习）经历",
+        "工作(实习)经历",
+        "工作实习经历",
+        "实习（工作）经历",
+        "工作及实习经历"
       ],
       "internshipHeadings": [
         "实习经历",
@@ -2033,6 +2284,59 @@
             "离职原因",
             "reason for leaving"
           ]
+        },
+        {
+          "key": "referenceName",
+          "zh": "证明人",
+          "en": "Referee",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "证明人",
+            "证明人姓名",
+            "推荐人",
+            "referee",
+            "reference name"
+          ]
+        },
+        {
+          "key": "referencePhone",
+          "zh": "证明人电话",
+          "en": "Referee phone",
+          "type": "phone",
+          "match": [
+            "证明人电话",
+            "证明人联系方式",
+            "推荐人电话",
+            "referee phone",
+            "reference phone"
+          ]
+        },
+        {
+          "key": "salary",
+          "zh": "月薪/薪酬",
+          "en": "Salary",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "月薪",
+            "薪酬",
+            "税前月薪",
+            "工资",
+            "salary"
+          ]
+        },
+        {
+          "key": "subordinates",
+          "zh": "下属人数",
+          "en": "Team size",
+          "type": "text",
+          "match": [
+            "下属人数",
+            "管理人数",
+            "团队规模",
+            "team size"
+          ]
         }
       ]
     },
@@ -2194,7 +2498,10 @@
         "leadership",
         "activities",
         "volunteer experience",
-        "volunteering"
+        "volunteering",
+        "学生干部",
+        "社会实践",
+        "校园活动"
       ],
       "fields": [
         {
@@ -2288,6 +2595,143 @@
       ]
     },
     {
+      "key": "publications",
+      "zh": "学术成果",
+      "en": "Publications & research",
+      "headings": [
+        "学术成果",
+        "科研成果",
+        "论文发表",
+        "发表论文",
+        "学术论文",
+        "科研论文",
+        "专利",
+        "发明专利",
+        "论文及专利",
+        "publications",
+        "research output",
+        "papers"
+      ],
+      "fields": [
+        {
+          "key": "title",
+          "zh": "成果名称",
+          "en": "Title",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "论文题目",
+            "论文名称",
+            "成果名称",
+            "专利名称",
+            "题目",
+            "title",
+            "paper title"
+          ],
+          "exact": [
+            "名称",
+            "name"
+          ]
+        },
+        {
+          "key": "type",
+          "zh": "成果类型",
+          "en": "Type",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "成果类型",
+            "论文类型",
+            "类别",
+            "成果类别",
+            "type"
+          ]
+        },
+        {
+          "key": "venue",
+          "zh": "期刊/会议",
+          "en": "Journal / conference",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "期刊",
+            "发表期刊",
+            "刊物",
+            "会议",
+            "期刊名称",
+            "发表刊物",
+            "收录情况",
+            "journal",
+            "conference",
+            "venue",
+            "publisher"
+          ]
+        },
+        {
+          "key": "date",
+          "zh": "发表时间",
+          "en": "Date",
+          "type": "month",
+          "match": [
+            "发表时间",
+            "发表日期",
+            "授权时间",
+            "获得时间",
+            "date",
+            "published"
+          ],
+          "exact": [
+            "时间",
+            "日期"
+          ]
+        },
+        {
+          "key": "authorRank",
+          "zh": "作者排名",
+          "en": "Author position",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "作者排名",
+            "本人排名",
+            "排名",
+            "第几作者",
+            "作者顺序",
+            "author position",
+            "author rank"
+          ]
+        },
+        {
+          "key": "link",
+          "zh": "链接/DOI",
+          "en": "Link / DOI",
+          "type": "url",
+          "match": [
+            "链接",
+            "doi",
+            "url",
+            "link"
+          ]
+        },
+        {
+          "key": "description",
+          "zh": "简要描述",
+          "en": "Summary",
+          "type": "longtext",
+          "localized": true,
+          "match": [
+            "描述",
+            "简介",
+            "摘要",
+            "成果简介",
+            "description",
+            "abstract",
+            "summary"
+          ]
+        }
+      ]
+    },
+    {
       "key": "awards",
       "zh": "获奖经历",
       "en": "Awards",
@@ -2310,7 +2754,13 @@
         "honours",
         "awards and honours",
         "scholarships",
-        "achievements"
+        "achievements",
+        "荣誉或奖励",
+        "荣誉与奖励",
+        "奖励与荣誉",
+        "获奖与荣誉",
+        "奖励及荣誉",
+        "奖惩信息"
       ],
       "fields": [
         {
@@ -2422,7 +2872,8 @@
         "语言",
         "languages",
         "language skills",
-        "language proficiency"
+        "language proficiency",
+        "语言证书"
       ],
       "fields": [
         {
@@ -2522,7 +2973,11 @@
         "licenses",
         "licences",
         "certificates",
-        "licences & certifications"
+        "licences & certifications",
+        "资格认证",
+        "资格证书情况",
+        "职业资格认证",
+        "证书资质"
       ],
       "fields": [
         {
@@ -2596,7 +3051,9 @@
         "家庭成员信息",
         "家庭关系",
         "family members",
-        "family information"
+        "family information",
+        "家庭成员及主要社会关系",
+        "主要社会关系"
       ],
       "fields": [
         {

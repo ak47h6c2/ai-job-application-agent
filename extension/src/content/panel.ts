@@ -27,6 +27,8 @@ const STATUS_TEXT: Record<string, string> = {
   "present-toggle-not-found": "没找到「至今」选项",
   "missing-in-profile": "资料库里没填",
   "missing-region-level": "资料里的地区少一级（比如缺区县）",
+  "chose-other": "列表里没有，已选「其他」，请补充填写",
+  "not-a-number": "这里只能填数字",
   "other-language": "用了另一种语言的资料",
   truncated: "超出字数，已截断",
   sensitive: "敏感信息，默认不填",

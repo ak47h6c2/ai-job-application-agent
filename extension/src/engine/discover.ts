@@ -9,6 +9,7 @@ export type ControlKind =
   | "date"
   | "date-range"
   | "radio-group"
+  | "checkbox-group"
   | "checkbox"
   | "file"
   | "contenteditable";
@@ -68,6 +69,7 @@ export const DATE_ROOTS = [
 ].join(",");
 
 const RADIO_GROUP_ROOTS = [".el-radio-group", ".ant-radio-group", ".ivu-radio-group", ".arco-radio-group", ".t-radio-group", ".n-radio-group", "[role=radiogroup]"].join(",");
+const CHECKBOX_GROUP_ROOTS = [".el-checkbox-group", ".ant-checkbox-group", ".ivu-checkbox-group", ".arco-checkbox-group", ".t-checkbox-group", ".n-checkbox-group", "[role=group]"].join(",");
 const BUTTON_RADIO_ITEMS = ".el-radio-button, .ant-radio-button-wrapper, .ivu-radio-wrapper, .t-radio-button, [role=radio]";
 
 const SKIP_INPUT_TYPES = new Set(["hidden", "submit", "button", "reset", "image", "password", "range", "color", "search"]);
@@ -147,6 +149,29 @@ export function discoverControls(scope: ParentNode = document): Control[] {
     const input = root.querySelector<HTMLInputElement>("input:not([type=hidden])") ?? undefined;
     controls.push({ id: controlId(root), kind: "custom-select", root, input });
     claim(root);
+  });
+
+  scope.querySelectorAll<HTMLElement>(CHECKBOX_GROUP_ROOTS).forEach((root) => {
+    if (claimed.has(root) || isOwnUi(root) || !isVisible(root)) return;
+    const members = Array.from(root.querySelectorAll<HTMLInputElement>("input[type=checkbox]"));
+    // [role=group] is generic: only treat it as a choice group when it holds nothing but checkboxes.
+    if (members.length < 2 || members.length > 40 || root.querySelector("input:not([type=checkbox]):not([type=hidden]), select, textarea")) return;
+    controls.push({ id: controlId(root), kind: "checkbox-group", root, members });
+    claim(root);
+  });
+
+  // Native checkboxes sharing a name form a multi-choice group ("意向城市: □北京 □上海").
+  const checkboxGroups = new Map<string, HTMLInputElement[]>();
+  scope.querySelectorAll<HTMLInputElement>("input[type=checkbox][name]").forEach((box) => {
+    if (claimed.has(box) || isOwnUi(box) || !box.name) return;
+    if (!(isVisible(box) || isVisible(box.closest("label")) || isVisible(box.parentElement))) return;
+    checkboxGroups.set(box.name, [...(checkboxGroups.get(box.name) ?? []), box]);
+  });
+  checkboxGroups.forEach((members) => {
+    if (members.length < 2) return;
+    const root = commonAncestor(members) as HTMLElement;
+    controls.push({ id: controlId(root), kind: "checkbox-group", root, members });
+    members.forEach((member) => claimed.add(member));
   });
 
   scope.querySelectorAll<HTMLElement>(RADIO_GROUP_ROOTS).forEach((root) => {

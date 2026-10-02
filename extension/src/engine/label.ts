@@ -166,11 +166,11 @@ export function readLabel(control: Control): LabelInfo {
     const explicit = document.querySelector(`label[for="${CSS.escape(element.id)}"]`);
     if (explicit) label = textWithoutControls(explicit);
   }
-  if (!label && control.kind !== "radio-group") {
+  if (!label && control.kind !== "radio-group" && control.kind !== "checkbox-group") {
     const wrapping = element.closest("label");
     if (wrapping) label = textWithoutControls(wrapping);
   }
-  if (!label && control.kind === "radio-group") {
+  if (!label && (control.kind === "radio-group" || control.kind === "checkbox-group")) {
     const legend = control.root.closest("fieldset")?.querySelector("legend");
     if (legend) label = clean(legend.textContent);
   }

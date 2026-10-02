@@ -50,7 +50,26 @@
       "zh": "广东省/深圳市/南山区"
     },
     "hasForeignNationality": "no",
-    "hasMajorDisease": "no"
+    "hasMajorDisease": "no",
+    "expectedCity": {
+      "zh": "北京、深圳",
+      "en": "Sydney"
+    },
+    "expectedOrg": {
+      "zh": "深圳分行"
+    },
+    "jobIntent": {
+      "zh": "后端开发、数据分析",
+      "en": "Backend Engineer"
+    },
+    "religion": {
+      "zh": "无"
+    },
+    "computerLevel": {
+      "zh": "全国计算机等级考试二级"
+    },
+    "hasRelatives": "no",
+    "hasCriminalRecord": "no"
   },
   "sections": {
     "education": [
@@ -184,6 +203,32 @@
           "zh": "工程师"
         },
         "phone": "13900000000"
+      }
+    ],
+    "publications": [
+      {
+        "title": {
+          "zh": "基于大模型的网申表单识别",
+          "en": "LLM-based form understanding"
+        },
+        "venue": {
+          "zh": "计算机学报"
+        },
+        "date": "2025-08",
+        "authorRank": {
+          "zh": "第一作者"
+        }
+      }
+    ],
+    "certificates": [
+      {
+        "name": {
+          "zh": "全国计算机等级考试二级"
+        },
+        "date": "2021-09",
+        "issuer": {
+          "zh": "教育部考试中心"
+        }
       }
     ]
   },

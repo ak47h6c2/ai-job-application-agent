@@ -9,11 +9,25 @@ export interface DateValue {
   present: boolean;
 }
 
-export type Desired =
+export type Desired = (
   | { kind: "text"; text: string; fallback: boolean }
   | { kind: "enum"; enumKey: string; value: string; text: string; fallback: boolean }
   | { kind: "date"; date: DateValue; text: string; fallback: boolean }
-  | { kind: "region"; parts: string[]; text: string; fallback: boolean };
+  | { kind: "region"; parts: string[]; text: string; fallback: boolean }
+) & {
+  /** The stored value as typed in the profile (keeps list separators like 、). */
+  raw?: string;
+};
+
+const LIST_SEPARATORS = /\s*[、,，;；\n|]+\s*/;
+
+/** Items of a list value ("北京、上海" -> ["北京", "上海"]) for multi-select widgets. */
+export function splitMulti(desired: Desired): Desired[] {
+  if (desired.kind === "enum" || desired.kind === "date") return [desired];
+  const items = (desired.raw ?? desired.text).split(LIST_SEPARATORS).map((item) => item.trim()).filter(Boolean);
+  if (items.length <= 1) return [desired];
+  return items.map((text) => ({ kind: "text", text, fallback: desired.fallback, raw: text }));
+}
 
 export function parseDate(raw: string): DateValue | null {
   const value = raw.trim();
@@ -42,6 +56,11 @@ export function entriesFor(profile: ProfileData, section: string, variant: WorkV
 export function desiredFor(field: FieldDef, raw: { value: string; fallback: boolean }, lang: Lang): Desired | null {
   const value = raw.value.trim();
   if (!value) return null;
+  return { ...desiredOf(field, value, raw.fallback, lang), raw: value };
+}
+
+function desiredOf(field: FieldDef, value: string, fallback: boolean, lang: Lang): Desired {
+  const raw = { fallback };
   if (field.type === "enum" && field.enum) {
     return { kind: "enum", enumKey: field.enum, value, text: enumLabel(field.enum, value, lang), fallback: raw.fallback };
   }
@@ -55,6 +74,16 @@ export function desiredFor(field: FieldDef, raw: { value: string; fallback: bool
     return { kind: "region", parts, text: lang === "zh" ? parts.join("") : parts.join(", "), fallback: raw.fallback };
   }
   return { kind: "text", text: value, fallback: raw.fallback };
+}
+
+/** Number for <input type=number>: "15k-20k" -> 15000, "3.8/4.0" -> 3.8, "AUD 75,000" -> 75000. */
+export function numericValue(text: string): string | null {
+  const match = /(\d[\d,]*(?:\.\d+)?)\s*(k|K|千|w|W|万)?/.exec(text);
+  if (!match) return null;
+  let value = Number(match[1].replace(/,/g, ""));
+  if (match[2] && /k|千/i.test(match[2])) value *= 1000;
+  if (match[2] && /w|万/i.test(match[2])) value *= 10000;
+  return Number.isFinite(value) ? String(value) : null;
 }
 
 export function resolveDesired(

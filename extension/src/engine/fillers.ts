@@ -1,9 +1,9 @@
 import type { Control } from "./discover";
 import { isVisible, pressKey, realClick, setNativeValue, sleep, textOf, waitFor } from "./dom";
-import { closeDropdown, fillCascader, fillCustomSelect, fillNativeSelect, type ChoiceResult } from "./dropdown";
+import { allowsOther, closeDropdown, fillCascader, fillCustomSelect, fillNativeSelect, isMultiSelect, OTHER_OPTION, type ChoiceResult } from "./dropdown";
 import { bestOption } from "./options";
 import { normalizeLabel } from "./text";
-import { datePattern, formatDate, type DateValue, type Desired } from "./values";
+import { datePattern, formatDate, numericValue, splitMulti, type DateValue, type Desired } from "./values";
 
 export type FillResult = ChoiceResult;
 
@@ -12,6 +12,12 @@ export type DatePart = "year" | "month" | "day";
 function writeText(element: HTMLInputElement | HTMLTextAreaElement, text: string): FillResult {
   let value = text;
   let uncertain = false;
+  if (element instanceof HTMLInputElement && element.type === "number") {
+    const number = numericValue(text);
+    if (number === null) return { ok: false, reason: "not-a-number" };
+    uncertain = number !== text.trim();
+    value = number;
+  }
   const max = element.maxLength;
   if (max > 0 && value.length > max) {
     value = value.slice(0, max);
@@ -21,7 +27,8 @@ function writeText(element: HTMLInputElement | HTMLTextAreaElement, text: string
   if (wasReadOnly) element.readOnly = false;
   setNativeValue(element, value);
   if (wasReadOnly) element.readOnly = true;
-  return { ok: element.value === value || element.value.length > 0, uncertain: uncertain || wasReadOnly, chosen: value, reason: uncertain ? "truncated" : undefined };
+  const truncated = element.maxLength > 0 && text.length > element.maxLength;
+  return { ok: element.value === value || element.value.length > 0, uncertain: uncertain || wasReadOnly, chosen: value, reason: truncated ? "truncated" : undefined };
 }
 
 function plainText(desired: Desired, element?: HTMLInputElement | HTMLTextAreaElement, precision: "year" | "month" | "day" = "month"): string {
@@ -39,6 +46,8 @@ export function hasValue(control: Control): boolean {
       return Boolean(control.members?.some((member) => member.checked)) || Boolean(control.choiceItems?.some((item) => /(is-active|checked|selected|active)/.test(item.className)));
     case "checkbox":
       return false;
+    case "checkbox-group":
+      return Boolean(control.members?.some((member) => member.checked));
     case "file":
       return Boolean((control.input as HTMLInputElement).files?.length) || /\.(pdf|docx?|jpe?g|png)\b/i.test(textOf(control.root.parentElement ?? control.root, 300));
     case "native-select": {
@@ -251,14 +260,22 @@ function choiceLabel(member: HTMLInputElement): string {
 export async function fillChoice(control: Control, desired: Desired): Promise<FillResult> {
   if (control.members?.length) {
     const radios = control.members.filter((member) => !member.disabled);
-    const match = bestOption(radios, choiceLabel, desired);
+    let match = bestOption(radios, choiceLabel, desired);
+    let chosenOther = false;
+    if (!match && allowsOther(desired)) {
+      const other = radios.find((radio) => OTHER_OPTION.test(choiceLabel(radio).replace(/\s+/g, "")));
+      if (other) {
+        match = { item: other, score: 0 };
+        chosenOther = true;
+      }
+    }
     if (!match) return { ok: false, reason: "no-matching-option", options: radios.map(choiceLabel) };
     if (!match.item.checked) {
       match.item.click();
       if (!match.item.checked) realClick(match.item.closest("label") ?? match.item);
     }
     await sleep(30);
-    return { ok: match.item.checked, chosen: choiceLabel(match.item) };
+    return { ok: match.item.checked, chosen: choiceLabel(match.item), uncertain: chosenOther || undefined, reason: chosenOther ? "chose-other" : undefined };
   }
   const items = control.choiceItems ?? [];
   const match = bestOption(items, (item) => textOf(item, 80), desired);
@@ -266,6 +283,37 @@ export async function fillChoice(control: Control, desired: Desired): Promise<Fi
   realClick(match.item);
   await sleep(30);
   return { ok: true, chosen: textOf(match.item, 80) };
+}
+
+/** Ticks every option of a multi-choice group named in the value ("北京、上海"). Never unticks. */
+export async function fillCheckboxGroup(control: Control, desired: Desired): Promise<FillResult> {
+  const members = (control.members ?? []).filter((member) => !member.disabled);
+  const chosen: string[] = [];
+  for (const item of splitMulti(desired)) {
+    const match = bestOption(members, choiceLabel, item);
+    if (!match) continue;
+    if (!match.item.checked) {
+      match.item.click();
+      if (!match.item.checked) realClick(match.item.closest("label") ?? match.item);
+      await sleep(30);
+    }
+    chosen.push(choiceLabel(match.item));
+  }
+  if (!chosen.length) return { ok: false, reason: "no-matching-option", options: members.map(choiceLabel) };
+  return { ok: true, chosen: chosen.join("、"), uncertain: chosen.length < splitMulti(desired).length };
+}
+
+/** Multi-select dropdowns: pick each listed value in turn. */
+async function fillMultiSelect(control: Control, desired: Desired): Promise<FillResult> {
+  const items = splitMulti(desired);
+  const chosen: string[] = [];
+  for (const item of items) {
+    const result = control.kind === "native-select" ? await fillNativeSelect(control.input as HTMLSelectElement, item) : await fillCustomSelect(control, item);
+    if (result.ok && result.reason !== "chose-other" && result.chosen) chosen.push(result.chosen);
+  }
+  if (control.kind === "custom-select") closeDropdown(control);
+  if (!chosen.length) return { ok: false, reason: "no-matching-option" };
+  return { ok: true, chosen: chosen.join("、"), uncertain: chosen.length < items.length };
 }
 
 export function fillCheckbox(control: Control, desired: Desired): FillResult {
@@ -318,9 +366,13 @@ export async function fillFile(control: Control, file: File): Promise<FillResult
 export async function fillControl(control: Control, desired: Desired, options: { precision: "month" | "day"; part?: string }): Promise<FillResult> {
   switch (control.kind) {
     case "native-select":
+      if (options.part === undefined && isMultiSelect(control)) return fillMultiSelect(control, desired);
       return fillNativeSelect(control.input as HTMLSelectElement, desired, options.part);
     case "custom-select":
+      if (options.part === undefined && isMultiSelect(control) && splitMulti(desired).length > 1) return fillMultiSelect(control, desired);
       return fillCustomSelect(control, desired, options.part);
+    case "checkbox-group":
+      return fillCheckboxGroup(control, desired);
     case "cascader":
       return fillCascader(control, desired);
     case "date":

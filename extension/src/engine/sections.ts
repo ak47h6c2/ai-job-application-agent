@@ -5,7 +5,7 @@ import { compact, normalizeLabel } from "./text";
 export const BASIC_SECTION = "basic";
 
 const BASIC_HEADINGS = [
-  "基本信息", "个人信息", "个人资料", "个人基本信息", "基础信息", "联系方式", "联系信息", "求职意向", "应聘信息", "个人概况", "其他信息", "附加信息",
+  "基本信息", "个人信息", "个人资料", "个人基本信息", "基础信息", "联系方式", "联系信息", "求职意向", "工作意向", "应聘意向", "应聘信息", "个人概况", "其他信息", "附加信息", "自我评价", "自我描述", "个人评价", "补充信息", "声明", "诚信承诺",
   "personal information", "personal details", "contact information", "contact details", "basic information", "my information", "about you", "additional information",
 ];
 

@@ -37,6 +37,20 @@ const OPTION_SELECTORS = [
 const POPUP_SELECTORS =
   ".el-select-dropdown, .el-popper, .ant-select-dropdown, .ivu-select-dropdown, .arco-select-popup, .t-popup, .semi-popover, .n-base-select-menu, .layui-anim, .select2-dropdown, .chosen-drop, .vs__dropdown-menu, [role=listbox], .dropdown-menu, [class*=dropdown], [class*=popper], [class*=popup], [class*=options]";
 
+export const OTHER_OPTION = /^(其他|其它|其他类|其他（请注明）|其他\(请注明\)|other|others|other\(pleasespecify\))$/i;
+
+/** 其他 is a sensible fallback for free text, never for yes/no answers. */
+export function allowsOther(desired: Desired): boolean {
+  return !(desired.kind === "enum" && desired.enumKey === "yesno") && desired.kind !== "date";
+}
+
+const MULTI_SELECT = ".el-select__tags, .is-multiple, .ant-select-multiple, [aria-multiselectable=true], .multiselect--multiple, .select2-selection--multiple, .chosen-container-multi, .vs--multiple, .ivu-select-multiple";
+
+export function isMultiSelect(control: Control): boolean {
+  if (control.input instanceof HTMLSelectElement && control.input.multiple) return true;
+  return control.root.matches(MULTI_SELECT) || Boolean(control.root.querySelector(MULTI_SELECT));
+}
+
 const PLACEHOLDER_OPTION = /^(请选择|请选择.*|--.*|select( an option)?|please select|choose( one)?|none selected)$/i;
 
 function optionText(element: Element): string {
@@ -280,8 +294,16 @@ export async function fillCustomSelect(control: Control, desired: Desired, part?
     }
   }
 
-  const available = Array.from(new Set(openOptions(control, before).map(optionText))).slice(0, 30);
-  if (search) typeInto(search, "");
+  if (search && search.isConnected) {
+    // Clear the filter so the full list (and its 其他 option) shows again.
+    typeInto(search, "");
+    await waitFor(() => openOptions(control, before).length > 0 || null, 800);
+  }
+  const remaining = openOptions(control, before);
+  const available = Array.from(new Set(remaining.map(optionText))).slice(0, 30);
+  // Not in the list (a school or company the site does not know): choose 其他 and let the user type it.
+  const other = allowsOther(desired) ? remaining.find((option) => OTHER_OPTION.test(optionText(option).replace(/\s+/g, ""))) : undefined;
+  if (other) return { ...(await pick(control, other)), uncertain: true, reason: "chose-other" };
   closeDropdown(control);
   return { ok: false, reason: available.length ? "no-matching-option" : "dropdown-did-not-open", options: available };
 }
@@ -291,16 +313,27 @@ export async function fillNativeSelect(select: HTMLSelectElement, desired: Desir
     const text = (option.textContent ?? "").trim();
     return !option.disabled && Boolean(text) && !(option.value === "" && PLACEHOLDER_OPTION.test(text));
   });
-  const match = bestOption(options, (option) => option.textContent ?? "", desired, part);
+  let match = bestOption(options, (option) => option.textContent ?? "", desired, part);
+  let chosenOther = false;
+  if (!match && allowsOther(desired) && part === undefined) {
+    const other = options.find((option) => OTHER_OPTION.test((option.textContent ?? "").replace(/\s+/g, "")));
+    if (other) {
+      match = { item: other, score: 0 };
+      chosenOther = true;
+    }
+  }
   if (!match) return { ok: false, reason: "no-matching-option", options: options.map((option) => (option.textContent ?? "").trim()).slice(0, 30) };
   const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
   select.focus({ preventScroll: true });
-  setter ? setter.call(select, match.item.value) : (select.value = match.item.value);
-  match.item.selected = true;
+  if (select.multiple) match.item.selected = true;
+  else {
+    setter ? setter.call(select, match.item.value) : (select.value = match.item.value);
+    match.item.selected = true;
+  }
   select.dispatchEvent(new Event("input", { bubbles: true }));
   select.dispatchEvent(new Event("change", { bubbles: true }));
   select.blur();
-  return { ok: true, chosen: (match.item.textContent ?? "").trim() };
+  return { ok: true, chosen: (match.item.textContent ?? "").trim(), uncertain: chosenOther || undefined, reason: chosenOther ? "chose-other" : undefined };
 }
 
 const CASCADER_MENUS = ".el-cascader-menu, .ant-cascader-menu, .ivu-cascader-menu, .arco-cascader-list, .t-cascader__menu, .n-cascader-submenu";

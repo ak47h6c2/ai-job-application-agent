@@ -9,6 +9,7 @@ const SUMMARY_KEYS: Record<string, string[]> = {
   work: ["company", "title"],
   projects: ["name", "role"],
   campus: ["organization", "role"],
+  publications: ["title", "venue"],
   awards: ["name", "level"],
   languages: ["language", "level", "score"],
   certificates: ["name", "issuer"],

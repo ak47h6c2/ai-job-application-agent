@@ -73,6 +73,7 @@ function typeAdjustment(control: Control, field: FieldDef): number {
     case "native-select":
     case "custom-select":
     case "radio-group":
+    case "checkbox-group":
       if (field.type === "longtext") return -30;
       return field.type === "enum" ? 10 : 0;
     case "checkbox":
