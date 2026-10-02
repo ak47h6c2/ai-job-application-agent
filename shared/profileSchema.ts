@@ -179,6 +179,20 @@ export function splitName(fullName: string): { first: string; last: string } {
   return { first: parts.slice(0, -1).join(" "), last: parts[parts.length - 1] };
 }
 
+/** Birth date and gender encoded in an 18-digit mainland ID number (checksum verified). */
+export function idCardInfo(idNumber: string): { birthDate: string; gender: "male" | "female" } | null {
+  const id = idNumber.trim().toUpperCase();
+  if (!/^\d{17}[\dX]$/.test(id)) return null;
+  const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+  const sum = weights.reduce((total, weight, index) => total + weight * Number(id[index]), 0);
+  if ("10X98765432"[sum % 11] !== id[17]) return null;
+  const year = id.slice(6, 10);
+  const month = id.slice(10, 12);
+  const day = id.slice(12, 14);
+  if (Number(month) < 1 || Number(month) > 12 || Number(day) < 1 || Number(day) > 31) return null;
+  return { birthDate: `${year}-${month}-${day}`, gender: Number(id[16]) % 2 === 1 ? "male" : "female" };
+}
+
 function ageFrom(birthDate: string, today = new Date()): string {
   const match = /^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/.exec(birthDate);
   if (!match) return "";
@@ -209,8 +223,18 @@ export function resolveBasic(profile: ProfileData, key: string, lang: Lang): { v
     const parts = splitName(source.value);
     return { value: key === "firstName" ? parts.first : parts.last, fallback: source.fallback };
   }
+  const fromId = idCardInfo(readValue(profile.basic.idNumber, "zh").value);
+  if (key === "birthDate" && fromId) return { value: fromId.birthDate, fallback: false };
+  if (key === "gender" && fromId) return { value: fromId.gender, fallback: false };
   if (key === "age") {
-    return { value: ageFrom(readValue(profile.basic.birthDate, lang).value), fallback: false };
+    const birth = readValue(profile.basic.birthDate, lang).value || fromId?.birthDate || "";
+    return { value: ageFrom(birth), fallback: false };
+  }
+  if (key === "phoneCode") {
+    const phone = readValue(profile.basic.phone, lang).value.replace(/[\s-]/g, "");
+    if (/^(\+?86)?1[3-9]\d{9}$/.test(phone)) return { value: "+86", fallback: false };
+    if (/^(\+?61|0)4\d{8}$/.test(phone)) return { value: "+61", fallback: false };
+    return stored;
   }
   const education = profile.sections.education ?? [];
   if (key === "highestDegree" && education.length) {

@@ -1,6 +1,6 @@
 [project]
 name = "ai-job-application-agent"
-version = "0.2.0"
+version = "0.3.0"
 description = "Fill job applications once: a local profile library, AI resume parsing and a browser extension that autofills application forms."
 requires-python = ">=3.11"
 dependencies = [

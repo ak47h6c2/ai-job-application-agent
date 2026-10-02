@@ -26,7 +26,7 @@ from backend.app.services.profile_store import load_profile, merge_answers, merg
 from backend.app.services.resume_parser import ResumeParseError, extract_text, parse_resume_text
 from backend.app.services.storage import load_schema, private_data_dir
 
-API_VERSION = "2.0"
+API_VERSION = "3.0"
 
 app = FastAPI(title="AI Job Application Agent API", version=API_VERSION)
 

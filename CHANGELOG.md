@@ -1,5 +1,19 @@
 # Changelog / 更新日志
 
+## 2026-10-02 — 0.3.0：更全的栏位和填表能力
+
+### 中文
+
+- **工行等国企/银行网申适配**：简历只读展示页可一键「编辑并填写」；生源地、籍贯、户口这类分开的省/市/区下拉逐级填写；家庭住址拆成「省/市/区」和「详细地址」；日期框不接受输入时自动点日历面板；兼容「工作（实习）经历」「荣誉或奖励」「资格认证」「家庭关系」「工作意向」等板块写法。
+- **新增资料项**：学术成果（论文/专利）、意向机构/分行、是否接受异地、职业规划、宗教信仰、证件有效期、血型、视力、院校类型（985/211）、毕业生类型、亲属回避、违法违纪、重大疾病、驾照、计算机水平、外国国籍；教育经历增加导师、论文题目、辅修、学制；工作经历增加证明人、证明人电话、薪酬、下属人数；附件增加生活照。
+- **填表引擎**：多选下拉和多选框组（`北京、深圳`）；没有匹配项时选「其他」；数字框自动换算（`15k` → `15000`）；超长文本在句末截断；身份证号推出出生日期和性别；手机号推出国际区号。
+- **常见问题库**：24 个中英文常见网申问题一键加入常用问答，AI 根据资料批量起草；插件面板支持「AI 全部起草」，并按字数限制起草。
+- **修复**：Windows + Node 24 在中文路径下构建插件崩溃；较新的 OpenAI 模型（GPT-5 系列）参数不兼容；构建插件只需要很少的依赖；启动脚本出错时明确提示。
+
+### English
+
+ICBC-style campus resume support (read-only pages, split province/city/district dropdowns, home address region, calendar-panel date picking), many new profile fields and a publications section, multi-select and checkbox-group filling, 其他/Other fallback, numeric inputs, sentence-aware truncation, ID-derived birth date and gender, a bilingual common-questions library with AI drafting, and "draft all" for open questions. Also fixes for Windows/Node 24 builds in non-ASCII paths and newer OpenAI models.
+
 ## 2026-10-02 — 0.2.0：投递自动填表助手
 
 ### 中文

@@ -894,7 +894,8 @@
             "dial code",
             "calling code",
             "country/region code"
-          ]
+          ],
+          "derived": true
         },
         {
           "key": "email",

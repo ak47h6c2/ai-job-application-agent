@@ -80,3 +80,15 @@ test("long text is cut at a sentence end; length limits are reported for AI draf
   assert.equal(plan.status, "question");
   assert.equal(plan.maxLength, 300);
 });
+
+test("birth date and gender come from the ID number when not filled in", async () => {
+  const page = await openFixture(browser, base, "native.html");
+  const profile = JSON.parse(JSON.stringify((await import("./helpers.mjs")).PROFILE));
+  delete profile.basic.birthDate;
+  delete profile.basic.gender;
+  profile.basic.idNumber = "110101200105120038";
+  await fill(page, profile);
+  assert.equal(await page.$eval("#csrq", (element) => element.value), "2001-05-12");
+  assert.equal(await page.$eval("input[name=xb][value='1']", (element) => element.checked), true);
+  assert.equal(await page.$eval("#sfz", (element) => element.value), "", "the ID itself stays private");
+});
