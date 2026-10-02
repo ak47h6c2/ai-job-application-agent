@@ -150,7 +150,15 @@ async function handle(message: Request, sender: chrome.runtime.MessageSender): P
     case "ai-answer": {
       const result = await api<{ answer: string }>(
         "/api/ai/answer",
-        { method: "POST", body: JSON.stringify({ question: message.question, lang: message.lang, job: message.job }) },
+        {
+          method: "POST",
+          body: JSON.stringify({
+            question: message.question,
+            lang: message.lang,
+            job: message.job,
+            max_length: message.maxLength && message.maxLength >= 20 ? Math.min(message.maxLength, 5000) : undefined,
+          }),
+        },
         240_000,
       );
       if (tabId !== undefined) await sendToFrame(tabId, message.frameId, { type: "set-frame-text", id: message.id, text: result.answer });

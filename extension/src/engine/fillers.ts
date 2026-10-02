@@ -9,6 +9,18 @@ export type FillResult = ChoiceResult;
 
 export type DatePart = "year" | "month" | "day";
 
+/** Cuts long text at the last sentence end that fits, so descriptions do not stop mid-sentence. */
+export function truncateText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const head = text.slice(0, max);
+  const cut = Math.max(...["。", "！", "？", "；", ".", "!", "?", ";", "\n"].map((mark) => head.lastIndexOf(mark)));
+  if (cut >= max * 0.6) return head.slice(0, cut + 1).trim();
+  // Otherwise end at the last comma and close the sentence there.
+  const soft = Math.max(...["，", "、", ","].map((mark) => head.lastIndexOf(mark)));
+  if (soft >= max * 0.6) return head.slice(0, soft) + (head[soft] === "," ? "." : "。");
+  return head;
+}
+
 function writeText(element: HTMLInputElement | HTMLTextAreaElement, text: string): FillResult {
   let value = text;
   let uncertain = false;
@@ -20,7 +32,7 @@ function writeText(element: HTMLInputElement | HTMLTextAreaElement, text: string
   }
   const max = element.maxLength;
   if (max > 0 && value.length > max) {
-    value = value.slice(0, max);
+    value = truncateText(value, max);
     uncertain = true;
   }
   const wasReadOnly = element.readOnly;

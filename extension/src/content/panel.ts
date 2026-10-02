@@ -199,6 +199,7 @@ export class Panel {
         question: item.label,
         lang: this.pageLang(),
         job: { ...this.job, description: pageText() },
+        maxLength: item.maxLength,
       });
       if (result.error) this.message = `AI 起草失败：${result.error}`;
       else item.status = "uncertain";

@@ -59,7 +59,7 @@ export type Request =
   | { type: "click-edit"; frameId: number }
   | { type: "save-answers"; answers: LearnedAnswer[] }
   | { type: "record-application"; job: JobInfo; note?: string }
-  | { type: "ai-answer"; frameId: number; id: string; question: string; lang: Lang; job: JobInfo }
+  | { type: "ai-answer"; frameId: number; id: string; question: string; lang: Lang; job: JobInfo; maxLength?: number }
   | { type: "ai-map"; fields: { index: number; label: string; type: string }[]; lang: Lang }
   | { type: "learned"; answer: LearnedAnswer; key: string }
   | { type: "submitted" }

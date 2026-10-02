@@ -23,6 +23,19 @@ export interface FieldReport {
   value?: string;
   reason?: string;
   options?: string[];
+  /** Character limit for free text (maxlength, or "不超过200字" in the label). */
+  maxLength?: number;
+}
+
+/** Limit from the widget (maxlength) or the label ("（不超过200字）", "max 150 words"). */
+export function textLimit(control: Control, label: string): number | undefined {
+  const input = control.input as HTMLInputElement | HTMLTextAreaElement | undefined;
+  if (input && input.maxLength > 0 && input.maxLength < 100000) return input.maxLength;
+  const zh = /(?:不超过|不多于|限|最多|以内|少于)?\s*(\d{2,5})\s*(?:个)?字/.exec(label);
+  if (zh) return Number(zh[1]);
+  const en = /(\d{2,4})\s*(?:words?)/i.exec(label);
+  if (en) return Number(en[1]) * 6;
+  return undefined;
 }
 
 export interface FillReport {
@@ -256,6 +269,7 @@ export class FillSession {
       section: item.target?.scope === "field" ? item.target.section : undefined,
       entry: item.entry,
       status,
+      maxLength: ["textarea", "text", "contenteditable"].includes(item.control.kind) ? textLimit(item.control, item.info.label) : undefined,
       ...extra,
     };
     item.control.root.setAttribute("data-jaf-state", status);
@@ -321,6 +335,10 @@ export class FillSession {
         item.target = answer;
         this.done.delete(control.root);
         return this.fillPlanned(item, headings);
+      }
+      // An empty long-text field on the page is effectively an open question: offer AI drafting.
+      if (field.type === "longtext" && ["textarea", "contenteditable", "text"].includes(control.kind)) {
+        return this.record(item, "question", { reason: "missing-in-profile" });
       }
       return this.record(item, "empty", { reason: "missing-in-profile" });
     }

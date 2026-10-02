@@ -62,3 +62,21 @@ test("does not overwrite existing values unless asked", async () => {
   await fill(page, undefined, { overwrite: true });
   assert.equal(await page.$eval("#xm", (element) => element.value), "李明");
 });
+
+test("long text is cut at a sentence end; length limits are reported for AI drafting", async () => {
+  const page = await openFixture(browser, base, "native.html");
+  await page.evaluate(() => {
+    const block = document.createElement("div");
+    block.innerHTML = `
+      <div class="form-item"><label>自我评价</label><textarea id="self" maxlength="24"></textarea></div>
+      <div class="form-item"><label>请谈谈你的职业规划（不超过300字）</label><textarea id="plan"></textarea></div>`;
+    document.querySelector("#why").closest(".form-item").after(block);
+  });
+  const profile = JSON.parse(JSON.stringify((await import("./helpers.mjs")).PROFILE));
+  profile.basic.selfEvaluation = { zh: "热爱后端开发。有扎实的计算机基础，乐于学习新技术。" };
+  const report = await fill(page, profile);
+  assert.equal(await page.$eval("#self", (element) => element.value), "热爱后端开发。有扎实的计算机基础。");
+  const plan = report.items.find((item) => item.label.includes("职业规划"));
+  assert.equal(plan.status, "question");
+  assert.equal(plan.maxLength, 300);
+});
