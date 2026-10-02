@@ -1,5 +1,6 @@
 import { build, context } from "esbuild";
-import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
 
 const watch = process.argv.includes("--watch");
 const testOnly = process.argv.includes("--test");
@@ -28,4 +29,7 @@ if (watch) {
   console.log("watching…");
 } else {
   await build(options);
+  if (!existsSync("dist/manifest.json")) throw new Error("dist/manifest.json was not written");
+  console.log(`Extension built: ${resolve("dist")}`);
+  console.log("Load it via chrome://extensions -> Developer mode -> Load unpacked.");
 }
