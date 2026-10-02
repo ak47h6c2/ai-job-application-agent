@@ -1,221 +1,92 @@
-# AI Job Application Agent
+# 网申助手 · AI Job Application Autofill
 
-面向中澳求职市场的双语 AI 求职申请助手。它可以读取求职邮件、自动读取公开岗位链接、从已登录的招聘网页导入岗位 JD，或让用户手动粘贴岗位信息；随后结合本地简历证据做匹配分析，并生成简历修改建议、求职信草稿和招聘方消息。所有对外动作都会停在人工确认前。
+**资料填一次，网申页面一键填写。** 面向同时投国内和澳洲岗位的应届生：把基本信息、教育、实习、项目、获奖、语言、家庭成员、常用问答和简历附件存进一个本地「求职资料库」，然后在国聘、应届生求职网、51job、各公司自建网申系统（北森、Moka、飞书招聘等）以及 Workday / Seek 等澳洲网申页面上，用浏览器插件一键填好。你只负责检查，然后自己点提交。
 
-An AI-assisted, bilingual job application workflow for candidates applying across Australia and China-facing roles. It scans job emails, reads public job links, imports job text from logged-in browser pages, or accepts pasted job descriptions; then it matches roles against local resume evidence and prepares application drafts with a human approval gate.
+*Fill your profile once, then autofill job application forms on Chinese and Australian career sites with a browser extension. You review and submit.*
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-local%20API-009688?logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/React-TypeScript-61DAFB?logo=react&logoColor=0B1020)
-![Safety](https://img.shields.io/badge/Human%20Approval-Required-0F766E)
-![Private](https://img.shields.io/badge/Private%20Data-Gitignored-64748B)
+![资料库](docs/assets/ui/profile-desktop.png)
 
-## 目录
+## 能做什么
 
-- [项目背景](#项目背景)
-- [当前功能](#当前功能)
-- [使用方法](#使用方法)
-- [文档与截图教程](#文档与截图教程)
-- [版本更新摘要](#版本更新摘要)
-- [技术架构](#技术架构)
-- [项目结构](#项目结构)
-- [安全边界](#安全边界)
-
-## 项目背景
-
-这个项目不是“自动海投工具”，而是一个求职场景下的 Agent 工作流演示：
-
-- 对澳洲岗位，重点是英文求职信、recruiter message、工作权利和岗位要求核对。
-- 对国内 AI / 大模型岗位，重点是展示 Agent、tool use、RAG、邮件解析、简历证据检索和双语产品能力。
-- 对用户体验，重点是让小白用户也能通过 Web UI 完成“上传简历 -> 选择岗位来源 -> 查看申请草稿”的流程。
-
-The project is designed as a portfolio-ready AI agent system rather than a blind auto-apply bot. It demonstrates practical agent workflow design, resume-grounded retrieval, bilingual UX, local privacy handling, and safe human review.
-
-## 当前功能
-
-| 模块 | 说明 |
+| | |
 | --- | --- |
-| 简历上传 | 在 Web UI 上传 PDF 简历，并生成本地简历证据索引。 |
-| 邮件扫描 | 从 QQ 邮箱读取求职相关邮件，按日期范围筛选岗位线索。 |
-| 邮件复查队列 | 对“有求职邮件但没解析出岗位”的邮件提供复查入口，可读取邮件摘要、查看链接，并把有用内容带到单个 JD 流程。 |
-| 岗位来源三模式 | 支持自动读取公开岗位链接、从已登录招聘网页导入岗位文本，也支持手动粘贴 LinkedIn、Seek、公司官网、Boss、猎聘等平台的岗位 JD。 |
-| 简历匹配 | 将岗位要求和简历证据做匹配，显示匹配度、推荐原因和缺失关键词。 |
-| 简历与项目补强 | 将缺失关键词转成可执行的简历 bullet point 和 portfolio 项目优化建议。 |
-| RAG 检索 | 从简历索引中找出与岗位最相关的经历片段。 |
-| 草稿生成 | 生成简历修改重点、求职信草稿和招聘方消息。 |
-| 语言判断 | 中文界面不等于中文草稿；澳洲/英文岗位会生成英文求职信和英文消息。 |
-| 人工确认 | 不自动发送邮件，不自动提交申请，所有外部动作都需要用户确认。 |
-| 双语 Web UI | 支持中文和英文界面切换，面向中澳求职场景。 |
+| 🗂 **求职资料库** | 中英两套资料（国内网申用中文，澳洲用英文，插件按页面语言自动选）。上传简历 PDF 可自动识别成资料。 |
+| ⚡ **一键填写** | 文本框、原生/自定义下拉框、可搜索下拉（含远程搜索学校）、多选下拉、多选框组、省市区级联或分开的省/市/区下拉、日期/月份/区间选择器（打不进去时自动点日历）、单选按钮组、数字框、简历/证件照/生活照上传。列表里没有你的学校时自动选「其他」。 |
+| 🏦 **国企/银行网申** | 政治面貌、籍贯、户口、生源地、家庭住址（省市区 + 详细地址）、家庭成员、学术成果、资格认证、意向机构、亲属回避、违法违纪、重大疾病等常见栏位；身份证号能推出出生日期和性别。简历是只读展示页时，可一键点「编辑」再填写。 |
+| ➕ **多段经历自动新增** | 页面只有一段教育/实习时，自动点「添加」补足；支持直接展开新表单和弹窗式「新增 → 填写 → 确定」两种做法；已经保存过的经历会跳过。 |
+| 🧠 **越用越省事** | 没识别的栏位在面板里选一次对应字段，这个网站下次自动识别；你手写的答案（如“从哪里得知招聘信息”）一键存进常用问答。 |
+| ✍️ **开放题 AI 起草**（可选） | 「为什么选择我们」这类问题，结合页面 JD 和你的资料起草，按字数限制写，填进去由你修改；一页多个开放题可「AI 全部起草」。 |
+| 📚 **常见问题库** | 24 个中英文常见网申问题（自我介绍、职业规划、优缺点、团队合作、期望薪资……）一键加入常用问答，AI 根据你的资料批量起草，改好后各网站自动复用。 |
+| 📋 **投递记录** | 提交后点一下记录投递，在 Web UI 里跟踪状态（已投递 / 笔试 / 面试 / Offer）。 |
 
-## 使用方法
+已在真实组件库上测试：**Element UI、Element Plus、Ant Design、Layui**、原生 HTML（表格布局、iframe 内嵌表单）和 Workday 风格英文网申（月/年分开填写、"I currently work here"、yes/no 工作权利问题）。这些是国内外网申系统最常用的组件；但还没有登录国聘、51job 等线上网站逐一实测，遇到填不好的页面见下方[适配新网站](#适配新网站)。
 
-### 1. 推荐：一键启动 Web UI
+![插件面板](docs/assets/ui/extension-panel.png)
 
-Windows 用户可以直接双击项目根目录里的：
+## 快速开始（Windows）
 
-```text
-start-webui.bat
-```
+1. 安装 [Python 3.11+](https://www.python.org/) 和 [Node.js 20+](https://nodejs.org/)。
+2. 双击项目根目录的 `start-webui.bat`（第一次运行或换电脑时用 PowerShell 执行 `.\start-webui.ps1 -Install`）。它会：
+   - 启动本地服务 `http://127.0.0.1:8000`
+   - 打开资料库网页 `http://127.0.0.1:5173`
+   - 构建浏览器插件到 `extension\dist`
+3. 安装插件：Chrome 打开 `chrome://extensions`（Edge 打开 `edge://extensions`）→ 打开「开发者模式」→「加载已解压的扩展程序」→ 选择 `extension\dist` 文件夹。
+4. 在资料库里上传简历识别，补全资料，上传中文/英文简历附件。
+5. 打开任意网申页面，点右下角的「填」按钮（或按 `Alt+Shift+F`）→「一键填写本页」。
 
-它会自动启动本地后端、前端，并打开：
+详细说明见 [使用手册](docs/USER_MANUAL.zh-en.md)。
 
-```text
-http://127.0.0.1:5173/
-```
+### 手动启动
 
-如果想在 PowerShell 里启动：
-
-```powershell
-.\start-webui.ps1
-```
-
-第一次换电脑或依赖缺失时，可以执行：
-
-```powershell
-.\start-webui.ps1 -Install
-```
-
-### 2. 手动启动后端
-
-```powershell
+```bash
 python -m pip install -e .
-python -m backend.app.api
+python -m backend.app.api            # 本地服务 :8000
+
+cd frontend && npm install && npm run dev      # 资料库网页 :5173
+cd extension && npm install && npm run build   # 插件 -> extension/dist
 ```
 
-后端默认运行在：
+## AI（可选）
 
-```text
-http://127.0.0.1:8000
-```
+不配置 AI 也能用：自动填表、简历规则识别（姓名/电话/邮箱/教育经历等）、问答库都在本地完成。配置后可以：简历 PDF 完整识别成资料、中文资料一键翻译成英文、开放题起草、识别剩余栏位。
 
-### 3. 手动启动前端
+在资料库「设置」页选择模型并填 API Key：DeepSeek、通义千问、Kimi、智谱 GLM、OpenAI（OpenAI 兼容接口），或 Claude。Key 只保存在本机 `data/private/settings.json`。
 
-打开第二个 PowerShell：
+## 隐私与安全
 
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
-前端默认运行在：
-
-```text
-http://127.0.0.1:5173
-```
-
-### 4. 在 Web UI 里使用
-
-1. 上传 PDF 简历。
-2. 选择一种岗位来源：
-   - 扫描 QQ 邮箱里的求职邮件。
-   - 或在“岗位来源”里用自动模式读取岗位链接。
-   - 如果网站需要登录，用“登录后导入”：系统会打开一个专用登录浏览器。你在里面登录一次，打开岗位详情页，再回 Web UI 点“读取当前页面并生成”。
-   - 如果自动读取和登录后导入都不方便，再切换到手动模式粘贴 JD。
-3. 点击生成或分析。
-4. 在推荐职位里选择一个岗位，优先点击“读取岗位详情”。
-5. 如果网站阻止自动读取，页面会自动跳到备用输入区；这时打开岗位网页，复制 JD 到描述框，再生成材料。
-6. 查看职位匹配结果、简历证据、缺失关键词和申请草稿。
-7. 人工确认后，再决定是否复制内容去投递或回复招聘方。
-
-### 5. 命令行备用流程
-
-```powershell
-python -m backend.app.cli build-resume-index --resume-pdf "C:\path\to\resume.pdf"
-python -m backend.app.cli run-agent --since 2026-05-08 --top 3
-```
-
-### 6. 运行测试
-
-```powershell
-python -m unittest discover -s tests
-cd frontend
-npm run build
-```
-
-## 文档与截图教程
-
-| 文档 | 说明 |
-| --- | --- |
-| [USER_MANUAL.zh-en.md](./docs/USER_MANUAL.zh-en.md) | 中英双语使用手册：说明主界面、简历上传、邮箱扫描、单个 JD、推荐职位、申请包、投递记录和安全边界。 |
-| [QUICK_START_TUTORIAL.zh-en.md](./docs/QUICK_START_TUTORIAL.zh-en.md) | 中英双语快速上手教程：按真实使用顺序从上传简历走到生成材料，并附本地浏览器手动测试截图。 |
-
-截图存放在 [`docs/assets/manual/`](./docs/assets/manual/)，来自本地 Web UI 的手动浏览器测试。
-
-## 版本更新摘要
-
-完整更新记录见 [CHANGELOG.md](./CHANGELOG.md)。
-
-| 日期 | 更新重点 |
-| --- | --- |
-| 2026-05-15 | 新增邮箱扫描诊断和复查队列：可查看哪些来源已检查、哪些邮件需要复查，并把邮件摘要带到单个 JD 流程；同时加强岗位列表页拦截，避免把搜索结果当成真实 JD。 |
-| 2026-05-14 | Web UI 增加“三条主路径”入口：扫描邮箱找岗位、单个 JD 生成草稿、查看申请草稿，减少用户在按钮之间迷路。 |
-| 2026-05-10 | 新增专用登录浏览器：自动读取岗位链接失败时，可以打开一个本地浏览器让用户登录，再读取当前岗位页并生成材料，不需要安装扩展。 |
-| 2026-05-10 | 优化邮件扫描后的主流程：推荐职位详情页新增“读取岗位详情”，优先自动读取邮件里的岗位链接；失败时再引导用户打开原网页并粘贴 JD。 |
-| 2026-05-10 | 重构“登录后导入”界面：改成三步操作卡片，明确提示“先拖到书签栏、再去岗位页点击、最后回本页读取”。 |
-| 2026-05-10 | 新增 Windows 一键启动脚本：双击 `start-webui.bat` 或执行 `.\start-webui.ps1` 即可启动后端、前端并打开 Web UI。 |
-| 2026-05-10 | 新增网页登录导入模式：用户在 LinkedIn、Seek、Boss、猎聘或公司官网登录后，用书签按钮把当前岗位导入本地助手，账号密码不进入本项目。 |
-| 2026-05-10 | 岗位来源升级为自动/手动双模式：可以读取公开岗位链接，也可以粘贴非邮件来源 JD 并生成申请草稿。 |
-| 2026-05-09 | 重构 Web UI，强化视觉引导；支持中文简历解析、中英文匹配、草稿语言判断和上传超时处理。 |
-| 2026-05-08 | 搭建早期 Agent 原型：邮件解析、岗位匹配、简历证据检索、申请草稿和安全审批关卡。 |
-
-## 技术架构
-
-```mermaid
-flowchart LR
-    Resume["PDF Resume"] --> Index["Local Resume Index"]
-    Mail["QQ Mail / Job Alerts"] --> Parser["Email Parser"]
-    Browser["Logged-in Browser Job Page"] --> Import["Local Browser Import"]
-    Manual["Pasted Job JD"] --> Lead["Structured Job Lead"]
-    Parser --> Lead
-    Import --> Lead
-    Lead --> Matcher["Resume-Job Matcher"]
-    Index --> Retriever["Resume Evidence Retrieval"]
-    Matcher --> Drafts["Cover Letter / Recruiter Message / Resume Notes"]
-    Retriever --> Drafts
-    Drafts --> Review["Human Approval Gate"]
-```
-
-核心技术：
-
-- Backend: Python, FastAPI, local file storage.
-- Frontend: React, TypeScript, Vite.
-- Logged-in page reading: Playwright persistent browser profile stored under `data/private/`.
-- Resume parsing: PDF text extraction and local evidence indexing.
-- Matching: rule-based resume-job scoring with cross-language keyword support.
-- Agent workflow: input collection, structured parsing, retrieval, drafting, and human approval.
+- 所有资料、附件、投递记录只存在本机 `data/private/`（已被 Git 忽略）。
+- 插件只和本机 `127.0.0.1` 通信；只有在你使用 AI 功能时，才会把必要内容发给你配置的模型服务（证件号码不会发送）。
+- 证件号码默认不自动填写，需要在资料库里单独开启。
+- 插件**从不点击提交**，也不会勾选隐私协议/承诺书这类勾选框。
 
 ## 项目结构
 
 ```text
-backend/
-  app/
-    api.py                 # FastAPI local API for the Web UI
-    cli.py                 # Command-line workflows
-    parsers/               # Job email parsing
-    rag/                   # Resume evidence indexing and retrieval
-    services/              # Matching, ingestion, drafting, agent workflow
-data/
-  sample_emails/           # Synthetic examples only
-docs/
-  architecture.md          # Architecture notes
-  USER_MANUAL.zh-en.md     # Bilingual user manual with screenshots
-  QUICK_START_TUTORIAL.zh-en.md
-  assets/manual/           # Manual-test screenshots used by docs
-frontend/
-  src/App.tsx              # Bilingual React Web UI
-tests/
+shared/profile-schema.json   # 资料结构：字段、中英文标签、栏位同义词、下拉选项同义词（三端共用）
+backend/app/                 # FastAPI 本地服务：资料库、附件、AI、投递记录
+frontend/src/                # 资料库 Web UI（资料库 / 投递记录 / 设置）
+extension/src/engine/        # 填表引擎：控件识别、标签提取、分区识别、字段匹配、各类控件填写
+extension/src/content/       # 页面内面板、iframe 协调、答案学习、提交检测
+extension/test/              # 用真实组件库搭的网申页面 + Playwright 测试
+tests/                       # 后端测试
 ```
 
-## 安全边界
+架构说明见 [docs/architecture.md](docs/architecture.md)，更新记录见 [CHANGELOG.md](CHANGELOG.md)。
 
-- 私有简历索引、邮件扫描结果和运行报告会写入 `data/private/`，该目录已被 `.gitignore` 忽略。
-- 不提交 `.env`、邮箱授权码、API key、原始邮箱导出或私人简历结果。
-- 当前系统只生成本地草稿，不会自动发邮件，也不会自动投递。
-- 生成的求职信和招聘方消息必须人工核对，尤其要确认工作权利、地点、岗位资格和简历内容真实性。
+## 测试
 
-## English Summary
+```bash
+python -m pytest tests              # 后端
+cd extension && npm install --prefix test && npm test   # 填表引擎（6 类网申页面）+ 插件端到端测试
+cd frontend && npm run build        # Web UI 类型检查与构建
+```
 
-This repository contains a local-first AI job application agent for China-Australia job search workflows. It supports resume PDF indexing, QQ Mail job-alert scanning, pasted job description analysis, resume-job matching, lightweight resume evidence retrieval, bilingual UI, draft generation, and a strict human approval gate.
+插件测试需要 Chromium；设置 `CHROMIUM_PATH` 指向本机 Chrome/Chromium 可执行文件。
 
-The project is intended to demonstrate applied AI agent engineering: tool use, retrieval-augmented resume evidence, structured parsing, safe automation boundaries, and product thinking for real job search workflows.
+## 适配新网站
+
+遇到填不好的网申系统：
+
+1. 先在面板「没识别的栏位」里手动选一次对应字段，插件会为这个网站记住。
+2. 如果是新的叫法（比如某系统把“毕业院校”写成“就读院校名称”），把它加到 `shared/profile-schema.json` 对应字段的 `match` 列表里，三端都会生效。
+3. 如果是新的下拉/日期组件库，在 `extension/src/engine/discover.ts` 和 `dropdown.ts` 的选择器列表里加上它的类名，并在 `extension/test/fixtures/` 里加一个复现页面。

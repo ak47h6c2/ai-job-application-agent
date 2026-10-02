@@ -8,14 +8,18 @@ from typing import Any
 
 
 APPLICATION_STATUSES = {
-    "to_review",
-    "draft_ready",
+    "saved",
     "applied",
-    "waiting",
+    "assessment",
     "interview",
+    "offer",
     "rejected",
 }
-NON_DRAFT_STATUSES = {"applied", "waiting", "interview", "rejected"}
+LEGACY_STATUSES = {
+    "to_review": "saved",
+    "draft_ready": "saved",
+    "waiting": "applied",
+}
 
 
 def normalize_text(value: Any, *, limit: int) -> str:
@@ -83,13 +87,16 @@ def normalize_application_record(payload: dict[str, Any]) -> dict[str, object]:
     url = normalize_text(payload.get("url"), limit=500)
     key = normalize_text(payload.get("key"), limit=560) or application_key(title=title, company=company, url=url)
     status = normalize_text(payload.get("status"), limit=40)
+    status = LEGACY_STATUSES.get(status, status)
     if status not in APPLICATION_STATUSES:
-        status = "to_review"
+        status = "applied"
     return {
         "key": key,
         "title": title,
         "company": company,
         "url": url,
+        "source": normalize_text(payload.get("source"), limit=80),
+        "applied_at": normalize_date(payload.get("applied_at")),
         "status": status,
         "note": normalize_note(payload.get("note")),
         "next_action_at": normalize_date(payload.get("next_action_at")),
@@ -106,8 +113,10 @@ def upsert_application_record(private_data_dir: Path, payload: dict[str, Any]) -
     )
     records = load_application_records(private_data_dir)
     existing = next((record for record in records if record.get("key") == incoming["key"]), None)
-    if existing and "next_action_at" not in payload:
-        incoming["next_action_at"] = existing.get("next_action_at", "")
+    if existing:
+        for field in ("next_action_at", "applied_at", "source", "note"):
+            if field not in payload:
+                incoming[field] = existing.get(field, "")
     next_records = [record for record in records if record.get("key") != incoming["key"]]
     next_records.insert(0, incoming)
     save_application_records(private_data_dir, next_records)
@@ -124,26 +133,3 @@ def delete_application_record(private_data_dir: Path, key: str) -> bool:
         return False
     save_application_records(private_data_dir, next_records)
     return True
-
-
-def mark_application_draft_ready(private_data_dir: Path, payload: dict[str, Any]) -> dict[str, object]:
-    incoming = normalize_application_record(
-        {
-            **payload,
-            "status": "draft_ready",
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }
-    )
-    records = load_application_records(private_data_dir)
-    existing = next((record for record in records if record.get("key") == incoming["key"]), None)
-    if existing and existing.get("status") in NON_DRAFT_STATUSES:
-        return existing
-
-    if existing and not incoming.get("note"):
-        incoming["note"] = existing.get("note", "")
-    if existing and not incoming.get("next_action_at"):
-        incoming["next_action_at"] = existing.get("next_action_at", "")
-    next_records = [record for record in records if record.get("key") != incoming["key"]]
-    next_records.insert(0, incoming)
-    save_application_records(private_data_dir, next_records)
-    return incoming

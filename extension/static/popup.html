@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <header><span class="logo">填</span><strong>网申助手</strong><span id="status" class="status">检测中…</span></header>
+  <main>
+    <div id="profile" class="profile"></div>
+    <button id="fill" class="primary">在当前页面一键填写</button>
+    <button id="open" class="secondary">打开助手面板</button>
+    <label class="row"><input type="checkbox" id="launcher"> 在网申页面显示悬浮按钮</label>
+    <label class="row"><input type="checkbox" id="hide-host"> 本网站不显示悬浮按钮</label>
+    <details>
+      <summary>连接设置</summary>
+      <label class="field">本地服务地址<input id="api" placeholder="http://127.0.0.1:8000"></label>
+      <label class="field">资料库网页地址<input id="webui" placeholder="http://127.0.0.1:5173"></label>
+      <button id="save" class="secondary">保存</button>
+    </details>
+  </main>
+  <footer><a id="webui-link" href="#" target="_blank">打开资料库 →</a><span class="muted">Alt+Shift+F 一键填写</span></footer>
+  <script src="popup.js"></script>
+</body>
+</html>

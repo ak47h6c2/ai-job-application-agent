@@ -1,12 +1,12 @@
 [project]
 name = "ai-job-application-agent"
-version = "0.1.0"
-description = "An AI-assisted job application workflow for parsing job emails and matching roles against a resume profile."
+version = "0.3.0"
+description = "Fill job applications once: a local profile library, AI resume parsing and a browser extension that autofills application forms."
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115.0",
+  "httpx>=0.27.0",
   "pypdf>=5.0.0",
-  "playwright>=1.48.0",
   "python-multipart>=0.0.20",
   "uvicorn[standard]>=0.30.0",
 ]
@@ -17,7 +17,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["backend*"]
-exclude = ["browser-extension*", "data*", "docs*", "frontend*", "output*", "tests*"]
+exclude = ["extension*", "shared*", "data*", "docs*", "frontend*", "output*", "tests*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

@@ -6,6 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $FrontendDir = Join-Path $Root "frontend"
+$ExtensionDir = Join-Path $Root "extension"
 $BackendLog = Join-Path $Root "backend-dev.log"
 $FrontendLog = Join-Path $Root "frontend-dev.log"
 $BackendUrl = "http://127.0.0.1:8000/api/health"
@@ -32,6 +33,17 @@ function Wait-HttpOk([string]$Url, [int]$Seconds) {
     return $false
 }
 
+function Invoke-Step([string]$Title, [scriptblock]$Command) {
+    & $Command
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "$Title failed (exit code $LASTEXITCODE)." -ForegroundColor Red
+        Write-Host "If downloads time out, switch npm to a mirror and run this script again:" -ForegroundColor Yellow
+        Write-Host "  npm config set registry https://registry.npmmirror.com" -ForegroundColor Yellow
+        exit 1
+    }
+}
+
 function Start-HiddenPowerShell([string]$Command) {
     Start-Process powershell -WindowStyle Hidden -ArgumentList @(
         "-NoProfile",
@@ -49,16 +61,26 @@ Write-Host "Project: $Root"
 
 if ($Install) {
     Write-Host "Installing backend dependencies..." -ForegroundColor Yellow
-    python -m pip install -e .
-    Write-Host "Installing Playwright browser runtime..." -ForegroundColor Yellow
-    python -m playwright install chromium
+    Invoke-Step "Installing backend dependencies" { python -m pip install -e . }
 }
 
 if ($Install -or -not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
     Write-Host "Installing frontend dependencies..." -ForegroundColor Yellow
     Push-Location $FrontendDir
-    npm install
+    Invoke-Step "Installing frontend dependencies" { npm install }
     Pop-Location
+}
+
+if ($Install -or -not (Test-Path (Join-Path $ExtensionDir "dist\manifest.json"))) {
+    Write-Host "Building the browser extension..." -ForegroundColor Yellow
+    Push-Location $ExtensionDir
+    Invoke-Step "Installing extension build tools" { npm install }
+    Invoke-Step "Building the browser extension" { npm run build }
+    Pop-Location
+    if (-not (Test-Path (Join-Path $ExtensionDir "dist\manifest.json"))) {
+        Write-Host "The extension was not built: extension\dist\manifest.json is missing." -ForegroundColor Red
+        exit 1
+    }
 }
 
 $backendPids = Get-PortProcessId 8000
@@ -95,6 +117,8 @@ if (-not $frontendReady) {
 }
 
 Write-Host "Ready: $FrontendUrl" -ForegroundColor Green
+Write-Host "Browser extension folder (load unpacked in chrome://extensions or edge://extensions):" -ForegroundColor Cyan
+Write-Host "  $(Join-Path $ExtensionDir 'dist')"
 
 if (-not $NoBrowser) {
     Start-Process $FrontendUrl
