@@ -51,6 +51,7 @@ export function describeFrame(profile: ProfileData | null) {
         recognizedAs: item.target?.scope === "field" ? `${item.target.section}.${item.target.key}` : item.target?.scope ?? null,
         score: item.target ? Math.round(item.target.score) : undefined,
         entry: item.entry,
+        regionPart: item.regionPart,
         options,
       };
     }),

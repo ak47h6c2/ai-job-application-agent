@@ -937,6 +937,22 @@
           ]
         },
         {
+          "key": "addressRegion",
+          "zh": "家庭住址（省/市/区）",
+          "en": "Address region",
+          "type": "region",
+          "localized": true,
+          "match": [
+            "家庭住址所在地区",
+            "家庭住址所在地",
+            "家庭所在地区",
+            "家庭所在地",
+            "住址所在地区",
+            "通讯地址所在地区",
+            "现住址所在地区"
+          ]
+        },
+        {
           "key": "address",
           "zh": "详细地址",
           "en": "Address",
@@ -1240,6 +1256,54 @@
             "where did you hear",
             "source",
             "referral source"
+          ]
+        },
+        {
+          "key": "hasForeignNationality",
+          "zh": "是否有外国国籍/境外永久居留权",
+          "en": "Foreign nationality or residency",
+          "type": "enum",
+          "enum": "yesno",
+          "match": [
+            "外国国籍",
+            "外籍",
+            "境外永久居留权",
+            "国外永久居留权",
+            "外国永久居留权",
+            "绿卡",
+            "双重国籍",
+            "其他国家国籍"
+          ]
+        },
+        {
+          "key": "hasMajorDisease",
+          "zh": "是否有重大疾病/传染病史",
+          "en": "Major illness history",
+          "type": "enum",
+          "enum": "yesno",
+          "match": [
+            "精神病",
+            "传染病",
+            "重大疾病",
+            "既往病史",
+            "重大病史",
+            "遗传病",
+            "慢性病",
+            "病史"
+          ]
+        },
+        {
+          "key": "specialRecruitCategory",
+          "zh": "专项招聘类别",
+          "en": "Special recruitment category",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "专项招聘类别",
+            "专项招聘",
+            "专项计划",
+            "专项类别",
+            "招聘专项"
           ]
         }
       ]
@@ -2657,6 +2721,18 @@
         "免冠照",
         "photo",
         "headshot"
+      ]
+    },
+    {
+      "key": "life_photo",
+      "zh": "生活照",
+      "en": "Life photo",
+      "match": [
+        "生活照",
+        "本人生活照",
+        "个人生活照",
+        "全身照",
+        "近期生活照"
       ]
     },
     {

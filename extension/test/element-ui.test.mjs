@@ -29,6 +29,12 @@ test("Element UI: selects, remote search, cascader, date pickers, radio buttons,
   assert.deepEqual(form.city, ["bj", "bjs", "hd"]);
   assert.equal(form.adjust, "是");
   assert.equal(form.salary, "15k-20k");
+  assert.deepEqual([form.originProvince, form.originCity], ["广东省", "深圳市"]);
+  assert.deepEqual([form.homeProvince, form.homeCity, form.homeDistrict], ["广东省", "深圳市", "南山区"]);
+  assert.equal(form.homeDetail, "学府路 1 号");
+  assert.equal(form.grad, "2026-06");
+  assert.equal(form.foreign, "否");
+  assert.equal(form.disease, "N");
 
   assert.equal(form.education.length, 2);
   assert.deepEqual(form.education.map((edu) => edu.school), ["北京大学", "浙江大学"]);

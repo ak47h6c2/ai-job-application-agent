@@ -21,6 +21,19 @@
     <el-form-item label="现居住城市"><el-cascader v-model="form.city" :options="regions"></el-cascader></el-form-item>
     <el-form-item label="是否接受调剂"><el-radio-group v-model="form.adjust"><el-radio label="是"></el-radio><el-radio label="否"></el-radio></el-radio-group></el-form-item>
     <el-form-item label="期望薪资"><el-input v-model="form.salary"></el-input></el-form-item>
+    <el-form-item label="高考生源地">
+      <el-select v-model="form.originProvince" placeholder="省" @change="form.originCity = ''"><el-option v-for="p in provinces" :key="p" :label="p" :value="p"></el-option></el-select>
+      <el-select v-model="form.originCity" placeholder="市"><el-option v-for="c in citiesOf(form.originProvince)" :key="c" :label="c" :value="c"></el-option></el-select>
+    </el-form-item>
+    <el-form-item label="家庭住址">
+      <el-select v-model="form.homeProvince" placeholder="省"><el-option v-for="p in provinces" :key="p" :label="p" :value="p"></el-option></el-select>
+      <el-select v-model="form.homeCity" placeholder="市"><el-option v-for="c in citiesOf(form.homeProvince)" :key="c" :label="c" :value="c"></el-option></el-select>
+      <el-select v-model="form.homeDistrict" placeholder="区"><el-option v-for="d in districtsOf(form.homeCity)" :key="d" :label="d" :value="d"></el-option></el-select>
+      <el-input type="textarea" v-model="form.homeDetail" placeholder="请输入详细地址，无需重复填写省市区" maxlength="75" show-word-limit></el-input>
+    </el-form-item>
+    <el-form-item label="应届毕业时间"><el-date-picker v-model="form.grad" type="month" format="yyyy 年 M 月" value-format="yyyy-MM" placeholder="选择月份"></el-date-picker></el-form-item>
+    <el-form-item label="是否拥有外国国籍、国外永久居留权"><el-radio-group v-model="form.foreign"><el-radio label="是"></el-radio><el-radio label="否"></el-radio></el-radio-group></el-form-item>
+    <el-form-item label="是否有精神病、传染病等重大疾病史"><el-select v-model="form.disease"><el-option label="是" value="Y"></el-option><el-option label="否" value="N"></el-option></el-select></el-form-item>
 
     <h3 class="section-title">教育经历</h3>
     <div v-for="(edu, i) in form.education" :key="i" class="card">
@@ -59,7 +72,7 @@ const SCHOOLS = ["北京大学", "北京大学医学部", "北京交通大学", 
 window.vm = new Vue({
   el: "#app",
   data: {
-    form: { name: "", gender: "", birth: "", political: "", nation: "", phone: "", email: "", hometown: [], city: [], adjust: "", salary: "",
+    form: { name: "", gender: "", birth: "", political: "", nation: "", phone: "", email: "", hometown: [], city: [], adjust: "", salary: "", originProvince: "", originCity: "", homeProvince: "", homeCity: "", homeDistrict: "", homeDetail: "", grad: "", foreign: "", disease: "",
       education: [{ school: "", major: "", degree: "", range: [], mode: "" }], work: [], awards: [{ name: "", date: "" }] },
     politicals: ["中共党员", "中共预备党员", "共青团员", "群众"],
     nations: ["汉族","蒙古族","回族","藏族","维吾尔族","苗族","彝族","壮族","布依族","朝鲜族","满族","侗族","瑶族","白族","土家族","哈尼族","哈萨克族","傣族","黎族","傈僳族"],
@@ -70,9 +83,14 @@ window.vm = new Vue({
       { value: "bj", label: "北京市", children: [ { value: "bjs", label: "市辖区", children: [ { value: "hd", label: "海淀区" }, { value: "cy", label: "朝阳区" } ] } ] }
     ],
     dialog: false,
-    draft: {}
+    draft: {},
+    provinces: ["北京市", "广东省", "吉林省"],
+    cityMap: { "北京市": ["北京市"], "广东省": ["广州市", "深圳市"], "吉林省": ["长春市", "白山市"] },
+    districtMap: { "深圳市": ["福田区", "南山区"], "广州市": ["天河区"], "北京市": ["海淀区"], "白山市": ["抚松县"], "长春市": ["朝阳区"] }
   },
   methods: {
+    citiesOf(province) { return this.cityMap[province] || []; },
+    districtsOf(city) { return this.districtMap[city] || []; },
     searchSchool(query) { setTimeout(() => { this.schoolOptions = SCHOOLS.filter((s) => s.includes(query)); }, 300); },
     openWork() { this.draft = { company: "", title: "", start: "", end: "", present: false, desc: "" }; this.dialog = true; },
     saveWork() { if (!this.draft.company) return; this.form.work.push(this.draft); this.dialog = false; }

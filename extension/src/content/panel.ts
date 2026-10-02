@@ -26,6 +26,7 @@ const STATUS_TEXT: Record<string, string> = {
   "date-not-accepted": "日期格式不被接受",
   "present-toggle-not-found": "没找到「至今」选项",
   "missing-in-profile": "资料库里没填",
+  "missing-region-level": "资料里的地区少一级（比如缺区县）",
   "other-language": "用了另一种语言的资料",
   truncated: "超出字数，已截断",
   sensitive: "敏感信息，默认不填",

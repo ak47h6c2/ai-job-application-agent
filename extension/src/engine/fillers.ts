@@ -72,7 +72,15 @@ async function typeDate(input: HTMLInputElement, date: DateValue, precision: "ye
   }
   const hint = input.placeholder || input.value || "";
   const primary = datePattern(hint, precision);
-  const attempts = [primary, { ...primary, sep: "-" }, { ...primary, sep: "/" }, { ...primary, precision: primary.precision === "month" ? ("day" as const) : ("month" as const) }];
+  const other = primary.precision === "month" ? ("day" as const) : ("month" as const);
+  const attempts = [
+    primary,
+    { ...primary, sep: "-", cjk: false },
+    { ...primary, sep: "/", cjk: false },
+    { ...primary, sep: ".", cjk: false },
+    { ...primary, cjk: true },
+    { ...primary, precision: other, cjk: false },
+  ];
   const wasReadOnly = input.readOnly;
   if (wasReadOnly) input.readOnly = false;
   if (!library) {
@@ -107,8 +115,74 @@ async function typeDate(input: HTMLInputElement, date: DateValue, precision: "ye
     }
   }
   if (wasReadOnly) input.readOnly = true;
+  // Typing was rejected (custom format or a non-editable picker): click through the calendar panel.
+  if (await pickFromPanel(input, date, precision)) return { ok: true, uncertain: true, chosen: input.value };
   closeDropdown({ id: "", kind: "date", root: input });
   return { ok: false, reason: "date-not-accepted" };
+}
+
+const PICKER_PANELS = ".el-picker-panel, .el-date-picker, .ivu-picker-panel-body";
+const PREV_YEAR = ".el-icon-d-arrow-left, button.d-arrow-left, .d-arrow-left, [aria-label*='前一年'], [aria-label*='Previous Year'], .ivu-date-picker-prev-btn-arrow-double";
+const NEXT_YEAR = ".el-icon-d-arrow-right, button.d-arrow-right, .d-arrow-right, [aria-label*='后一年'], [aria-label*='Next Year'], .ivu-date-picker-next-btn-arrow-double";
+const PREV_MONTH = ".el-icon-arrow-left, button.arrow-left, [aria-label*='上个月'], [aria-label*='Previous Month']";
+const NEXT_MONTH = ".el-icon-arrow-right, button.arrow-right, [aria-label*='下个月'], [aria-label*='Next Month']";
+const MONTH_NAMES = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+/** Picks a date by clicking an Element-style calendar panel: year arrows, then the month or day cell. */
+async function pickFromPanel(input: HTMLInputElement, date: DateValue, precision: "year" | "month" | "day"): Promise<boolean> {
+  realClick(input);
+  const panel = await waitFor(() => Array.from(document.querySelectorAll<HTMLElement>(PICKER_PANELS)).find(isVisible) ?? null, 800);
+  if (!panel) return false;
+  const header = () => textOf(panel.querySelector(".el-date-picker__header, .el-picker-panel__header, .ivu-date-picker-header") ?? panel, 120);
+  const yearShown = () => Number(/(\d{4})/.exec(header())?.[1] ?? NaN);
+  const monthShown = () => {
+    const text = header().toLowerCase();
+    const numeric = /(\d{1,2})\s*月/.exec(text);
+    if (numeric) return Number(numeric[1]);
+    const index = MONTH_NAMES.findIndex((name) => text.includes(name));
+    return index >= 0 ? index + 1 : NaN;
+  };
+  const press = (selector: string) => {
+    const button = Array.from(panel.querySelectorAll<HTMLElement>(selector)).find(isVisible);
+    if (!button) return false;
+    realClick(button);
+    return true;
+  };
+  const year = Number(date.year);
+  const month = Number(date.month || "1");
+  for (let step = 0; step < 150 && yearShown() !== year; step += 1) {
+    if (!press(yearShown() > year ? PREV_YEAR : NEXT_YEAR)) return false;
+    await sleep(25);
+  }
+  if (yearShown() !== year) return false;
+
+  const monthTable = panel.querySelector<HTMLElement>(".el-month-table, .ivu-date-picker-cells-month");
+  if (precision !== "day" && monthTable && isVisible(monthTable)) {
+    const cells = Array.from(monthTable.querySelectorAll<HTMLElement>("td, .ivu-date-picker-cells-cell"));
+    const cell = cells[month - 1];
+    if (!cell) return false;
+    realClick(cell.querySelector(".cell, a, div, span, em") ?? cell);
+    await sleep(150);
+    return input.value.includes(date.year);
+  }
+
+  const dayTable = panel.querySelector<HTMLElement>(".el-date-table");
+  if (!dayTable || !isVisible(dayTable)) return false;
+  for (let step = 0; step < 400; step += 1) {
+    const shown = yearShown() * 12 + monthShown();
+    const wanted = year * 12 + month;
+    if (Number.isNaN(shown) || shown === wanted) break;
+    if (!press(shown > wanted ? PREV_MONTH : NEXT_MONTH)) return false;
+    await sleep(20);
+  }
+  const day = String(Number(date.day || "1"));
+  const cell = Array.from(dayTable.querySelectorAll<HTMLElement>("td.available, td:not(.prev-month):not(.next-month):not(.disabled)")).find(
+    (td) => !td.classList.contains("prev-month") && !td.classList.contains("next-month") && textOf(td, 4) === day,
+  );
+  if (!cell) return false;
+  realClick(cell.querySelector("span, div") ?? cell);
+  await sleep(150);
+  return input.value.includes(date.year);
 }
 
 export async function fillDate(control: Control, desired: Desired, fieldPrecision: "month" | "day"): Promise<FillResult> {

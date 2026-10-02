@@ -48,7 +48,11 @@ export interface Planned {
   entry: number;
   part?: DatePart;
   range?: "start" | "end";
+  /** Index of the level (province / city / district) when a region is split across dropdowns. */
+  regionPart?: number;
 }
+
+const DROPDOWN_KINDS = new Set(["native-select", "custom-select"]);
 
 const YEAR_HINT = /^(年|年份|year|yyyy|选择年份?)$/i;
 const MONTH_HINT = /^(月|月份|month|mm|选择月份?)$/i;
@@ -115,6 +119,26 @@ export function plan(scope: ParentNode, options: PlanOptions): { planned: Planne
     if (!item.part) return;
     const siblings = planned.filter((other) => other !== item && other.part && other.part !== item.part && other.info.container && other.info.container === item.info.container);
     if (!siblings.length) item.part = undefined;
+  });
+
+  // Province / city / district as separate dropdowns under one label ("籍贯": 省 市 县).
+  const regionGroups = new Map<Element, Planned[]>();
+  planned.forEach((item) => {
+    const target = item.target;
+    if (!item.info.container || target?.scope !== "field") return;
+    if (target.field.type !== "region" && target.key !== "address") return;
+    regionGroups.set(item.info.container, [...(regionGroups.get(item.info.container) ?? []), item]);
+  });
+  regionGroups.forEach((group) => {
+    const target = group[0].target as Extract<Target, { scope: "field" }>;
+    const pickers = group.filter((item) => DROPDOWN_KINDS.has(item.control.kind) || item.control.kind === "cascader");
+    if (!pickers.length) return;
+    // 家庭住址 as 省/市/区 dropdowns + a text box: the dropdowns take the address region.
+    if (target.key === "address" && target.section === BASIC_SECTION) {
+      pickers.forEach((item) => (item.target = withKey(target, "addressRegion")));
+    }
+    const dropdowns = pickers.filter((item) => DROPDOWN_KINDS.has(item.control.kind));
+    if (dropdowns.length >= 2 || (dropdowns.length === 1 && target.key === "address")) dropdowns.forEach((item, index) => (item.regionPart = index));
   });
 
   // Two date widgets under one label ("起止时间") become start + end.
@@ -307,6 +331,14 @@ export class FillSession {
     }
     if (desired.kind === "date" && desired.date.present) {
       return this.outcome(item, await setPresent(control, item.info.container), desired);
+    }
+    if (item.regionPart !== undefined && desired.kind === "region") {
+      const part = desired.parts[item.regionPart];
+      if (!part) return this.record(item, "empty", { reason: "missing-region-level" });
+      const result = await fillControl(control, desired, { precision, part });
+      // The next level (city, district) loads its options only after this choice.
+      await sleep(400);
+      return this.outcome(item, result, { ...desired, text: part });
     }
     if (item.part && desired.kind === "date") {
       return this.outcome(item, await fillDatePart(control, desired, item.part), desired);
