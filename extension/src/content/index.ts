@@ -1,8 +1,8 @@
 import { looksLikeApplicationForm } from "../engine/discover";
 import { isVisible } from "../engine/dom";
-import { send, type ExtensionSettings, type FillContext, type FrameCommand } from "../messages";
+import { send, type CaptureResult, type ExtensionSettings, type FillContext, type FrameCommand } from "../messages";
 import { describeFrame } from "./describe";
-import { clearMarks, clickEdit, fillFrame, fillOne, findEditButtons, focusField, setText, watchSubmit } from "./frame";
+import { captureFrame, clearMarks, clickEdit, fillFrame, fillOne, findEditButtons, focusField, setText, watchSave, watchSubmit } from "./frame";
 import { Panel } from "./panel";
 
 declare global {
@@ -51,6 +51,13 @@ if (!window.__jobAutofillLoaded) {
         panel?.onSubmitted();
         sendResponse(true);
         return false;
+      case "capture-frame":
+        captureFrame().then(sendResponse, () => sendResponse(null));
+        return true;
+      case "captured":
+        panel?.onCaptured(message.result);
+        sendResponse(true);
+        return false;
       case "open-panel":
         void panel?.toggle(true, Boolean(message.fill));
         sendResponse(true);
@@ -61,6 +68,11 @@ if (!window.__jobAutofillLoaded) {
   });
 
   watchSubmit();
+  let autoCapture = true;
+  void send<ExtensionSettings>({ type: "get-settings" })
+    .then((loaded) => (autoCapture = loaded?.autoCapture !== false))
+    .catch(() => undefined);
+  watchSave(() => autoCapture);
 
   if (panel) {
     // Show the floating button only on pages that look like application forms (SPAs render late).
@@ -80,5 +92,9 @@ if (!window.__jobAutofillLoaded) {
     };
     schedule();
     new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
+    // Values read on the previous page (before 下一步 navigated here) are still waiting for review.
+    void send<CaptureResult | null>({ type: "get-captured" })
+      .then((result) => result?.proposals?.length && panel.onCaptured(result))
+      .catch(() => undefined);
   }
 }

@@ -1,7 +1,8 @@
-import { type Lang } from "../../../shared/profileSchema";
+import { emptyProfile, type Lang, type ProfileData } from "../../../shared/profileSchema";
+import { capturePage, diffCapture, type PageCapture } from "../engine/capture";
 import { isVisible, realClick, setNativeValue, textOf, waitForIdle } from "../engine/dom";
 import { fillPage, fillWithTarget, rememberKey, type FieldReport, type FillReport } from "../engine/engine";
-import { send, type FillContext } from "../messages";
+import { send, type CaptureResult, type FillContext } from "../messages";
 
 /** True while the engine itself is changing values, so learning ignores those events. */
 let programmatic = false;
@@ -29,8 +30,16 @@ export function clearMarks(): void {
   document.getElementById(MARK_STYLE_ID)?.remove();
 }
 
+/** Last context seen in this frame; capture on click has to read the page before it changes. */
+let lastContext: FillContext | null = null;
+
 async function loadContext(): Promise<FillContext> {
-  return send<FillContext>({ type: "get-context", host: location.host });
+  lastContext = await send<FillContext>({ type: "get-context", host: location.host });
+  return lastContext;
+}
+
+function memoryOf(context: FillContext | null): Map<string, string> {
+  return new Map(Object.entries(context?.memory ?? {}));
 }
 
 function fileFetcher() {
@@ -184,6 +193,48 @@ export function watchSubmit(): void {
       if (!target || target.closest("[data-jaf-ui]") || !isVisible(target)) return;
       const text = ((target as HTMLInputElement).value || textOf(target, 30)).replace(/\s+/g, "");
       if (SUBMIT_TEXT.test(text)) void send({ type: "submitted" });
+    },
+    true,
+  );
+}
+
+async function proposalsFor(capture: PageCapture): Promise<CaptureResult> {
+  const context = await loadContext().catch(() => lastContext);
+  const profile: ProfileData = context?.profile ?? emptyProfile();
+  return { lang: capture.lang, proposals: diffCapture(profile, capture) };
+}
+
+/** Reads the values on this frame and compares them with the profile (panel button). */
+export async function captureFrame(): Promise<CaptureResult> {
+  const context = await loadContext().catch(() => lastContext);
+  return proposalsFor(capturePage(context?.profile ?? emptyProfile(), { memory: memoryOf(context) }));
+}
+
+const SAVE_TEXT =
+  /^(保存|暂存|保存草稿|保存信息|保存简历|保存并继续|保存并下一步|保存并返回|下一步|继续|确定|确认|完成|提交|提交申请|确认提交|投递|立即投递|确认投递|投递简历|提交简历|申请|立即申请|申请职位|save|savedraft|saveandcontinue|save&continue|next|continue|done|submit|submitapplication|apply|applynow|confirm|ok|review)$/i;
+
+/** When the user clicks 保存 / 下一步 / 提交, read what they typed before the page moves on. */
+export function watchSave(enabled: () => boolean): void {
+  void loadContext().catch(() => undefined);
+  document.addEventListener(
+    "click",
+    (event) => {
+      // Our own clicks (adding entries, confirming dialogs) are synthetic and happen while filling.
+      if (!event.isTrusted || programmatic || !enabled()) return;
+      const target = (event.target as Element | null)?.closest("button, a, input[type=submit], input[type=button], [role=button], .layui-layer-btn0");
+      if (!target || target.closest("[data-jaf-ui]")) return;
+      const text = ((target as HTMLInputElement).value || textOf(target, 30)).replace(/\s+/g, "");
+      if (!SAVE_TEXT.test(text)) return;
+      let capture: PageCapture;
+      try {
+        capture = capturePage(lastContext?.profile ?? emptyProfile(), { clicked: target, memory: memoryOf(lastContext) });
+      } catch {
+        return;
+      }
+      if (!capture.values.length && !capture.answers.length) return;
+      void proposalsFor(capture).then((result) => {
+        if (result.proposals.length) void send({ type: "captured", result });
+      });
     },
     true,
   );

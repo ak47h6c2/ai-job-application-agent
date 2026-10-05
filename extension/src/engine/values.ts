@@ -40,7 +40,7 @@ export function parseDate(raw: string): DateValue | null {
 
 export function splitRegion(text: string): string[] {
   return text
-    .split(/\s*[/／>,，、|]\s*|\s+-\s+/)
+    .split(/\s*[/／>,，、|]\s*|\s+-\s+|(?<=[\u4e00-\u9fff])\s*[-－—]\s*(?=[\u4e00-\u9fff])/)
     .map((part) => part.trim())
     .filter(Boolean);
 }

@@ -209,7 +209,7 @@ function targetLabel(target: Target | null, entry: number, lang: Lang): string |
   return `${section?.[lang] ?? target.section} #${entry + 1} · ${target.field[lang]}`;
 }
 
-const PRIMARY_KEYS: Record<string, string> = {
+export const PRIMARY_KEYS: Record<string, string> = {
   education: "school",
   work: "company",
   projects: "name",

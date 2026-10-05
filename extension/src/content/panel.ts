@@ -1,5 +1,6 @@
 import { SCHEMA, readValue, type Lang } from "../../../shared/profileSchema";
-import { send, type FillContext, type FrameReport, type JobInfo, type LearnedAnswer, type TaggedField } from "../messages";
+import { capturePayload, type Proposal } from "../engine/capture";
+import { send, type CaptureResult, type FillContext, type FrameReport, type JobInfo, type LearnedAnswer, type TaggedField } from "../messages";
 import { PANEL_CSS } from "./panelStyles";
 import { rememberKey } from "./frame";
 
@@ -91,6 +92,8 @@ export class Panel {
   private drafting = new Set<string>();
   private mapping = false;
   private editFrame: number | null = null;
+  private captured: Proposal[] = [];
+  private capturing = false;
 
   private ensureHost(): ShadowRoot {
     if (this.shadow) return this.shadow;
@@ -147,6 +150,89 @@ export class Panel {
     this.submitted = true;
     if (!this.open) void this.toggle(true);
     else this.render();
+  }
+
+  /** Values read from the page (on 保存 / 下一步, or the panel button) that are new to the profile. */
+  onCaptured(result: CaptureResult): void {
+    this.captured = result.proposals;
+    if (!this.captured.length) return;
+    if (!this.open) void this.toggle(true);
+    else this.render();
+  }
+
+  private async captureNow(): Promise<void> {
+    this.capturing = true;
+    this.message = "";
+    this.render();
+    try {
+      const result = await send<(CaptureResult & { error?: string }) | null>({ type: "capture-all" });
+      if (result?.error) throw new Error(result.error);
+      this.captured = result?.proposals ?? [];
+      if (!this.captured.length) this.message = "本页没有资料库里缺少的新内容。";
+    } catch (error) {
+      this.message = `读取失败：${(error as Error).message}`;
+    } finally {
+      this.capturing = false;
+      this.render();
+    }
+  }
+
+  private async saveCaptured(): Promise<void> {
+    const payload = capturePayload(this.captured);
+    const count = this.captured.filter((proposal) => proposal.checked).length;
+    const result = await send<{ applied?: number; error?: string }>({ type: "save-capture", payload });
+    if (result?.error) {
+      this.message = `存入失败：${result.error}`;
+    } else {
+      this.message = `已存入资料库 ${count} 项，下次网申自动填写。`;
+      this.captured = [];
+      await send({ type: "refresh-profile" }).catch(() => undefined);
+      this.ctx = await send<FillContext>({ type: "get-context", host: location.host });
+    }
+    this.render();
+  }
+
+  private dismissCaptured(): void {
+    this.captured = [];
+    void send({ type: "clear-captured" });
+    this.render();
+  }
+
+  private captureCard(): Node | null {
+    if (!this.captured.length) return null;
+    const checked = this.captured.filter((proposal) => proposal.checked).length;
+    const rows = this.captured.map((proposal) => {
+      const box = h("input", { type: "checkbox", checked: proposal.checked });
+      box.addEventListener("change", () => {
+        proposal.checked = box.checked;
+        this.render();
+      });
+      return h(
+        "label",
+        { className: "capture-row", title: proposal.change ? "资料库里已经有不同的内容，勾选后会替换" : "资料库里还没有，勾选后存入" },
+        box,
+        h(
+          "span",
+          { className: "row-main" },
+          h("span", { className: "row-label" }, proposal.title),
+          h("span", { className: "row-sub" }, proposal.detail),
+          proposal.previous && h("span", { className: "was" }, `资料库里是：${proposal.previous}`),
+        ),
+      );
+    });
+    return h(
+      "section",
+      { className: "capture" },
+      h("div", { className: "group-title" }, "从本页读到的新资料", h("span", { className: "count" }, String(this.captured.length))),
+      h("div", { className: "hint" }, "资料库里没有的已勾选；和资料库不同的默认不勾，确认后再勾。"),
+      h("div", { className: "capture-list" }, ...rows),
+      h(
+        "div",
+        { className: "capture-actions" },
+        h("button", { className: "primary", disabled: !checked, onClick: () => void this.saveCaptured() }, `存入资料库（${checked} 项）`),
+        h("button", { className: "link", onClick: () => this.dismissCaptured() }, "忽略"),
+      ),
+    );
   }
 
   private items(): TaggedField[] {
@@ -390,6 +476,11 @@ export class Panel {
     return h(
       "div",
       { className: "footer" },
+      h(
+        "button",
+        { className: "secondary", disabled: this.capturing, title: "读取你在本页填好的内容，把资料库里没有的存进去", onClick: () => void this.captureNow() },
+        this.capturing ? "读取中…" : "把本页填好的内容存入资料库",
+      ),
       h("button", { className: "link small", title: "导出栏位名称和组件类型，不含你填写的内容", onClick: () => void this.exportStructure() }, "导出页面结构（用于适配新网站）"),
       learnedCount > 0 && h("button", { className: "secondary", onClick: () => void this.saveLearned() }, `记住我填的 ${learnedCount} 条答案`),
       this.submitted && !this.recorded
@@ -425,6 +516,7 @@ export class Panel {
         h("button", { className: "primary big", disabled: this.busy || !this.ctx?.profile, onClick: () => void this.fill() }, this.busy ? "正在填写…" : this.items().length ? "再填一次" : "一键填写本页"),
         h("label", { className: "check" }, overwrite, "覆盖已有内容"),
         this.message && h("div", { className: "message" }, this.message),
+        this.captureCard(),
         this.editFrame !== null && h("button", { className: "secondary", disabled: this.busy, onClick: () => void this.editAndFill() }, "帮我点「编辑」并填写"),
         ...this.results(),
       ),

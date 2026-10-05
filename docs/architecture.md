@@ -37,12 +37,14 @@ One fill runs per frame:
 6. **fillers.ts / dropdown.ts** — fills each control the way a user would so React/Vue/Angular bindings update: native value setter + input/change events; pointer sequences to open dropdowns; typing into search boxes (remote search); scrolling virtual lists; clicking cascader levels (with pass-through for `市辖区`); typing dates in the format the widget expects and verifying they stuck; ticking 「至今」; uploading files through `DataTransfer`.
 7. **repeat.ts** — adds missing entries: finds the section's Add button, then either fills the new inline block (and clicks its save button if it has one) or fills the dialog that opened and clicks 确定/保存. Entries already shown on the page as saved cards are skipped.
 
+8. **capture.ts** — the reverse direction: reads what each control currently shows (selected option text, cascader path, date parts, 至今 toggles), converts it to the stored format (enum values, `YYYY-MM` dates, `省/市/区` regions), groups section values into entries and diffs them against the profile. Entries are matched by their main field (school, company, …) and start date; unmatched ones become new entries. New values are proposed ticked, conflicting ones unticked; `POST /api/profile/capture` writes the ticked ones.
+
 The engine never clicks submit and never ticks agreement checkboxes.
 
 ## Extension shell
 
 - **background.ts** — talks to the local API (with an offline cache of the profile), fetches attachments, sends fill commands to every frame via `webNavigation.getAllFrames`, stores per-site field mappings, records applications.
-- **content/frame.ts** — runs the engine in its frame, highlights results, watches unfilled fields for user-typed answers, detects submit clicks.
+- **content/frame.ts** — runs the engine in its frame, highlights results, watches unfilled fields for user-typed answers, detects submit clicks, and on trusted 保存 / 下一步 / 提交 / 确定 clicks captures the frame (or the dialog the button is in) before the page changes. Pending proposals are kept per tab in `chrome.storage.session` so they survive navigation.
 - **content/panel.ts** — the review panel (top frame only, in a shadow root).
 
 ## Tests

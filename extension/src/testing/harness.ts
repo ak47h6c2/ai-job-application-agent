@@ -1,5 +1,6 @@
 // Test-only bundle: exposes the engine on window for Playwright fixture tests.
 import { normalizeProfile, type Lang } from "../../../shared/profileSchema";
+import { capturePage, diffCapture } from "../engine/capture";
 import { fillPage, plan } from "../engine/engine";
 
 declare global {
@@ -18,6 +19,13 @@ window.JobAutofill = {
       memory: new Map(),
       getFile: async (kind) => (files[kind] ? new File([files[kind]], `${kind}.pdf`, { type: "application/pdf" }) : null),
     });
+  },
+  /** Reads the page and diffs it against `profile` (what 保存 / the panel button would propose). */
+  capture(profile: unknown, options: { clicked?: string; lang?: Lang | "auto" } = {}) {
+    const data = normalizeProfile(profile);
+    const clicked = options.clicked ? document.querySelector(options.clicked) : null;
+    const capture = capturePage(data, { clicked, lang: options.lang });
+    return { capture, proposals: diffCapture(data, capture) };
   },
   plan(profile: unknown) {
     return plan(document, { profile: normalizeProfile(profile) }).planned.map((item) => ({

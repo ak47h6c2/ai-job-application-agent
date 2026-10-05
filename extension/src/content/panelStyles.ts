@@ -44,6 +44,15 @@ header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; borde
 .mini { border: 1px solid #c7d2fe; background: #eef2ff; color: #4338ca; border-radius: 6px; padding: 3px 8px; font-size: 12px; white-space: nowrap; }
 .mini:disabled { opacity: .6; }
 .mini.wide { width: 100%; padding: 6px 8px; }
+.capture { border: 1px solid #99f6e4; background: #f0fdfa; border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.capture-list { display: flex; flex-direction: column; gap: 3px; max-height: 260px; overflow-y: auto; }
+.capture-row { display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px; border-radius: 6px; background: #fff; cursor: pointer; }
+.capture-row input { margin-top: 3px; }
+.capture-row .row-main { padding: 0; }
+.capture-row .was { color: #b45309; font-size: 12px; }
+.capture-actions { display: flex; gap: 6px; }
+.capture-actions .primary { flex: 1; }
+.capture-actions .link { padding: 0 6px; }
 .footer { border-top: 1px solid #f1f5f9; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .footer:empty { display: none; }
 .record { display: flex; flex-direction: column; gap: 6px; }
@@ -56,5 +65,6 @@ header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; borde
   .group-title { color: #f3f4f6; } .row-sub, .profile-line { color: #9ca3af; }
   .message { background: #1f2937; color: #e5e7eb; } .lang, .map, .record input { background: #1f2937; color: #e5e7eb; border-color: #374151; }
   .count, .chip.muted { background: #1f2937; color: #9ca3af; }
+  .capture { background: #0f2a28; border-color: #115e59; } .capture-row { background: #1f2937; }
 }
 `;

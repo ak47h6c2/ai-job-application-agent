@@ -262,7 +262,7 @@ export async function fillDatePart(control: Control, desired: Desired, part: Dat
   return writeText(control.input as HTMLInputElement, part === "year" ? value : value.padStart(2, "0"));
 }
 
-function choiceLabel(member: HTMLInputElement): string {
+export function choiceLabel(member: HTMLInputElement): string {
   const label = member.closest("label") ?? (member.id ? document.querySelector(`label[for="${CSS.escape(member.id)}"]`) : null);
   if (label) return textOf(label, 80);
   const next = member.nextElementSibling ?? member.parentElement?.nextElementSibling;

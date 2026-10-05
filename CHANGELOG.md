@@ -1,5 +1,16 @@
 # Changelog / 更新日志
 
+## 2026-10-05 — 0.4.0：边投递边积累资料
+
+### 中文
+
+- **把填好的内容存进资料库**：在网申页面点「保存 / 下一步 / 提交 / 确定」时，插件读取你填好的内容，和资料库对比，在面板里列出资料库里还没有的部分：空着的栏位、新的教育/实习/项目等经历（自动新建条目）、常用问答。勾选后点「存入资料库」。和资料库不一样的内容默认不勾，避免覆盖。翻到下一页后，待确认的列表也会保留。面板里也可以随时点「把本页填好的内容存入资料库」。手填两三个网申，资料库就基本齐了。插件弹窗里可以关闭这个功能。
+- **修复**：「高考前户口所在地（生源地）」「入学前户籍所在地」这类栏位被当成现户口填写，现在会填生源地；`吉林-白山` 这种用短横线分隔的地区能正确识别。
+
+### English
+
+Capture: on 保存 / Next / Submit (or from the panel button) the extension reads what you typed, compares it with the profile and offers the new values, new entries and answers for one-click saving (conflicts are offered unticked). Fixes "高考前户口所在地（生源地）" being filled with the current hukou.
+
 ## 2026-10-02 — 0.3.0：更全的栏位和填表能力
 
 ### 中文

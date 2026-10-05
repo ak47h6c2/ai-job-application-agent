@@ -25,6 +25,7 @@ async function init(): Promise<void> {
   $<HTMLInputElement>("webui").value = settings.webUi;
   $<HTMLAnchorElement>("webui-link").href = settings.webUi;
   $<HTMLInputElement>("launcher").checked = settings.showLauncher;
+  $<HTMLInputElement>("auto-capture").checked = settings.autoCapture !== false;
   $<HTMLInputElement>("hide-host").checked = settings.hiddenHosts.includes(host);
 
   const health = await send<{ online: boolean; ai?: boolean }>({ type: "health" });
@@ -40,6 +41,7 @@ async function init(): Promise<void> {
   $("fill").onclick = () => void toTab({ type: "open-panel", fill: true });
   $("open").onclick = () => void toTab({ type: "open-panel" });
   $<HTMLInputElement>("launcher").onchange = (event) => void send({ type: "save-settings", settings: { showLauncher: (event.target as HTMLInputElement).checked } });
+  $<HTMLInputElement>("auto-capture").onchange = (event) => void send({ type: "save-settings", settings: { autoCapture: (event.target as HTMLInputElement).checked } });
   $<HTMLInputElement>("hide-host").onchange = (event) => {
     const hidden = new Set(settings.hiddenHosts);
     if ((event.target as HTMLInputElement).checked) hidden.add(host);

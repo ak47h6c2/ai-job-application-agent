@@ -1,5 +1,6 @@
 import { normalizeProfile, type AttachmentMeta, type ProfileData } from "../../shared/profileSchema";
-import { DEFAULT_SETTINGS, type ExtensionSettings, type FillContext, type FrameCommand, type FrameReport, type Request } from "./messages";
+import type { Proposal } from "./engine/capture";
+import { DEFAULT_SETTINGS, type CaptureResult, type ExtensionSettings, type FillContext, type FrameCommand, type FrameReport, type Request } from "./messages";
 
 const PROFILE_TTL_MS = 20_000;
 let cache: { profile: ProfileData | null; attachments: AttachmentMeta[]; ai: boolean; at: number } | null = null;
@@ -96,6 +97,32 @@ async function fillAllFrames(tabId: number, lang: FrameCommand & { type: "fill-f
   return reports;
 }
 
+function mergeProposals(base: Proposal[], incoming: Proposal[]): Proposal[] {
+  const merged = new Map(base.map((proposal) => [proposal.id, proposal]));
+  incoming.forEach((proposal) => merged.set(proposal.id, proposal));
+  return Array.from(merged.values()).slice(-300);
+}
+
+// Values read on 保存 / 下一步 are kept per tab, so they survive the page navigating away.
+const captureKey = (tabId: number) => `capture:${tabId}`;
+const sessionStore = chrome.storage.session ?? chrome.storage.local;
+
+async function getCaptured(tabId: number): Promise<CaptureResult | null> {
+  const stored = await sessionStore.get(captureKey(tabId));
+  return (stored[captureKey(tabId)] as CaptureResult | undefined) ?? null;
+}
+
+async function addCaptured(tabId: number, result: CaptureResult): Promise<CaptureResult> {
+  const previous = await getCaptured(tabId);
+  const merged: CaptureResult = { lang: result.lang, proposals: mergeProposals(previous?.proposals ?? [], result.proposals) };
+  await sessionStore.set({ [captureKey(tabId)]: merged });
+  return merged;
+}
+
+async function clearCaptured(tabId: number): Promise<void> {
+  await sessionStore.remove(captureKey(tabId));
+}
+
 async function handle(message: Request, sender: chrome.runtime.MessageSender): Promise<unknown> {
   const tabId = sender.tab?.id;
   switch (message.type) {
@@ -170,6 +197,31 @@ async function handle(message: Request, sender: chrome.runtime.MessageSender): P
         { method: "POST", body: JSON.stringify({ fields: message.fields, lang: message.lang }) },
         240_000,
       );
+    case "capture-all": {
+      if (tabId === undefined) return null;
+      const frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? [{ frameId: 0 }];
+      const results = await Promise.all(frames.map((frame) => sendToFrame<CaptureResult>(tabId, frame.frameId, { type: "capture-frame" })));
+      const found = results.filter((result): result is CaptureResult => Boolean(result?.proposals));
+      if (!found.length) return { lang: "zh", proposals: [] };
+      return addCaptured(tabId, { lang: found[0].lang, proposals: found.flatMap((result) => result.proposals) });
+    }
+    case "captured": {
+      if (tabId === undefined || !message.result.proposals.length) return true;
+      const merged = await addCaptured(tabId, message.result);
+      await sendToFrame(tabId, 0, { type: "captured", result: merged });
+      return true;
+    }
+    case "get-captured":
+      return tabId === undefined ? null : getCaptured(tabId);
+    case "clear-captured":
+      if (tabId !== undefined) await clearCaptured(tabId);
+      return true;
+    case "save-capture": {
+      const result = await api<{ applied: number }>("/api/profile/capture", { method: "POST", body: JSON.stringify(message.payload) }, 10_000);
+      cache = null;
+      if (tabId !== undefined) await clearCaptured(tabId);
+      return result;
+    }
     case "learned":
     case "submitted":
       // Forward from any frame to the top frame, where the panel lives.
@@ -196,6 +248,8 @@ async function handle(message: Request, sender: chrome.runtime.MessageSender): P
       return null;
   }
 }
+
+chrome.tabs.onRemoved.addListener((tabId) => void clearCaptured(tabId));
 
 chrome.runtime.onMessage.addListener((message: Request, sender, sendResponse) => {
   handle(message, sender)

@@ -22,7 +22,7 @@ from backend.app.services.attachments import (
     save_attachment,
 )
 from backend.app.services.job_url_reader import JobUrlReadError, read_job_posting_from_url
-from backend.app.services.profile_store import load_profile, merge_answers, merge_profile_draft, save_profile
+from backend.app.services.profile_store import apply_capture, load_profile, merge_answers, merge_profile_draft, save_profile
 from backend.app.services.resume_parser import ResumeParseError, extract_text, parse_resume_text
 from backend.app.services.storage import load_schema, private_data_dir
 
@@ -47,6 +47,30 @@ class ProfileRequest(BaseModel):
 
 class AnswersRequest(BaseModel):
     answers: list[dict[str, Any]] = Field(max_length=200)
+
+
+class CaptureValue(BaseModel):
+    key: str = Field(min_length=1, max_length=60)
+    value: str = Field(max_length=20000)
+    lang: Literal["zh", "en"] = "zh"
+
+
+class CaptureEntry(BaseModel):
+    section: str = Field(min_length=1, max_length=40)
+    index: int | None = Field(default=None, ge=0, le=200)
+    values: list[CaptureValue] = Field(max_length=60)
+
+
+class CaptureAnswer(BaseModel):
+    question: str = Field(min_length=1, max_length=500)
+    answer: str = Field(max_length=20000)
+    lang: Literal["zh", "en", "any"] = "any"
+
+
+class CaptureRequest(BaseModel):
+    basic: list[CaptureValue] = Field(default_factory=list, max_length=200)
+    entries: list[CaptureEntry] = Field(default_factory=list, max_length=100)
+    answers: list[CaptureAnswer] = Field(default_factory=list, max_length=200)
 
 
 class ApplicationRecordRequest(BaseModel):
@@ -128,6 +152,13 @@ def put_profile(request: ProfileRequest) -> dict[str, Any]:
 @app.post("/api/profile/answers")
 def post_answers(request: AnswersRequest) -> dict[str, Any]:
     return {"answers": merge_answers(request.answers)}
+
+
+@app.post("/api/profile/capture")
+def post_capture(request: CaptureRequest) -> dict[str, Any]:
+    """Saves values the user typed into an application form (read by the extension) into the profile."""
+    profile, applied = apply_capture(request.model_dump())
+    return {"profile": profile, "applied": applied}
 
 
 @app.get("/api/attachments")

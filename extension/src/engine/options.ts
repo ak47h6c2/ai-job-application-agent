@@ -16,21 +16,28 @@ function scoreAgainst(option: string, candidate: string): number {
   return 0;
 }
 
-function enumScore(optionText: string, enumKey: string, value: string): number {
+function classifyEnum(optionText: string, enumKey: string): { value: string; score: number } {
   const option = normOption(optionText);
   const values = SCHEMA.enums[enumKey] ?? [];
-  // Classify the option to whichever enum value it matches best; only accept if that is our value.
-  let bestValue = "";
-  let bestScore = 0;
+  let best = { value: "", score: 0 };
   for (const entry of values) {
     const candidates = [...entry.synonyms, entry.zh, entry.en].map(normOption);
     const score = Math.max(...candidates.map((candidate) => scoreAgainst(option, candidate)));
-    if (score > bestScore) {
-      bestScore = score;
-      bestValue = entry.value;
-    }
+    if (score > best.score) best = { value: entry.value, score };
   }
-  return bestValue === value ? bestScore : 0;
+  return best;
+}
+
+function enumScore(optionText: string, enumKey: string, value: string): number {
+  // Classify the option to whichever enum value it matches best; only accept if that is our value.
+  const best = classifyEnum(optionText, enumKey);
+  return best.value === value ? best.score : 0;
+}
+
+/** Enum value an option label stands for ("中共党员" -> "party_member"), or null. */
+export function enumValueOf(enumKey: string, text: string): string | null {
+  const best = classifyEnum(text, enumKey);
+  return best.score >= OPTION_MATCH_THRESHOLD ? best.value : null;
 }
 
 function textScore(optionText: string, wanted: string): number {

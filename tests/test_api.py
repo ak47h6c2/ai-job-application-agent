@@ -57,6 +57,44 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(salary["answer"], "15k")
         self.assertEqual(salary["source"], "manual")
 
+    def test_capture_fills_profile_and_adds_entries(self) -> None:
+        profile = {
+            "basic": {"name": {"zh": "李明"}, "phone": {"zh": "13800138000"}},
+            "sections": {"education": [{"school": {"zh": "北京大学"}, "degree": "master"}]},
+        }
+        self.client.put("/api/profile", json={"profile": profile})
+        response = self.client.post(
+            "/api/profile/capture",
+            json={
+                "basic": [
+                    {"key": "studentOrigin", "value": "吉林省/白山市", "lang": "zh"},
+                    {"key": "name", "value": "Ming Li", "lang": "en"},
+                    {"key": "email", "value": "li@example.com", "lang": "en"},
+                    {"key": "age", "value": "24"},
+                    {"key": "nope", "value": "x"},
+                ],
+                "entries": [
+                    {"section": "education", "index": 0, "values": [{"key": "major", "value": "计算机科学", "lang": "zh"}]},
+                    {"section": "work", "index": None, "values": [{"key": "company", "value": "腾讯", "lang": "zh"}, {"key": "type", "value": "internship"}]},
+                    {"section": "education", "index": 9, "values": [{"key": "school", "value": "ignored"}]},
+                ],
+                "answers": [{"question": "从哪里得知招聘信息", "answer": "学校就业网", "lang": "zh"}],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        saved = response.json()["profile"]
+        self.assertEqual(response.json()["applied"], 7)
+        self.assertEqual(saved["basic"]["studentOrigin"], {"zh": "吉林省/白山市"})
+        self.assertEqual(saved["basic"]["name"], {"zh": "李明", "en": "Ming Li"})
+        self.assertEqual(saved["basic"]["email"], "li@example.com")
+        self.assertNotIn("age", saved["basic"], "derived fields are not stored")
+        self.assertEqual(saved["sections"]["education"][0]["major"], {"zh": "计算机科学"})
+        self.assertEqual(saved["sections"]["education"][0]["degree"], "master")
+        self.assertEqual(len(saved["sections"]["education"]), 1)
+        self.assertEqual(saved["sections"]["work"], [{"company": {"zh": "腾讯"}, "type": "internship"}])
+        self.assertEqual(saved["answers"][0]["answer"], "学校就业网")
+        self.assertEqual(saved["answers"][0]["source"], "learned")
+
     def test_attachment_upload_download_delete(self) -> None:
         uploaded = self.client.post(
             "/api/attachments",

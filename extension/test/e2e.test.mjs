@@ -209,3 +209,25 @@ test("extension: AI drafts every open question on the page (fake OpenAI-compatib
     fake.close();
   }
 });
+
+test("extension: clicking 提交 reads what was typed by hand and saves it into the profile", async () => {
+  const page = await context.newPage();
+  await page.goto(`${base}/test/fixtures/native.html`);
+  await page.fill("#jg", "吉林省/白山市");
+  await page.fill(".edu .school", "东北师范大学");
+  await page.fill(".edu .major", "统计学");
+  await page.locator("button[type=submit]").click();
+  await shadow(page, "text=从本页读到的新资料").waitFor({ timeout: 10000 });
+  const card = await shadow(page, ".capture").innerText();
+  assert.match(card, /教育经历（新增） · 东北师范大学/);
+  // 籍贯 differs from the stored one, so it is offered but not ticked.
+  assert.match(card, /资料库里是：广东省\/深圳市\/南山区/);
+  await shadow(page, "text=/存入资料库（\\d+ 项）/").click();
+  await shadow(page, "text=/已存入资料库/").waitFor();
+  const profile = (await (await fetch(`${API}/api/profile`)).json()).profile;
+  const added = profile.sections.education.find((entry) => entry.school?.zh === "东北师范大学");
+  assert.deepEqual(added.major, { zh: "统计学" });
+  assert.equal(profile.basic.hometown.zh, "广东省/深圳市/南山区", "unticked conflicts are not saved");
+  await page.close();
+});
+

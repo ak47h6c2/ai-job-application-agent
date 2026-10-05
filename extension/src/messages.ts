@@ -1,4 +1,5 @@
 import type { AttachmentMeta, Lang, ProfileData } from "../../shared/profileSchema";
+import type { CapturePayload, Proposal } from "./engine/capture";
 import type { FieldReport, FillReport } from "./engine/engine";
 
 export interface ExtensionSettings {
@@ -7,6 +8,8 @@ export interface ExtensionSettings {
   showLauncher: boolean;
   langMode: Lang | "auto";
   hiddenHosts: string[];
+  /** Read what the user typed when they click 保存 / 下一步 / 提交, and offer to add it to the profile. */
+  autoCapture: boolean;
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -15,6 +18,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   showLauncher: true,
   langMode: "auto",
   hiddenHosts: [],
+  autoCapture: true,
 };
 
 export interface FillContext {
@@ -42,6 +46,11 @@ export interface JobInfo {
   description?: string;
 }
 
+export interface CaptureResult {
+  lang: Lang;
+  proposals: Proposal[];
+}
+
 export interface LearnedAnswer {
   question: string;
   answer: string;
@@ -67,7 +76,12 @@ export type Request =
   | { type: "health" }
   | { type: "get-settings" }
   | { type: "save-settings"; settings: Partial<ExtensionSettings> }
-  | { type: "refresh-profile" };
+  | { type: "refresh-profile" }
+  | { type: "capture-all" }
+  | { type: "captured"; result: CaptureResult }
+  | { type: "get-captured" }
+  | { type: "clear-captured" }
+  | { type: "save-capture"; payload: CapturePayload };
 
 /** Messages the background sends into frames. */
 export type FrameCommand =
@@ -80,6 +94,8 @@ export type FrameCommand =
   | { type: "click-edit" }
   | { type: "learned"; answer: LearnedAnswer; key: string }
   | { type: "submitted" }
+  | { type: "capture-frame" }
+  | { type: "captured"; result: CaptureResult }
   | { type: "open-panel"; fill?: boolean };
 
 export function send<T = unknown>(message: Request): Promise<T> {

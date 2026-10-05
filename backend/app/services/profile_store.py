@@ -115,6 +115,12 @@ def save_profile(payload: Any) -> dict[str, Any]:
 def merge_answers(incoming: list[Any]) -> list[dict[str, Any]]:
     """Adds or replaces answers by normalized question text. Newest answer wins."""
     profile = load_profile()
+    _merge_answers_into(profile, incoming)
+    save_profile(profile)
+    return profile["answers"]
+
+
+def _merge_answers_into(profile: dict[str, Any], incoming: list[Any]) -> None:
     answers = profile["answers"]
     index = {normalize_question(answer["question"]): position for position, answer in enumerate(answers)}
     for raw in incoming:
@@ -133,8 +139,69 @@ def merge_answers(incoming: list[Any]) -> list[dict[str, Any]]:
             index[key] = len(answers)
             answers.append(answer)
     profile["answers"] = answers[-MAX_ANSWERS:]
-    save_profile(profile)
-    return profile["answers"]
+
+
+def _field_defs() -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, dict[str, Any]]]]:
+    schema = load_schema()
+    basic = {field["key"]: field for group in schema["basicGroups"] for field in group["fields"]}
+    sections = {section["key"]: {field["key"]: field for field in section["fields"]} for section in schema["sections"]}
+    return basic, sections
+
+
+def _set_value(target: dict[str, Any], field: dict[str, Any], value: str, lang: str) -> None:
+    key = field["key"]
+    if not field.get("localized"):
+        target[key] = value
+        return
+    current = target.get(key)
+    merged = dict(current) if isinstance(current, dict) else ({"zh": current} if isinstance(current, str) and current else {})
+    merged[lang if lang in ("zh", "en") else "zh"] = value
+    target[key] = merged
+
+
+def apply_capture(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    """Writes values read from an application form into the profile.
+
+    ``basic`` items set basic fields, ``entries`` update an existing entry (``index``) or add a new one
+    (``index`` is None), and ``answers`` are merged into the saved answers. Returns the profile and the
+    number of values written.
+    """
+    profile = load_profile()
+    basic_defs, section_defs = _field_defs()
+    applied = 0
+    for item in payload.get("basic") or []:
+        field = basic_defs.get(item.get("key", ""))
+        value = _clean_text(item.get("value")).strip()
+        if not field or field.get("derived") or not value:
+            continue
+        _set_value(profile["basic"], field, value, item.get("lang", "zh"))
+        applied += 1
+    for entry in payload.get("entries") or []:
+        defs = section_defs.get(entry.get("section", ""))
+        if not defs:
+            continue
+        entries = profile["sections"].setdefault(entry["section"], [])
+        index = entry.get("index")
+        values = [item for item in entry.get("values") or [] if item.get("key") in defs and _clean_text(item.get("value")).strip()]
+        if not values:
+            continue
+        if index is None:
+            if len(entries) >= MAX_ENTRIES:
+                continue
+            target: dict[str, Any] = {}
+            entries.append(target)
+        elif isinstance(index, int) and 0 <= index < len(entries):
+            target = entries[index]
+        else:
+            continue
+        for item in values:
+            _set_value(target, defs[item["key"]], _clean_text(item["value"]).strip(), item.get("lang", "zh"))
+            applied += 1
+    answers = [{**answer, "source": "learned"} for answer in payload.get("answers") or []]
+    if answers:
+        _merge_answers_into(profile, answers)
+        applied += len([answer for answer in answers if _clean_text(answer.get("answer")).strip()])
+    return save_profile(profile), applied
 
 
 def merge_profile_draft(base: dict[str, Any], draft: dict[str, Any], *, overwrite: bool = False) -> dict[str, Any]:
