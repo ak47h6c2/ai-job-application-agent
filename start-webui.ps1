@@ -71,7 +71,7 @@ function Find-Python {
     $candidates = @()
     if ($env:JOB_AGENT_PYTHON) { $candidates += $env:JOB_AGENT_PYTHON }
     if (Test-Path $saved) { $candidates += (Get-Content $saved -Raw).Trim() }
-    if ($env:CONDA_PREFIX) { $candidates += (Join-Path $env:CONDA_PREFIX "python.exe") }
+    if ($env:CONDA_PREFIX) { $candidates += "$env:CONDA_PREFIX\python.exe" }
     foreach ($name in @("python", "python3", "py")) {
         foreach ($command in @(Get-Command $name -All -ErrorAction SilentlyContinue)) { $candidates += $command.Source }
     }
@@ -79,10 +79,11 @@ function Find-Python {
         "$env:USERPROFILE\anaconda3", "$env:USERPROFILE\miniconda3", "$env:LOCALAPPDATA\anaconda3", "$env:LOCALAPPDATA\miniconda3",
         "$env:ProgramData\anaconda3", "$env:ProgramData\miniconda3", "C:\anaconda3", "C:\miniconda3", "D:\anaconda3", "D:\miniconda3", "E:\anaconda3", "E:\miniconda3"
     )
-    foreach ($base in $bases) { $candidates += (Join-Path $base "python.exe") }
+    # Plain strings, not Join-Path: Join-Path fails on a drive that does not exist (e.g. no D: drive).
+    foreach ($base in $bases) { $candidates += "$base\python.exe" }
     foreach ($version in @("313", "312", "311")) { $candidates += "$env:LOCALAPPDATA\Programs\Python\Python$version\python.exe" }
 
-    $existing = @($candidates | Where-Object { $_ -and ($_ -notlike "*WindowsApps*") -and (Test-Path $_) } | Select-Object -Unique)
+    $existing = @($candidates | Where-Object { $_ -and ($_ -notlike "*WindowsApps*") -and (Test-Path -LiteralPath $_ -ErrorAction SilentlyContinue) } | Select-Object -Unique)
     foreach ($candidate in $existing) {
         if (Test-PythonHasBackend $candidate) {
             Set-Content -Path $saved -Value $candidate -Encoding UTF8
