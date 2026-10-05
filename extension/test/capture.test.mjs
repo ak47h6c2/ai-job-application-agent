@@ -70,7 +70,9 @@ test("native form typed by hand builds a profile: basics, new entries, answers",
   assert.equal(work.endDate, "present");
   assert.equal(work.type, "internship", "entries under 实习经历 are stored as internships");
   assert.equal(valuesOf(proposals.find((proposal) => proposal.section === "family")).relation, "父亲");
-  assert.equal(titles["信息来源"].values[0].value, "朋友推荐");
+  // Kept either as the 信息来源 field or as a saved answer to the question.
+  const source = titles["信息来源"] ?? proposals.find((proposal) => proposal.section === "answer" && proposal.question.includes("得知"));
+  assert.equal(source.values[0].value, "朋友推荐");
   assert.equal(proposals.some((proposal) => proposal.values.some((item) => item.key === "idNumber")), false, "empty fields are not proposed");
   await page.close();
 });

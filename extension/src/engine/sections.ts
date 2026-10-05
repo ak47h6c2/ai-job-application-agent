@@ -9,6 +9,10 @@ const BASIC_HEADINGS = [
   "personal information", "personal details", "contact information", "contact details", "basic information", "my information", "about you", "additional information",
 ];
 
+/** Blocks that hold other people's details and match no profile section; fields there must not get the user's data. */
+export const OTHER_SECTION = "other";
+const OTHER_HEADINGS = ["证明人信息", "推荐人信息", "推荐人", "证明人", "references", "referees", "referee details", "reference details", "professional references"];
+
 export type WorkVariant = "all" | "internship" | "fulltime";
 
 export interface Heading {
@@ -30,6 +34,7 @@ let patterns: HeadingPattern[] | null = null;
 function headingPatterns(): HeadingPattern[] {
   if (patterns) return patterns;
   const list: HeadingPattern[] = BASIC_HEADINGS.map((text) => ({ section: BASIC_SECTION, text: compact(normalizeLabel(text)), internship: false }));
+  OTHER_HEADINGS.forEach((text) => list.push({ section: OTHER_SECTION, text: compact(normalizeLabel(text)), internship: false }));
   for (const section of SCHEMA.sections) {
     const internship = new Set((section.internshipHeadings ?? []).map((text) => compact(normalizeLabel(text))));
     for (const heading of section.headings) {

@@ -11,6 +11,8 @@ export type Target =
 
 interface Candidate {
   section: string;
+  /** Basic group ("identity", "contact", …) for basic fields. */
+  group?: string;
   field: FieldDef;
   match: string[];
   exact: string[];
@@ -26,9 +28,9 @@ function norm(list: string[] | undefined): string[] {
 export function allCandidates(): Candidate[] {
   if (candidates) return candidates;
   candidates = [
-    ...SCHEMA.basicGroups.flatMap((group) => group.fields.map((field) => ({ section: BASIC_SECTION, field }))),
-    ...SCHEMA.sections.flatMap((section) => section.fields.map((field) => ({ section: section.key, field }))),
-  ].map(({ section, field }) => ({ section, field, match: norm(field.match), exact: norm(field.exact), not: norm(field.not) }));
+    ...SCHEMA.basicGroups.flatMap((group) => group.fields.map((field) => ({ section: BASIC_SECTION, group: group.key as string | undefined, field }))),
+    ...SCHEMA.sections.flatMap((section) => section.fields.map((field) => ({ section: section.key, group: undefined, field }))),
+  ].map(({ section, group, field }) => ({ section, group, field, match: norm(field.match), exact: norm(field.exact), not: norm(field.not) }));
   return candidates;
 }
 
@@ -91,6 +93,21 @@ function typeAdjustment(control: Control, field: FieldDef): number {
       return 0;
   }
 }
+
+/**
+ * Inside an education / work / family entry, the user's own personal details never apply:
+ * a family member's 出生日期, 民族 or 户口所在地 must not get the user's.
+ */
+const PERSONAL_GROUPS = new Set(["identity", "contact"]);
+const PERSONAL_CHINA = new Set(["hometown", "birthplace", "hukou", "hukouType", "studentOrigin", "archiveLocation", "highestDegree", "firstDegree", "graduationDate", "englishLevel", "mandarinLevel", "gaokaoScore"]);
+
+function personalInEntry(candidate: Candidate, contextSection: string | null): boolean {
+  if (candidate.section !== BASIC_SECTION || !contextSection || contextSection === BASIC_SECTION) return false;
+  return PERSONAL_GROUPS.has(candidate.group ?? "") || (candidate.group === "china" && PERSONAL_CHINA.has(candidate.field.key));
+}
+
+/** A field of another section ("家庭成员 · 电话" for "家庭电话") needs a clear match to win. */
+const CROSS_SECTION_MIN = 68;
 
 function sectionAdjustment(context: SectionContext, candidateSection: string, pageHasSections: boolean, forced: boolean): number {
   const ctx = context.section;
@@ -176,20 +193,21 @@ export function classify(control: Control, info: LabelInfo, options: ClassifyOpt
         via = "identifier";
       }
     }
-    if (score <= 0) continue;
+    if (score <= 0 || personalInEntry(candidate, context.section)) continue;
     score += typeAdjustment(control, candidate.field) + sectionAdjustment(context, candidate.section, options.pageHasSections, Boolean(options.forcedSection));
+    if (candidate.section !== BASIC_SECTION && candidate.section !== context.section && score < CROSS_SECTION_MIN) continue;
     if (!best || score > best.score) best = { scope: "field", section: candidate.section, key: candidate.field.key, field: candidate.field, score, via };
   }
 
   const auto = AUTOCOMPLETE[info.autocomplete];
   if (auto && (!best || best.score < 90)) best = fieldTarget(auto[0], auto[1], 90, "autocomplete") ?? best;
 
-  if (!best || best.score < 60) {
-    const answer = matchAnswer(info.label || info.placeholder, options.answers);
-    if (answer && (!best || answer.score >= best.score)) return answer;
-  }
   // Open questions ("请描述你遇到的最大困难…？") should not be forced onto a profile field by a weak match.
   const threshold = QUESTION_LIKE.test(info.label) && info.label.length >= 8 ? 75 : 45;
+  if (!best || best.score < Math.max(60, threshold)) {
+    const answer = matchAnswer(info.label || info.placeholder, options.answers);
+    if (answer && (!best || best.score < threshold || answer.score >= best.score)) return answer;
+  }
   return best && best.score >= threshold ? best : null;
 }
 

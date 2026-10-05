@@ -8,7 +8,7 @@ import { detectLang, plan, PRIMARY_KEYS, type Planned } from "./engine";
 import { choiceLabel, hasValue } from "./fillers";
 import { enumValueOf } from "./options";
 import { visibleDialogs } from "./repeat";
-import { BASIC_SECTION, matchHeadingText, type WorkVariant } from "./sections";
+import { BASIC_SECTION, matchHeadingText, OTHER_SECTION, type WorkVariant } from "./sections";
 import { compact, hasCJK, normalizeLabel, toHalfWidth } from "./text";
 import { splitRegion } from "./values";
 
@@ -233,7 +233,7 @@ function dialogSection(dialog: Element): { section: string; variant: WorkVariant
   for (const title of Array.from(titles).slice(0, 8)) {
     const text = textOf(title, 40).replace(/^(\+|＋)?\s*(添加|新增|增加|编辑|修改|完善|填写|add|edit|new)\s*/i, "");
     const pattern = matchHeadingText(text);
-    if (pattern && pattern.section !== BASIC_SECTION) return { section: pattern.section, variant: pattern.internship ? "internship" : "all" };
+    if (pattern && pattern.section !== BASIC_SECTION && pattern.section !== OTHER_SECTION) return { section: pattern.section, variant: pattern.internship ? "internship" : "all" };
   }
   return null;
 }

@@ -241,6 +241,19 @@ export function resolveBasic(profile: ProfileData, key: string, lang: Lang): { v
     const best = [...education].sort((a, b) => degreeRank(b.degree) - degreeRank(a.degree))[0];
     return readValue(best.degree, lang);
   }
+  if (key === "firstDegree" && education.length) {
+    // 第一学历: the first degree after high school (usually 本科).
+    const ranked = education.filter((entry) => degreeRank(entry.degree) >= 2).sort((a, b) => degreeRank(a.degree) - degreeRank(b.degree));
+    if (ranked.length) return readValue(ranked[0].degree, lang);
+  }
+  if (key === "englishLevel") {
+    const english = (profile.sections.languages ?? []).find((entry) => /英语|english/i.test(`${readValue(entry.language, "zh").value} ${readValue(entry.language, "en").value}`));
+    if (english) {
+      const level = [readValue(english.level, lang).value, readValue(english.score, lang).value].filter(Boolean).join(" ");
+      if (level) return { value: level, fallback: false };
+    }
+    return stored;
+  }
   if (key === "graduationDate" && education.length) {
     const ends = education.map((entry) => readValue(entry.endDate, lang).value).filter((value) => value && value !== PRESENT).sort();
     return { value: ends[ends.length - 1] ?? "", fallback: false };

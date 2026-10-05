@@ -550,7 +550,27 @@
             "award",
             "organisation",
             "organization",
-            "middle"
+            "middle",
+            "亲属",
+            "曾用",
+            "原名",
+            "导师",
+            "证明人"
+          ]
+        },
+        {
+          "key": "formerName",
+          "zh": "曾用名",
+          "en": "Former name",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "曾用名",
+            "曾用姓名",
+            "原名",
+            "former name",
+            "previous name",
+            "other names"
           ]
         },
         {
@@ -704,6 +724,28 @@
             "政治面目",
             "political status",
             "political affiliation"
+          ]
+        },
+        {
+          "key": "politicalJoinDate",
+          "zh": "入党（团）时间",
+          "en": "Party/League join date",
+          "type": "month",
+          "match": [
+            "入党时间",
+            "入团时间",
+            "入党（团）时间",
+            "入党(团)时间",
+            "入党团时间",
+            "加入时间",
+            "入党日期",
+            "入团日期",
+            "转正时间"
+          ],
+          "not": [
+            "工作",
+            "入学",
+            "毕业"
           ]
         },
         {
@@ -876,7 +918,36 @@
             "code",
             "推荐人",
             "验证码",
-            "verification"
+            "verification",
+            "device",
+            "type",
+            "extension",
+            "ext",
+            "类型",
+            "分机"
+          ]
+        },
+        {
+          "key": "homePhone",
+          "zh": "家庭电话 / 座机",
+          "en": "Home phone",
+          "type": "phone",
+          "localized": true,
+          "match": [
+            "家庭电话",
+            "固定电话",
+            "座机",
+            "固话",
+            "家庭联系电话",
+            "住宅电话",
+            "home phone",
+            "landline",
+            "home telephone"
+          ],
+          "not": [
+            "紧急",
+            "父",
+            "母"
           ]
         },
         {
@@ -893,7 +964,10 @@
             "country code",
             "dial code",
             "calling code",
-            "country/region code"
+            "country/region code",
+            "country phone code",
+            "phone code",
+            "电话区号"
           ],
           "derived": true
         },
@@ -981,7 +1055,19 @@
             "户口",
             "籍贯",
             "preferred",
-            "desired"
+            "desired",
+            "档案",
+            "党组织",
+            "党团",
+            "社保",
+            "户籍",
+            "单位",
+            "公司",
+            "出生",
+            "高考",
+            "生源",
+            "国家",
+            "country"
           ]
         },
         {
@@ -1034,7 +1120,12 @@
             "学校",
             "url",
             "网址",
-            "web"
+            "web",
+            "line 2",
+            "address 2",
+            "地址2",
+            "地址二",
+            "第二行"
           ]
         },
         {
@@ -1050,6 +1141,54 @@
             "postal code",
             "zip",
             "zip code"
+          ]
+        },
+        {
+          "key": "suburb",
+          "zh": "区 / Suburb",
+          "en": "Suburb",
+          "type": "text",
+          "match": [
+            "suburb",
+            "town/suburb",
+            "suburb/town",
+            "city/suburb"
+          ],
+          "exact": [
+            "suburb"
+          ]
+        },
+        {
+          "key": "state",
+          "zh": "州 / 省份（澳洲地址）",
+          "en": "State",
+          "type": "text",
+          "match": [
+            "state/territory",
+            "state or territory"
+          ],
+          "exact": [
+            "state",
+            "state/province",
+            "province/state",
+            "territory"
+          ]
+        },
+        {
+          "key": "residenceCountry",
+          "zh": "居住国家",
+          "en": "Country of residence",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "居住国家",
+            "现居住国家",
+            "country of residence",
+            "current country",
+            "residence country"
+          ],
+          "exact": [
+            "country"
           ]
         },
         {
@@ -1200,7 +1339,9 @@
             "高考",
             "入学前",
             "入学时",
-            "考前"
+            "考前",
+            "派出所",
+            "档案"
           ]
         },
         {
@@ -1213,6 +1354,22 @@
             "户口类型",
             "户籍性质",
             "户籍类型"
+          ]
+        },
+        {
+          "key": "archiveLocation",
+          "zh": "档案所在地",
+          "en": "Personnel file location",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "档案所在地",
+            "档案所在单位",
+            "档案保管单位",
+            "档案存放地",
+            "档案存放单位",
+            "人事档案所在地",
+            "档案所在机构"
           ]
         },
         {
@@ -1241,7 +1398,22 @@
             "入学前户口所在地",
             "入学前户籍所在地",
             "入学前户口",
-            "入学前户籍"
+            "入学前户籍",
+            "高考所在省份",
+            "高考所在地区",
+            "高考所在省市"
+          ]
+        },
+        {
+          "key": "gaokaoScore",
+          "zh": "高考分数",
+          "en": "Gaokao score",
+          "type": "text",
+          "match": [
+            "高考分数",
+            "高考成绩",
+            "高考总分",
+            "高考总成绩"
           ]
         },
         {
@@ -1262,6 +1434,20 @@
           ]
         },
         {
+          "key": "firstDegree",
+          "zh": "第一学历",
+          "en": "First degree",
+          "type": "enum",
+          "enum": "degree",
+          "derived": true,
+          "match": [
+            "第一学历",
+            "初始学历",
+            "全日制第一学历",
+            "first degree"
+          ]
+        },
+        {
           "key": "schoolLevel",
           "zh": "院校类型（985/211/双一流）",
           "en": "University tier",
@@ -1276,7 +1462,10 @@
             "是否211",
             "是否双一流",
             "985/211",
-            "毕业院校类型"
+            "毕业院校类型",
+            "院校性质",
+            "学校性质",
+            "院校类别"
           ]
         },
         {
@@ -1357,7 +1546,18 @@
             "how did you hear",
             "where did you hear",
             "source",
-            "referral source"
+            "referral source",
+            "招聘信息渠道",
+            "获取招聘信息渠道",
+            "得知本次招聘",
+            "如何得知",
+            "得知渠道",
+            "获取渠道",
+            "招聘渠道",
+            "了解到本次招聘",
+            "从哪里得知",
+            "how did you find",
+            "how did you learn about"
           ]
         },
         {
@@ -1453,6 +1653,31 @@
             "driver licence",
             "driver's license",
             "driving licence"
+          ],
+          "not": [
+            "类型",
+            "车型",
+            "准驾",
+            "等级",
+            "编号",
+            "号码",
+            "type",
+            "class"
+          ]
+        },
+        {
+          "key": "driverLicenseType",
+          "zh": "驾照类型",
+          "en": "Driver licence class",
+          "type": "text",
+          "match": [
+            "驾照类型",
+            "驾驶证类型",
+            "准驾车型",
+            "驾照等级",
+            "licence class",
+            "license class",
+            "licence type"
           ]
         },
         {
@@ -1467,6 +1692,41 @@
             "计算机能力",
             "计算机技能",
             "ncre"
+          ]
+        },
+        {
+          "key": "englishLevel",
+          "zh": "英语水平",
+          "en": "English level",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "英语水平",
+            "英语等级",
+            "外语水平",
+            "外语等级",
+            "英语能力",
+            "英语四六级",
+            "四六级",
+            "cet",
+            "英语证书",
+            "english level",
+            "english proficiency"
+          ],
+          "not": [
+            "听说",
+            "读写"
+          ]
+        },
+        {
+          "key": "mandarinLevel",
+          "zh": "普通话水平",
+          "en": "Mandarin level",
+          "type": "text",
+          "match": [
+            "普通话水平",
+            "普通话等级",
+            "普通话证书"
           ]
         }
       ]
@@ -1493,7 +1753,14 @@
             "residency status",
             "visa status",
             "citizenship status",
-            "工作权利"
+            "工作权利",
+            "legally authorised to work",
+            "legally authorized to work",
+            "entitled to work",
+            "authorised to work",
+            "authorized to work",
+            "eligible to work",
+            "work rights in australia"
           ]
         },
         {
@@ -1806,6 +2073,25 @@
             "university name",
             "college",
             "institution name"
+          ],
+          "not": [
+            "所在地",
+            "城市",
+            "省市",
+            "地址",
+            "性质",
+            "类型",
+            "层次",
+            "类别",
+            "代码",
+            "编号",
+            "国家",
+            "是否",
+            "location",
+            "city",
+            "country",
+            "address",
+            "type"
           ]
         },
         {
@@ -1836,7 +2122,6 @@
             "专业名称",
             "就读专业",
             "专业方向",
-            "研究方向",
             "major",
             "field of study",
             "discipline",
@@ -1849,7 +2134,13 @@
             "技能",
             "排名",
             "skills",
-            "rank"
+            "rank",
+            "类别",
+            "门类",
+            "类型",
+            "代码",
+            "辅修",
+            "双学位"
           ]
         },
         {
@@ -1887,7 +2178,12 @@
             "学位类型"
           ],
           "not": [
-            "最高"
+            "最高",
+            "编号",
+            "号码",
+            "证书号",
+            "第一",
+            "证书编号"
           ]
         },
         {
@@ -2036,6 +2332,21 @@
           ]
         },
         {
+          "key": "research",
+          "zh": "研究方向",
+          "en": "Research area",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "研究方向",
+            "研究领域",
+            "研究课题",
+            "research area",
+            "research interests",
+            "research direction"
+          ]
+        },
+        {
           "key": "courses",
           "zh": "主修课程",
           "en": "Relevant courses",
@@ -2066,6 +2377,25 @@
             "所在国家",
             "country",
             "country/region"
+          ]
+        },
+        {
+          "key": "location",
+          "zh": "学校所在城市",
+          "en": "Location",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "学校所在地",
+            "学校所在城市",
+            "学校所在省市",
+            "学校地址",
+            "所在城市",
+            "所在地",
+            "城市",
+            "city",
+            "location",
+            "campus location"
           ]
         },
         {
@@ -2149,6 +2479,55 @@
             "organisation",
             "company name",
             "employer name"
+          ],
+          "not": [
+            "性质",
+            "类型",
+            "规模",
+            "行业",
+            "地址",
+            "地点",
+            "电话",
+            "所在地",
+            "城市",
+            "证明人",
+            "type",
+            "size",
+            "industry",
+            "address",
+            "location"
+          ]
+        },
+        {
+          "key": "companyType",
+          "zh": "单位性质",
+          "en": "Organisation type",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "单位性质",
+            "公司性质",
+            "企业性质",
+            "单位类型",
+            "企业类型",
+            "公司类型",
+            "organisation type",
+            "organization type",
+            "company type"
+          ]
+        },
+        {
+          "key": "industry",
+          "zh": "所属行业",
+          "en": "Industry",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "所属行业",
+            "行业",
+            "行业类别",
+            "industry",
+            "sector"
           ]
         },
         {
@@ -2294,7 +2673,11 @@
             "responsibilities",
             "duties",
             "achievements",
-            "role description"
+            "role description",
+            "主要业绩",
+            "工作成果",
+            "主要成就",
+            "业绩"
           ]
         },
         {
@@ -2317,9 +2700,37 @@
           "match": [
             "证明人",
             "证明人姓名",
-            "推荐人",
             "referee",
-            "reference name"
+            "reference name",
+            "manager name",
+            "supervisor name",
+            "reporting manager"
+          ],
+          "not": [
+            "职务",
+            "职位",
+            "岗位",
+            "电话",
+            "联系方式",
+            "手机",
+            "单位",
+            "title",
+            "phone",
+            "position"
+          ]
+        },
+        {
+          "key": "referenceTitle",
+          "zh": "证明人职务",
+          "en": "Referee title",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "证明人职务",
+            "证明人职位",
+            "证明人岗位",
+            "referee title",
+            "referee position"
           ]
         },
         {
@@ -2332,7 +2743,10 @@
             "证明人联系方式",
             "推荐人电话",
             "referee phone",
-            "reference phone"
+            "reference phone",
+            "manager phone",
+            "supervisor phone",
+            "manager contact"
           ]
         },
         {
@@ -2346,7 +2760,11 @@
             "薪酬",
             "税前月薪",
             "工资",
-            "salary"
+            "salary",
+            "薪资",
+            "薪水",
+            "薪资待遇",
+            "待遇"
           ]
         },
         {
@@ -2418,6 +2836,23 @@
             "your role",
             "role",
             "position"
+          ]
+        },
+        {
+          "key": "organization",
+          "zh": "所在单位",
+          "en": "Organisation",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "所在单位",
+            "项目单位",
+            "依托单位",
+            "项目所在单位",
+            "organisation",
+            "organization",
+            "company",
+            "client"
           ]
         },
         {
@@ -2963,7 +3398,8 @@
             "听说能力",
             "听说",
             "口语",
-            "speaking"
+            "speaking",
+            "listening"
           ]
         },
         {
@@ -2975,7 +3411,8 @@
           "match": [
             "读写能力",
             "读写",
-            "writing"
+            "writing",
+            "reading"
           ]
         }
       ]
@@ -3022,6 +3459,13 @@
           "exact": [
             "名称",
             "name"
+          ],
+          "not": [
+            "编号",
+            "号码",
+            "日期",
+            "时间",
+            "number"
           ]
         },
         {
@@ -3108,6 +3552,20 @@
           ]
         },
         {
+          "key": "birthDate",
+          "zh": "出生年月",
+          "en": "Date of birth",
+          "type": "month",
+          "match": [
+            "出生年月",
+            "出生日期",
+            "出生时间",
+            "生日",
+            "date of birth",
+            "birth date"
+          ]
+        },
+        {
           "key": "company",
           "zh": "工作单位",
           "en": "Employer",
@@ -3134,6 +3592,36 @@
             "岗位",
             "position",
             "occupation"
+          ]
+        },
+        {
+          "key": "degree",
+          "zh": "学历",
+          "en": "Education",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "学历",
+            "文化程度",
+            "最高学历",
+            "education"
+          ]
+        },
+        {
+          "key": "location",
+          "zh": "现居住地",
+          "en": "Lives in",
+          "type": "text",
+          "localized": true,
+          "match": [
+            "现居住地",
+            "居住地",
+            "现居地",
+            "家庭住址",
+            "住址",
+            "所在地",
+            "所在城市",
+            "address"
           ]
         },
         {
