@@ -230,3 +230,4 @@ frontend/*.tsbuildinfo
 # Local verification artifacts
 output/
 .playwright-cli/
+.python-path

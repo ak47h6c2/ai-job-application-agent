@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Moka 风格网申 - Element Plus</title>
+<link rel="stylesheet" href="/test/node_modules/element-plus/dist/index.css">
+<script src="/test/node_modules/vue3/dist/vue.global.js"></script>
+<script src="/test/node_modules/element-plus/dist/index.full.js"></script>
+<style>body{font-family:sans-serif;padding:20px;max-width:900px}.entry{border:1px solid #eee;margin:6px 0;padding:6px}</style></head>
+<body>
+<div id="app">
+  <el-form label-position="top">
+    <div class="block-title">基本信息</div>
+    <el-form-item label="真实姓名"><el-input v-model="form.name" /></el-form-item>
+    <el-form-item label="性别"><el-radio-group v-model="form.gender"><el-radio value="男">男</el-radio><el-radio value="女">女</el-radio></el-radio-group></el-form-item>
+    <el-form-item label="出生年月"><el-date-picker v-model="form.birth" type="month" value-format="YYYY-MM" placeholder="请选择" /></el-form-item>
+    <el-form-item label="最高学历"><el-select v-model="form.highest" placeholder="请选择"><el-option v-for="d in degrees" :key="d" :label="d" :value="d" /></el-select></el-form-item>
+    <el-form-item label="政治面貌"><el-select v-model="form.political" placeholder="请选择"><el-option v-for="d in politicals" :key="d" :label="d" :value="d" /></el-select></el-form-item>
+    <el-form-item label="户口所在地"><el-cascader v-model="form.hukou" :options="regions" filterable placeholder="请选择" /></el-form-item>
+    <el-form-item label="联系方式"><el-input v-model="form.phone" /></el-form-item>
+    <el-form-item label="电子邮件"><el-input v-model="form.email" /></el-form-item>
+    <el-form-item label="自我评价"><el-input v-model="form.self" type="textarea" :maxlength="200" show-word-limit /></el-form-item>
+
+    <div class="block-title">教育背景</div>
+    <div v-for="(e, i) in form.education" :key="i" class="entry">
+      <el-form-item label="毕业院校"><el-select v-model="e.school" filterable placeholder="请选择或搜索"><el-option v-for="s in schools" :key="s" :label="s" :value="s" /></el-select></el-form-item>
+      <el-form-item label="所学专业"><el-input v-model="e.major" /></el-form-item>
+      <el-form-item label="学历/学位"><el-select v-model="e.degree"><el-option v-for="d in degrees" :key="d" :label="d" :value="d" /></el-select></el-form-item>
+      <el-form-item label="起止时间"><el-date-picker v-model="e.range" type="monthrange" value-format="YYYY-MM" start-placeholder="开始时间" end-placeholder="结束时间" /></el-form-item>
+    </div>
+    <el-button @click="form.education.push({ school: '', major: '', degree: '', range: [] })">+ 添加</el-button>
+
+    <div class="block-title">项目经历</div>
+    <div v-for="(p, i) in form.projects" :key="'p'+i" class="entry">
+      <el-form-item label="项目名称"><el-input v-model="p.name" /></el-form-item>
+      <el-form-item label="项目角色"><el-input v-model="p.role" /></el-form-item>
+      <el-form-item label="开始时间"><el-date-picker v-model="p.start" type="month" value-format="YYYY-MM" placeholder="开始" /></el-form-item>
+      <el-form-item label="结束时间"><el-date-picker v-model="p.end" type="month" value-format="YYYY-MM" placeholder="结束" /></el-form-item>
+      <el-form-item label="项目描述"><el-input v-model="p.desc" type="textarea" /></el-form-item>
+    </div>
+  </el-form>
+</div>
+<script>
+const app = Vue.createApp({
+  data: () => ({
+    form: { name: "", gender: "", birth: "", highest: "", political: "", hukou: [], phone: "", email: "", self: "", education: [{ school: "", major: "", degree: "", range: [] }], projects: [{ name: "", role: "", start: "", end: "", desc: "" }] },
+    degrees: ["专科", "本科", "硕士", "博士"],
+    politicals: ["中共党员(含预备党员)", "共青团员", "群众", "其他"],
+    schools: Array.from({ length: 120 }, (_, i) => `测试大学${i}`).concat(["北京大学", "浙江大学", "浙江理工大学"]),
+    regions: [
+      { value: "gd", label: "广东", children: [{ value: "sz", label: "深圳", children: [{ value: "ns", label: "南山" }] }] },
+      { value: "bj", label: "北京", children: [{ value: "bj1", label: "北京市", children: [{ value: "hd", label: "海淀区" }] }] }
+    ]
+  })
+});
+app.use(ElementPlus);
+window.vm = app.mount("#app");
+</script>
+</body></html>

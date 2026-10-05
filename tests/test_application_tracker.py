@@ -6,7 +6,6 @@ from backend.app.services.application_tracker import (
     application_key,
     delete_application_record,
     load_application_records,
-    mark_application_draft_ready,
     upsert_application_record,
 )
 
@@ -27,7 +26,7 @@ class ApplicationTrackerTests(unittest.TestCase):
                     "title": "Software Engineer",
                     "company": "Example AU",
                     "url": "https://example.com/job",
-                    "status": "draft_ready",
+                    "status": "saved",
                     "note": "Generated package.",
                     "next_action_at": "2026-05-20",
                 },
@@ -50,7 +49,7 @@ class ApplicationTrackerTests(unittest.TestCase):
             self.assertIn("Submitted", str(records[0]["note"]))
             self.assertEqual(records[0]["next_action_at"], "2026-05-20")
 
-    def test_invalid_status_falls_back_to_review(self) -> None:
+    def test_invalid_status_falls_back_to_applied(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             record = upsert_application_record(
                 Path(tmp_dir),
@@ -61,7 +60,7 @@ class ApplicationTrackerTests(unittest.TestCase):
                 },
             )
 
-            self.assertEqual(record["status"], "to_review")
+            self.assertEqual(record["status"], "applied")
             self.assertEqual(record["next_action_at"], "")
 
     def test_next_action_date_is_normalized(self) -> None:
@@ -97,7 +96,7 @@ class ApplicationTrackerTests(unittest.TestCase):
                     "title": "Product Engineer",
                     "company": "Example",
                     "url": "https://example.com/product-engineer",
-                    "status": "draft_ready",
+                    "status": "saved",
                 },
             )
 
@@ -114,7 +113,7 @@ class ApplicationTrackerTests(unittest.TestCase):
                 {
                     "title": "Product Engineer",
                     "company": "Example",
-                    "status": "draft_ready",
+                    "status": "saved",
                 },
             )
 
@@ -134,7 +133,7 @@ class ApplicationTrackerTests(unittest.TestCase):
 
             records = load_application_records(private_dir)
 
-            self.assertEqual(records[0]["status"], "waiting")
+            self.assertEqual(records[0]["status"], "applied")
 
     def test_load_records_ignores_corrupt_tracker_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -143,7 +142,7 @@ class ApplicationTrackerTests(unittest.TestCase):
 
             self.assertEqual(load_application_records(private_dir), [])
 
-    def test_mark_draft_ready_does_not_downgrade_submitted_status(self) -> None:
+    def test_update_keeps_existing_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             private_dir = Path(tmp_dir)
             upsert_application_record(
@@ -152,25 +151,22 @@ class ApplicationTrackerTests(unittest.TestCase):
                     "title": "Role",
                     "company": "Company",
                     "url": "https://example.com/job",
-                    "status": "waiting",
-                    "note": "Already submitted.",
-                    "next_action_at": "2026-05-22",
+                    "status": "applied",
+                    "source": "extension",
+                    "applied_at": "2026-05-20",
+                    "note": "Submitted on Moka.",
                 },
             )
 
-            record = mark_application_draft_ready(
+            record = upsert_application_record(
                 private_dir,
-                {
-                    "title": "Role",
-                    "company": "Company",
-                    "url": "https://example.com/job",
-                    "note": "New draft generated.",
-                },
+                {"title": "Role", "company": "Company", "url": "https://example.com/job", "status": "interview"},
             )
 
-            self.assertEqual(record["status"], "waiting")
-            self.assertEqual(load_application_records(private_dir)[0]["note"], "Already submitted.")
-            self.assertEqual(load_application_records(private_dir)[0]["next_action_at"], "2026-05-22")
+            self.assertEqual(record["status"], "interview")
+            self.assertEqual(record["source"], "extension")
+            self.assertEqual(record["applied_at"], "2026-05-20")
+            self.assertEqual(record["note"], "Submitted on Moka.")
 
 
 if __name__ == "__main__":
