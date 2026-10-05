@@ -54,6 +54,54 @@ function Start-HiddenPowerShell([string]$Command) {
     ) | Out-Null
 }
 
+function Test-PythonHasBackend([string]$Python) {
+    $ErrorActionPreference = "Continue"
+    try {
+        & $Python -c "import fastapi, uvicorn" 2>$null | Out-Null
+        return $LASTEXITCODE -eq 0
+    } catch {
+        return $false
+    }
+}
+
+# Double-clicking the .bat does not activate conda, so `python` may be missing or a different Python.
+# Look for a Python that has the backend's packages, and remember it for next time.
+function Find-Python {
+    $saved = Join-Path $Root ".python-path"
+    $candidates = @()
+    if ($env:JOB_AGENT_PYTHON) { $candidates += $env:JOB_AGENT_PYTHON }
+    if (Test-Path $saved) { $candidates += (Get-Content $saved -Raw).Trim() }
+    if ($env:CONDA_PREFIX) { $candidates += (Join-Path $env:CONDA_PREFIX "python.exe") }
+    foreach ($name in @("python", "python3", "py")) {
+        foreach ($command in @(Get-Command $name -All -ErrorAction SilentlyContinue)) { $candidates += $command.Source }
+    }
+    $bases = @(
+        "$env:USERPROFILE\anaconda3", "$env:USERPROFILE\miniconda3", "$env:LOCALAPPDATA\anaconda3", "$env:LOCALAPPDATA\miniconda3",
+        "$env:ProgramData\anaconda3", "$env:ProgramData\miniconda3", "C:\anaconda3", "C:\miniconda3", "D:\anaconda3", "D:\miniconda3", "E:\anaconda3", "E:\miniconda3"
+    )
+    foreach ($base in $bases) { $candidates += (Join-Path $base "python.exe") }
+    foreach ($version in @("313", "312", "311")) { $candidates += "$env:LOCALAPPDATA\Programs\Python\Python$version\python.exe" }
+
+    $existing = @($candidates | Where-Object { $_ -and ($_ -notlike "*WindowsApps*") -and (Test-Path $_) } | Select-Object -Unique)
+    foreach ($candidate in $existing) {
+        if (Test-PythonHasBackend $candidate) {
+            Set-Content -Path $saved -Value $candidate -Encoding UTF8
+            return $candidate
+        }
+    }
+    # A Python without the packages: install them once.
+    if ($existing.Count -gt 0) {
+        $python = $existing[0]
+        Write-Host "Installing backend dependencies into $python ..." -ForegroundColor Yellow
+        & $python -m pip install -e $Root | Out-Host
+        if (Test-PythonHasBackend $python) {
+            Set-Content -Path $saved -Value $python -Encoding UTF8
+            return $python
+        }
+    }
+    return $null
+}
+
 Set-Location -LiteralPath $Root
 
 Write-Host "AI Job Application Agent quick start" -ForegroundColor Cyan
@@ -61,7 +109,8 @@ Write-Host "Project: $Root"
 
 if ($Install) {
     Write-Host "Installing backend dependencies..." -ForegroundColor Yellow
-    Invoke-Step "Installing backend dependencies" { python -m pip install -e . }
+    $installPython = Find-Python
+    if ($installPython) { Invoke-Step "Installing backend dependencies" { & $installPython -m pip install -e . } }
 }
 
 if ($Install -or -not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
@@ -96,10 +145,24 @@ for ($i = 0; $i -lt 10 -and (Get-PortProcessId 8000).Count -gt 0; $i++) { Start-
 
 $backendPids = Get-PortProcessId 8000
 if ($backendPids.Count -eq 0) {
-    Write-Host "Starting backend on http://127.0.0.1:8000 ..." -ForegroundColor Yellow
+    $python = Find-Python
+    if (-not $python) {
+        Write-Host "No Python with the backend packages was found." -ForegroundColor Red
+        Write-Host "Open 'Anaconda Prompt' (or a terminal where python works), then run:" -ForegroundColor Yellow
+        Write-Host "  cd /d `"$Root`"" -ForegroundColor Yellow
+        Write-Host "  python -m pip install -e ." -ForegroundColor Yellow
+        Write-Host "  python -c `"import sys; print(sys.executable)`" > .python-path" -ForegroundColor Yellow
+        Write-Host "and double-click start-webui.bat again." -ForegroundColor Yellow
+        exit 1
+    }
+    Write-Host "Starting backend on http://127.0.0.1:8000 (Python: $python) ..." -ForegroundColor Yellow
     $rootArg = Quote-PowerShellString $Root
     $backendLogArg = Quote-PowerShellString $BackendLog
-    Start-HiddenPowerShell "Set-Location -LiteralPath $rootArg; python -m backend.app.api *> $backendLogArg"
+    $pythonDir = Split-Path -Parent $python
+    # Conda Pythons need their Library\bin on PATH (ssl and other DLLs) when not activated.
+    $pathArg = Quote-PowerShellString "$pythonDir;$pythonDir\Library\bin;$pythonDir\Scripts;$env:PATH"
+    $pythonArg = Quote-PowerShellString $python
+    Start-HiddenPowerShell "Set-Location -LiteralPath $rootArg; `$env:PATH = $pathArg; & $pythonArg -m backend.app.api *> $backendLogArg"
 } else {
     Write-Host "Port 8000 is used by another program (PID: $($backendPids -join ', ')). Close it and run this script again." -ForegroundColor Red
 }
@@ -118,7 +181,9 @@ $backendReady = Wait-HttpOk $BackendUrl 30
 $frontendReady = Wait-HttpOk $FrontendUrl 30
 
 if (-not $backendReady) {
-    Write-Host "Backend did not become ready. Check: $BackendLog" -ForegroundColor Red
+    Write-Host "Backend did not become ready. Last lines of $BackendLog :" -ForegroundColor Red
+    if (Test-Path $BackendLog) { Get-Content $BackendLog -Tail 25 | ForEach-Object { Write-Host "  $_" } }
+    Write-Host "Take a screenshot of this window and send it to the developer." -ForegroundColor Yellow
     exit 1
 }
 
