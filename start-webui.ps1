@@ -71,17 +71,28 @@ if ($Install -or -not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
     Pop-Location
 }
 
-if ($Install -or -not (Test-Path (Join-Path $ExtensionDir "dist\manifest.json"))) {
-    Write-Host "Building the browser extension..." -ForegroundColor Yellow
-    Push-Location $ExtensionDir
+# Rebuild the extension on every start (takes about a second), so a `git pull` is picked up.
+Write-Host "Building the browser extension..." -ForegroundColor Yellow
+Push-Location $ExtensionDir
+if ($Install -or -not (Test-Path (Join-Path $ExtensionDir "node_modules"))) {
     Invoke-Step "Installing extension build tools" { npm install }
-    Invoke-Step "Building the browser extension" { npm run build }
-    Pop-Location
-    if (-not (Test-Path (Join-Path $ExtensionDir "dist\manifest.json"))) {
-        Write-Host "The extension was not built: extension\dist\manifest.json is missing." -ForegroundColor Red
-        exit 1
+}
+Invoke-Step "Building the browser extension" { npm run build }
+Pop-Location
+if (-not (Test-Path (Join-Path $ExtensionDir "dist\manifest.json"))) {
+    Write-Host "The extension was not built: extension\dist\manifest.json is missing." -ForegroundColor Red
+    exit 1
+}
+
+# Restart our own backend so updated code is used (it runs hidden, so there is no window to close).
+foreach ($procId in Get-PortProcessId 8000) {
+    $commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $procId" -ErrorAction SilentlyContinue).CommandLine
+    if ($commandLine -and $commandLine -match "backend\.app\.api") {
+        Write-Host "Restarting the backend (PID $procId) to load the latest code..." -ForegroundColor Yellow
+        Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
     }
 }
+for ($i = 0; $i -lt 10 -and (Get-PortProcessId 8000).Count -gt 0; $i++) { Start-Sleep -Milliseconds 500 }
 
 $backendPids = Get-PortProcessId 8000
 if ($backendPids.Count -eq 0) {
@@ -90,7 +101,7 @@ if ($backendPids.Count -eq 0) {
     $backendLogArg = Quote-PowerShellString $BackendLog
     Start-HiddenPowerShell "Set-Location -LiteralPath $rootArg; python -m backend.app.api *> $backendLogArg"
 } else {
-    Write-Host "Backend already running on port 8000. PID: $($backendPids -join ', ')" -ForegroundColor Green
+    Write-Host "Port 8000 is used by another program (PID: $($backendPids -join ', ')). Close it and run this script again." -ForegroundColor Red
 }
 
 $frontendPids = Get-PortProcessId 5173
@@ -119,6 +130,7 @@ if (-not $frontendReady) {
 Write-Host "Ready: $FrontendUrl" -ForegroundColor Green
 Write-Host "Browser extension folder (load unpacked in chrome://extensions or edge://extensions):" -ForegroundColor Cyan
 Write-Host "  $(Join-Path $ExtensionDir 'dist')"
+Write-Host "After an update, click the reload button on the extension card in chrome://extensions, then refresh the application page." -ForegroundColor Cyan
 
 if (-not $NoBrowser) {
     Start-Process $FrontendUrl
