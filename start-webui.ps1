@@ -57,7 +57,9 @@ function Start-HiddenPowerShell([string]$Command) {
 function Test-PythonHasBackend([string]$Python) {
     $ErrorActionPreference = "Continue"
     try {
-        & $Python -c "import fastapi, uvicorn" 2>$null | Out-Null
+        # Check every declared dependency, including lazy imports such as pypdf,
+        # then import the actual app to catch missing or incompatible packages.
+        & $Python -c "import sys; assert sys.version_info >= (3, 11), 'Python 3.11+ is required'; import fastapi, uvicorn, httpx, pypdf, python_multipart; from backend.app.api import app" 2>$null | Out-Null
         return $LASTEXITCODE -eq 0
     } catch {
         return $false
@@ -95,10 +97,17 @@ function Find-Python {
         $python = $existing[0]
         Write-Host "Installing backend dependencies into $python ..." -ForegroundColor Yellow
         & $python -m pip install -e $Root | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Backend dependency installation failed (exit code $LASTEXITCODE)." -ForegroundColor Red
+            Write-Host "Fix the pip error above, then run start-webui.bat again." -ForegroundColor Yellow
+            return $null
+        }
         if (Test-PythonHasBackend $python) {
             Set-Content -Path $saved -Value $python -Encoding UTF8
             return $python
         }
+        Write-Host "Backend dependencies were installed, but importing the app still failed:" -ForegroundColor Red
+        & $python -c "from backend.app.api import app" 2>&1 | Out-Host
     }
     return $null
 }

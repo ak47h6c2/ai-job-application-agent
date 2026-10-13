@@ -5,6 +5,7 @@ export type ControlKind =
   | "textarea"
   | "native-select"
   | "custom-select"
+  | "autocomplete"
   | "cascader"
   | "date"
   | "date-range"
@@ -58,6 +59,7 @@ export const SELECT_ROOTS = [
 export const DATE_ROOTS = [
   ".el-date-editor",
   ".ant-picker",
+  ".ant-calendar-picker",
   ".ivu-date-picker",
   ".arco-picker",
   ".t-date-picker",
@@ -67,6 +69,8 @@ export const DATE_ROOTS = [
   ".vdp-datepicker",
   ".react-datepicker-wrapper",
 ].join(",");
+
+export const AUTOCOMPLETE_ROOTS = ".el-autocomplete";
 
 const RADIO_GROUP_ROOTS = [".el-radio-group", ".ant-radio-group", ".ivu-radio-group", ".arco-radio-group", ".t-radio-group", ".n-radio-group", "[role=radiogroup]"].join(",");
 const CHECKBOX_GROUP_ROOTS = [".el-checkbox-group", ".ant-checkbox-group", ".ivu-checkbox-group", ".arco-checkbox-group", ".t-checkbox-group", ".n-checkbox-group", "[role=group]"].join(",");
@@ -83,8 +87,9 @@ export function controlId(element: Element): string {
     counter += 1;
     id = `jaf-${Date.now().toString(36)}-${counter}`;
     ids.set(element, id);
-    element.setAttribute("data-jaf-id", id);
   }
+  // Some form renderers strip unknown attributes without replacing the element.
+  element.setAttribute("data-jaf-id", id);
   return id;
 }
 
@@ -96,8 +101,28 @@ function inside(element: Element, selector: string): HTMLElement | null {
   }
 }
 
-function isOwnUi(element: Element): boolean {
-  return Boolean(element.closest("[data-jaf-ui]"));
+/** Our own panel and a site's support chat are not part of the application form. */
+const FOREIGN_UI = "[data-jaf-ui], .ChatApp, [class*=Composer], [class*=chat-bot], [class*=chatbot], [class*=ChatBot], [class*=chat-widget], [class*=customer-service]";
+
+/** Search boxes inside an open dropdown list belong to that dropdown, not to the form. */
+const POPUP_SEARCH = ".semi-select-option-list-wrapper, .semi-select-dropdown-search-wrapper, .el-select-dropdown, .ant-select-dropdown, .ivu-select-dropdown, .select2-dropdown, .chosen-drop, .arco-select-popup, .t-select__dropdown, [role=listbox]";
+
+function outsideForm(element: Element): boolean {
+  if (element.closest(FOREIGN_UI) || element.closest(POPUP_SEARCH)) return true;
+  // A list that a combobox points at is that combobox's popup (tabs also use aria-controls, for their panels).
+  for (let node: Element | null = element.parentElement, depth = 0; node && depth < 6; node = node.parentElement, depth += 1) {
+    if (!node.id) continue;
+    const id = CSS.escape(node.id);
+    if (document.querySelector(`[role=combobox][aria-controls="${id}"], [role=combobox][aria-owns="${id}"], [aria-haspopup=listbox][aria-controls="${id}"]`)) return true;
+  }
+  return false;
+}
+
+const DISABLED_CLASS = /(^|\s)([\w-]+-disabled|is-disabled|disabled)(\s|$)/;
+
+/** A widget shown read-only (a resume in view mode): a value written there is never kept by the site. */
+export function isDisabledWidget(root: Element, input?: Element | null): boolean {
+  return root.getAttribute("aria-disabled") === "true" || DISABLED_CLASS.test(root.className?.toString?.() ?? "") || Boolean((input as HTMLInputElement | null | undefined)?.disabled);
 }
 
 function datePrecisionOf(root: Element, input?: Element | null): Control["datePrecision"] {
@@ -118,7 +143,7 @@ export function discoverControls(scope: ParentNode = document): Control[] {
   };
 
   scope.querySelectorAll<HTMLElement>(CASCADER_ROOTS).forEach((root) => {
-    if (claimed.has(root) || isOwnUi(root) || !isVisible(root)) return;
+    if (claimed.has(root) || outsideForm(root) || !isVisible(root)) return;
     if (root.parentElement?.closest(CASCADER_ROOTS)) return;
     const input = root.querySelector<HTMLInputElement>("input:not([type=hidden])") ?? undefined;
     controls.push({ id: controlId(root), kind: "cascader", root, input });
@@ -126,7 +151,7 @@ export function discoverControls(scope: ParentNode = document): Control[] {
   });
 
   scope.querySelectorAll<HTMLElement>(DATE_ROOTS).forEach((root) => {
-    if (claimed.has(root) || isOwnUi(root) || !isVisible(root)) return;
+    if (claimed.has(root) || outsideForm(root) || !isVisible(root)) return;
     if (root.parentElement?.closest(DATE_ROOTS)) return;
     const inputs = Array.from(root.querySelectorAll<HTMLInputElement>("input:not([type=hidden])"));
     if (!inputs.length) return;
@@ -142,8 +167,17 @@ export function discoverControls(scope: ParentNode = document): Control[] {
     claim(root);
   });
 
+  // Editable suggestions accept free text; their combobox role does not make them a select.
+  scope.querySelectorAll<HTMLElement>(AUTOCOMPLETE_ROOTS).forEach((root) => {
+    if (outsideForm(root) || !isVisible(root)) return;
+    const input = root.querySelector<HTMLInputElement>("input:not([type=hidden]):not([readonly])");
+    if (!input) return;
+    controls.push({ id: controlId(root), kind: "autocomplete", root, input });
+    claim(root);
+  });
+
   scope.querySelectorAll<HTMLElement>(SELECT_ROOTS).forEach((root) => {
-    if (claimed.has(root) || isOwnUi(root) || !isVisible(root)) return;
+    if (claimed.has(root) || outsideForm(root) || !isVisible(root)) return;
     if (root.parentElement?.closest(SELECT_ROOTS)) return;
     if (root.closest(DATE_ROOTS) || root.closest(CASCADER_ROOTS)) return;
     const input = root.querySelector<HTMLInputElement>("input:not([type=hidden])") ?? undefined;
@@ -152,7 +186,7 @@ export function discoverControls(scope: ParentNode = document): Control[] {
   });
 
   scope.querySelectorAll<HTMLElement>(CHECKBOX_GROUP_ROOTS).forEach((root) => {
-    if (claimed.has(root) || isOwnUi(root) || !isVisible(root)) return;
+    if (claimed.has(root) || outsideForm(root) || !isVisible(root)) return;
     const members = Array.from(root.querySelectorAll<HTMLInputElement>("input[type=checkbox]"));
     // [role=group] is generic: only treat it as a choice group when it holds nothing but checkboxes.
     if (members.length < 2 || members.length > 40 || root.querySelector("input:not([type=checkbox]):not([type=hidden]), select, textarea")) return;
@@ -163,7 +197,7 @@ export function discoverControls(scope: ParentNode = document): Control[] {
   // Native checkboxes sharing a name form a multi-choice group ("意向城市: □北京 □上海").
   const checkboxGroups = new Map<string, HTMLInputElement[]>();
   scope.querySelectorAll<HTMLInputElement>("input[type=checkbox][name]").forEach((box) => {
-    if (claimed.has(box) || isOwnUi(box) || !box.name) return;
+    if (claimed.has(box) || outsideForm(box) || !box.name) return;
     if (!(isVisible(box) || isVisible(box.closest("label")) || isVisible(box.parentElement))) return;
     checkboxGroups.set(box.name, [...(checkboxGroups.get(box.name) ?? []), box]);
   });
@@ -175,7 +209,7 @@ export function discoverControls(scope: ParentNode = document): Control[] {
   });
 
   scope.querySelectorAll<HTMLElement>(RADIO_GROUP_ROOTS).forEach((root) => {
-    if (claimed.has(root) || isOwnUi(root) || !isVisible(root)) return;
+    if (claimed.has(root) || outsideForm(root) || !isVisible(root)) return;
     const members = Array.from(root.querySelectorAll<HTMLInputElement>("input[type=radio], input[type=checkbox]"));
     const choiceItems = Array.from(root.querySelectorAll<HTMLElement>(BUTTON_RADIO_ITEMS)).filter(isVisible);
     if (!members.length && !choiceItems.length) return;
@@ -186,7 +220,7 @@ export function discoverControls(scope: ParentNode = document): Control[] {
   // Native radios grouped by name.
   const radioGroups = new Map<string, HTMLInputElement[]>();
   scope.querySelectorAll<HTMLInputElement>("input[type=radio]").forEach((radio) => {
-    if (claimed.has(radio) || isOwnUi(radio)) return;
+    if (claimed.has(radio) || outsideForm(radio)) return;
     const visible = isVisible(radio) || isVisible(radio.closest("label")) || isVisible(radio.parentElement);
     if (!visible) return;
     const key = radio.name || `__${controlId(radio.parentElement ?? radio)}`;
@@ -199,7 +233,7 @@ export function discoverControls(scope: ParentNode = document): Control[] {
   });
 
   scope.querySelectorAll<HTMLElement>("input, select, textarea, [contenteditable=true], [contenteditable='']").forEach((element) => {
-    if (claimed.has(element) || isOwnUi(element)) return;
+    if (claimed.has(element) || outsideForm(element)) return;
     if (element instanceof HTMLInputElement) {
       const type = (element.type || "text").toLowerCase();
       if (type === "file") {
@@ -248,7 +282,27 @@ export function discoverControls(scope: ParentNode = document): Control[] {
     }
   });
 
-  return controls.sort((a, b) => (a.root.compareDocumentPosition(b.root) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+  // A form in view mode keeps its widgets but disables them; the page then offers its 编辑 button instead.
+  return controls.filter((control) => !controlDisabled(control)).sort((a, b) => (a.root.compareDocumentPosition(b.root) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+}
+
+function controlDisabled(control: Control): boolean {
+  switch (control.kind) {
+    case "radio-group":
+    case "checkbox-group":
+      return isDisabledWidget(control.root) || Boolean(control.members?.length && control.members.every((member) => member.disabled));
+    case "custom-select":
+    case "cascader":
+    case "date":
+    case "date-range":
+    case "autocomplete":
+      // The root's own state, or the native select a plugin draws over.
+      return isDisabledWidget(control.root, control.input instanceof HTMLSelectElement ? null : control.input) || Boolean(control.input instanceof HTMLSelectElement && control.input.disabled);
+    case "contenteditable":
+      return false;
+    default:
+      return Boolean((control.input as HTMLInputElement | undefined)?.disabled);
+  }
 }
 
 export function commonAncestor(elements: Element[]): Element {

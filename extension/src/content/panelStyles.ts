@@ -8,6 +8,7 @@ button { font: inherit; cursor: pointer; }
 .panel { width: 340px; max-height: min(78vh, 680px); display: flex; flex-direction: column; background: #fff; color: #1f2937; border-radius: 14px; box-shadow: 0 16px 48px rgba(15,23,42,.22); border: 1px solid #e5e7eb; overflow: hidden; font-size: 13px; }
 header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
 .title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; flex: 1; }
+.title .version { font-weight: 400; font-size: 11px; color: #94a3b8; }
 .logo { width: 22px; height: 22px; border-radius: 6px; background: #0f766e; color: #fff; display: grid; place-items: center; font-size: 12px; }
 .lang, .map { border: 1px solid #e5e7eb; border-radius: 6px; padding: 3px 6px; font-size: 12px; background: #fff; color: #374151; max-width: 120px; }
 .close { border: none; background: none; font-size: 20px; line-height: 1; color: #9ca3af; padding: 0 2px; }
@@ -47,8 +48,10 @@ header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; borde
 .capture { border: 1px solid #99f6e4; background: #f0fdfa; border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
 .capture-list { display: flex; flex-direction: column; gap: 3px; max-height: 260px; overflow-y: auto; }
 .capture-row { display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px; border-radius: 6px; background: #fff; cursor: pointer; }
-.capture-row input { margin-top: 3px; }
+.capture-row input { margin-top: 3px; flex-shrink: 0; }
 .capture-row .row-main { padding: 0; }
+.capture-row .row-label, .capture-row .row-sub, .capture-row .capture-entry, .capture-row .was { max-width: 100%; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.5; }
+.capture-row .capture-entry { color: #6b7280; font-size: 12px; }
 .capture-row .was { color: #b45309; font-size: 12px; }
 .capture-actions { display: flex; gap: 6px; }
 .capture-actions .primary { flex: 1; }
@@ -66,5 +69,6 @@ header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; borde
   .message { background: #1f2937; color: #e5e7eb; } .lang, .map, .record input { background: #1f2937; color: #e5e7eb; border-color: #374151; }
   .count, .chip.muted { background: #1f2937; color: #9ca3af; }
   .capture { background: #0f2a28; border-color: #115e59; } .capture-row { background: #1f2937; }
+  .capture-row .capture-entry { color: #9ca3af; }
 }
 `;

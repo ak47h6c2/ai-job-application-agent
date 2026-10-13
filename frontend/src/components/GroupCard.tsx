@@ -74,16 +74,17 @@ export function GroupCard({ group, profile, contentLang, update }: GroupCardProp
   return (
     <Collapsible
       storageKey={`group:${group.key}`}
-      defaultOpen={group.key === "identity" || group.key === "contact"}
+      defaultOpen={group.key === "identity" || group.key === "contact" || group.key === "addresses"}
       title={group[lang]}
       meta={<Count value={filled} total={ownFields.length} />}
     >
+      {group.description?.[lang] && <p className="mb-4 text-sm text-muted">{group.description[lang]}</p>}
       <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
         {group.fields.map((field) => (
           <FieldInput
             key={field.key}
             field={field}
-            value={profile.basic[field.key]}
+            value={profile.basic[field.key] ?? (field.key === "preferredAddressUse" ? "mailing" : undefined)}
             contentLang={contentLang}
             auto={field.derived ? resolveBasic({ ...profile, basic: { ...profile.basic, [field.key]: "" } }, field.key, contentLang).value : undefined}
             onChange={(next) => update((current) => ({ ...current, basic: { ...current.basic, [field.key]: next } }))}

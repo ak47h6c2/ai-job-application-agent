@@ -34,6 +34,15 @@ export function compact(text: string): string {
   return text.replace(/[\s\-_/·•,，、()（）[\]【】]+/g, "");
 }
 
+/** Equivalent study-duration labels: "2", "2年", "二年制", "2 years". */
+export function studyDurationYears(text: string): number | null {
+  const match = /^(\d{1,2}(?:\.\d+)?|[一二两三四五六七八九十])\s*(?:年制?|years?|yrs?)?$/i.exec(toHalfWidth(text).trim());
+  if (!match) return null;
+  const digits: Record<string, number> = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+  const years = digits[match[1]] ?? Number(match[1]);
+  return years > 0 && years <= 20 ? years : null;
+}
+
 function bigrams(text: string): Map<string, number> {
   const grams = new Map<string, number>();
   const value = compact(text);

@@ -1,6 +1,6 @@
 import type { Control } from "./discover";
-import { isDisabled, isVisible, pressKey, realClick, sleep, textOf, typeInto, waitFor } from "./dom";
-import { bestOption, searchTerms } from "./options";
+import { SEARCH_SETTLE_MS, isDisabled, isVisible, pressEscape, realClick, sleep, textOf, typeInto, waitFor } from "./dom";
+import { ambiguousOptions, bestOption, isRangeChoice, searchTerms } from "./options";
 import { compact, normalizeLabel, toHalfWidth } from "./text";
 import type { Desired } from "./values";
 
@@ -51,10 +51,22 @@ export function isMultiSelect(control: Control): boolean {
   return control.root.matches(MULTI_SELECT) || Boolean(control.root.querySelector(MULTI_SELECT));
 }
 
-const PLACEHOLDER_OPTION = /^(请选择|请选择.*|--.*|select( an option)?|please select|choose( one)?|none selected)$/i;
+const PLACEHOLDER_OPTION = /^(请选择|请选择.*|--.*|select( an option)?|please select|choose( one)?|none selected|暂无数据|无匹配数据|无数据|no data|no results?( found)?|no matching options)$/i;
+
+/** The choice for any place abroad when a list only names Chinese provinces and cities. */
+const OVERSEAS_OPTION = /^(海外|国外|境外|国\(境\)外|国（境）外|港澳台及国外|国外及港澳台|其他国家|外国)$/;
+const CHINESE_PLACE = /省|市|区|县|自治|特别行政区|北京|上海|天津|重庆|香港|澳门|台湾|内蒙古|广西|西藏|宁夏|新疆|中国|china/i;
+
+/** A place outside China ("悉尼", "Sydney, Australia"), which such lists file under 海外. */
+export function looksOverseas(desired: Desired): boolean {
+  if (desired.kind !== "region" && desired.kind !== "text") return false;
+  const text = desired.kind === "region" ? desired.parts.join("") : desired.text;
+  return Boolean(text.trim()) && !CHINESE_PLACE.test(text) && text.length <= 40;
+}
 
 function optionText(element: Element): string {
-  return (element.getAttribute("title") || textOf(element, 200)).trim();
+  // A highlighted search keyword can leave a space inside a name ("吉林省白山市 抚松县").
+  return (element.getAttribute("title") || textOf(element, 200)).trim().replace(/(?<=[一-鿿])\s+(?=[一-鿿])/g, "");
 }
 
 function visibleOptions(scope: ParentNode = document): HTMLElement[] {
@@ -185,7 +197,14 @@ function freshOrAny(control: Control, before: Set<Element>, started: number, pat
   return found;
 }
 
+/** When each dropdown was last closed: a list still animating out reopens empty (Semi Design). */
+const closedAt = new WeakMap<Element, number>();
+const CLOSE_SETTLE_MS = 450;
+
 export async function openDropdown(control: Control): Promise<{ before: Set<Element>; options: HTMLElement[] }> {
+  // A retry right after a failed or 其他 choice (学位名称 for an ambiguous 学位) must wait for the list to finish closing.
+  const since = Date.now() - (closedAt.get(control.root) ?? 0);
+  if (since < CLOSE_SETTLE_MS) await sleep(CLOSE_SETTLE_MS - since);
   const before = snapshotOptions();
   if (!isExpanded(control)) realClick(triggerOf(control));
   let started = Date.now();
@@ -203,15 +222,21 @@ export async function openDropdown(control: Control): Promise<{ before: Set<Elem
 
 export function closeDropdown(control: Control): void {
   const input = control.root.querySelector("input") ?? control.root;
-  pressKey(input, "Escape");
+  pressEscape(input);
   document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
   document.body.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
   (document.activeElement as HTMLElement | null)?.blur?.();
+  closedAt.set(control.root, Date.now());
 }
 
 function searchInputOf(control: Control, options: HTMLElement[]): HTMLInputElement | null {
   const own = control.root.querySelector<HTMLInputElement>("input:not([type=hidden]):not([readonly])");
   if (own && !own.disabled) return own;
+  // An ARIA combobox names its list; a search box drawn inside that list belongs to it (Semi Design).
+  const owner = control.root.matches("[aria-controls], [aria-owns]") ? control.root : control.root.querySelector("[aria-controls], [aria-owns]");
+  const listId = owner?.getAttribute("aria-controls") || owner?.getAttribute("aria-owns");
+  const inList = listId ? document.getElementById(listId)?.querySelector<HTMLInputElement>("input:not([type=hidden]):not([disabled])") : null;
+  if (inList && isVisible(inList)) return inList;
   const popup = options[0] ? popupOf(options[0]) : null;
   // Only a real floating popup may provide the search box (never the surrounding form).
   if (popup && popup !== options[0] && !popup.contains(control.root) && isFloating(popup) && popup.querySelectorAll("input").length <= 2) {
@@ -233,7 +258,7 @@ function scrollContainer(options: HTMLElement[]): HTMLElement | null {
 
 function displayedValue(control: Control): string {
   const input = control.root.querySelector<HTMLInputElement>("input:not([type=hidden])");
-  const item = control.root.querySelector(".ant-select-selection-item, .el-select__selected-item, .el-select__placeholder:not(.is-transparent), .select2-selection__rendered, .chosen-single span, .layui-select-title input, .ivu-select-selected-value, .arco-select-view-value, .vs__selected");
+  const item = control.root.querySelector(".ant-select-selection-item, .el-select__selected-item, .el-select__placeholder:not(.is-transparent), .select2-selection__rendered, .chosen-single span, .layui-select-title input, .ivu-select-selected-value, .arco-select-view-value, .vs__selected, .semi-select-selection-text");
   const nativeSelect = control.input instanceof HTMLSelectElement ? control.input.selectedOptions[0]?.textContent ?? "" : "";
   return [input?.value ?? "", item?.getAttribute("title") ?? item?.textContent ?? "", nativeSelect, textOf(control.root, 200)].join(" ");
 }
@@ -247,33 +272,50 @@ function looksSelected(control: Control, chosen: string): boolean {
 async function pick(control: Control, option: HTMLElement): Promise<ChoiceResult> {
   const chosen = optionText(option);
   realClick(option);
+  closedAt.set(control.root, Date.now());
   await sleep(120);
-  const ok = await waitFor(() => looksSelected(control, chosen), 600);
+  let ok = Boolean(await waitFor(() => looksSelected(control, chosen), 600));
   if (visibleOptions(document).includes(option)) {
-    // Single selects close by themselves; give the popup a moment, then force it closed.
-    if (!(await waitFor(() => !isVisible(option) || null, 400))) closeDropdown(control);
+    // Single selects close by themselves; give the popup time (Escape too early can undo the choice), then force it.
+    if (!(await waitFor(() => !isVisible(option) || null, 1200))) closeDropdown(control);
   }
+  // Some widgets show the choice only after the popup closes or a request returns (Semi Design on
+  // rencaishichang.chd.com.cn takes over a second), and background tabs slow their timers further.
+  if (!ok) ok = Boolean(await waitFor(() => looksSelected(control, chosen), document.hidden ? 3000 : 2500));
   return { ok: true, uncertain: !ok, chosen };
 }
 
 /** Selects the option that best matches `desired` in any dropdown-like widget. */
 export async function fillCustomSelect(control: Control, desired: Desired, part?: string): Promise<ChoiceResult> {
   const { before, options: opened } = await openDropdown(control);
+  // A bracket around the value ("12000-20000" for 15000) is a guess the user should check, however it was found.
+  const choose = async (option: HTMLElement): Promise<ChoiceResult> =>
+    desired.kind === "text" && isRangeChoice(optionText(option), desired.text) ? { ...(await pick(control, option)), uncertain: true, reason: "range-option" } : pick(control, option);
   let options = opened;
   let match = bestOption(options, optionText, desired, part);
-  if (match) return pick(control, match.item);
+  if (match) return choose(match.item);
+  const ambiguous = () => {
+    const tied = ambiguousOptions(openOptions(control, before), optionText, desired, part);
+    if (tied) closeDropdown(control);
+    return tied ? { ok: false, reason: "ambiguous-option", options: tied } : null;
+  };
+  const tiedAtOpen = ambiguous();
+  if (tiedAtOpen) return tiedAtOpen;
 
   const search = searchInputOf(control, options);
   if (search) {
     for (const term of searchTerms(desired, part)) {
       if (!search.isConnected) break;
       typeInto(search, term);
+      await sleep(SEARCH_SETTLE_MS);
       // Remote search (school/company lookups) can take a moment.
       const found = await waitFor(() => {
         const current = openOptions(control, before);
         return bestOption(current, optionText, desired, part) ?? null;
       }, 1800, 100);
-      if (found) return pick(control, found.item);
+      if (found) return choose(found.item);
+      const tied = ambiguous();
+      if (tied) return tied;
       options = openOptions(control, before);
     }
   }
@@ -281,15 +323,13 @@ export async function fillCustomSelect(control: Control, desired: Desired, part?
   // Virtualized lists only render what is in view: scroll through them.
   const scroller = scrollContainer(options);
   if (scroller) {
-    const seen = new Set<string>();
     for (let step = 0; step < 60; step += 1) {
       scroller.scrollTop += Math.max(60, scroller.clientHeight * 0.8);
       scroller.dispatchEvent(new Event("scroll", { bubbles: true }));
       await sleep(60);
       const current = openOptions(control, before);
-      current.forEach((option) => seen.add(optionText(option)));
       match = bestOption(current, optionText, desired, part);
-      if (match) return pick(control, match.item);
+      if (match) return choose(match.item);
       if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2) break;
     }
   }
@@ -299,10 +339,29 @@ export async function fillCustomSelect(control: Control, desired: Desired, part?
     typeInto(search, "");
     await waitFor(() => openOptions(control, before).length > 0 || null, 800);
   }
-  const remaining = openOptions(control, before);
-  const available = Array.from(new Set(remaining.map(optionText))).slice(0, 30);
+  const available = Array.from(new Set(openOptions(control, before).map(optionText))).slice(0, 30);
+  // A fallback choice; long searchable lists only show it after typing its name.
+  const fallback = async (pattern: RegExp, terms: string[]): Promise<HTMLElement | undefined> => {
+    const matches = (option: HTMLElement) => pattern.test(optionText(option).replace(/\s+/g, ""));
+    const shown = openOptions(control, before).find(matches);
+    if (shown || !search?.isConnected) return shown;
+    for (const term of terms) {
+      typeInto(search, term);
+      await sleep(SEARCH_SETTLE_MS);
+      const found = await waitFor(() => openOptions(control, before).find(matches) ?? null, 1200, 100);
+      if (found) return found;
+    }
+    typeInto(search, "");
+    return undefined;
+  };
+  // A place abroad in a list of Chinese provinces and cities: 海外.
+  const placeList = available.filter((option) => CHINESE_PLACE.test(option)).length >= Math.max(3, available.length / 2);
+  if (part === undefined && placeList && looksOverseas(desired)) {
+    const overseas = await fallback(OVERSEAS_OPTION, ["海外", "国外", "境外"]);
+    if (overseas) return { ...(await pick(control, overseas)), uncertain: true, reason: "chose-overseas" };
+  }
   // Not in the list (a school or company the site does not know): choose 其他 and let the user type it.
-  const other = allowsOther(desired) ? remaining.find((option) => OTHER_OPTION.test(optionText(option).replace(/\s+/g, ""))) : undefined;
+  const other = allowsOther(desired) ? await fallback(OTHER_OPTION, ["其他", "其它"]) : undefined;
   if (other) return { ...(await pick(control, other)), uncertain: true, reason: "chose-other" };
   closeDropdown(control);
   return { ok: false, reason: available.length ? "no-matching-option" : "dropdown-did-not-open", options: available };
@@ -314,6 +373,8 @@ export async function fillNativeSelect(select: HTMLSelectElement, desired: Desir
     return !option.disabled && Boolean(text) && !(option.value === "" && PLACEHOLDER_OPTION.test(text));
   });
   let match = bestOption(options, (option) => option.textContent ?? "", desired, part);
+  const tied = match ? null : ambiguousOptions(options, (option) => option.textContent ?? "", desired, part);
+  if (tied) return { ok: false, reason: "ambiguous-option", options: tied.map((text) => text.trim()) };
   let chosenOther = false;
   if (!match && allowsOther(desired) && part === undefined) {
     const other = options.find((option) => OTHER_OPTION.test((option.textContent ?? "").replace(/\s+/g, "")));
@@ -333,7 +394,8 @@ export async function fillNativeSelect(select: HTMLSelectElement, desired: Desir
   select.dispatchEvent(new Event("input", { bubbles: true }));
   select.dispatchEvent(new Event("change", { bubbles: true }));
   select.blur();
-  return { ok: true, chosen: (match.item.textContent ?? "").trim(), uncertain: chosenOther || undefined, reason: chosenOther ? "chose-other" : undefined };
+  const bracket = !chosenOther && desired.kind === "text" && part === undefined && isRangeChoice(match.item.textContent ?? "", desired.text);
+  return { ok: true, chosen: (match.item.textContent ?? "").trim(), uncertain: chosenOther || bracket || undefined, reason: chosenOther ? "chose-other" : bracket ? "range-option" : undefined };
 }
 
 const CASCADER_MENUS = ".el-cascader-menu, .ant-cascader-menu, .ivu-cascader-menu, .arco-cascader-list, .t-cascader__menu, .n-cascader-submenu";
@@ -391,6 +453,7 @@ export async function fillCascader(control: Control, desired: Desired): Promise<
   if (input) {
     const last = parts[parts.length - 1];
     typeInto(input, last);
+    await sleep(SEARCH_SETTLE_MS);
     const suggestion = await waitFor(() => {
       const items = Array.from(document.querySelectorAll<HTMLElement>(CASCADER_SUGGESTIONS)).filter(isVisible);
       return bestOption(items, optionText, { kind: "text", text: parts.join(" / "), fallback: false }) ?? bestOption(items, optionText, desired, last);

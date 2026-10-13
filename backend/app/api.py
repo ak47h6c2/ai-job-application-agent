@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import base64
+import re
 from typing import Any, Literal
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from backend.app.services import ai_client, ai_tasks
@@ -22,19 +24,33 @@ from backend.app.services.attachments import (
     save_attachment,
 )
 from backend.app.services.job_url_reader import JobUrlReadError, read_job_posting_from_url
-from backend.app.services.profile_store import apply_capture, load_profile, merge_answers, merge_profile_draft, save_profile
+from backend.app.services.profile_store import ProfileConflict, apply_capture, load_profile, merge_answers, merge_profile_draft, save_profile
 from backend.app.services.resume_parser import ResumeParseError, extract_text, parse_resume_text
-from backend.app.services.storage import load_schema, private_data_dir
+from backend.app.services.storage import DataFileError, load_schema, private_data_dir
 
 API_VERSION = "3.0"
 
 app = FastAPI(title="AI Job Application Agent API", version=API_VERSION)
 
+WEB_UI_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+# The browser extension talks to this API from its own origin.
+EXTENSION_ORIGIN = r"^(chrome|moz)-extension://[a-z0-9-]+$"
+
+
+@app.middleware("http")
+async def reject_foreign_writes(request: Request, call_next: Any) -> Any:
+    """CORS only hides responses. A form post (multipart upload, resume parsing) from any other website would
+    still run, so writes from a browser origin other than the Web UI or the extension are refused."""
+    origin = request.headers.get("origin")
+    if request.method not in ("GET", "HEAD", "OPTIONS") and origin is not None and origin not in WEB_UI_ORIGINS and not re.match(EXTENSION_ORIGIN, origin):
+        return JSONResponse(status_code=403, content={"detail": "Requests from other websites are not allowed."})
+    return await call_next(request)
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    # The browser extension talks to this API from its own origin.
-    allow_origin_regex=r"^(chrome|moz)-extension://[a-z0-9-]+$",
+    allow_origins=WEB_UI_ORIGINS,
+    allow_origin_regex=EXTENSION_ORIGIN,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
@@ -43,6 +59,7 @@ app.add_middleware(
 
 class ProfileRequest(BaseModel):
     profile: dict[str, Any]
+    expectedUpdatedAt: str | None = Field(default=None, max_length=80)
 
 
 class AnswersRequest(BaseModel):
@@ -59,6 +76,8 @@ class CaptureEntry(BaseModel):
     section: str = Field(min_length=1, max_length=40)
     index: int | None = Field(default=None, ge=0, le=200)
     values: list[CaptureValue] = Field(max_length=60)
+    # Stored values of entry `index` when the extension read it; guards against reordered entries.
+    identity: list[CaptureValue] = Field(default_factory=list, max_length=4)
 
 
 class CaptureAnswer(BaseModel):
@@ -68,6 +87,7 @@ class CaptureAnswer(BaseModel):
 
 
 class CaptureRequest(BaseModel):
+    schemaVersion: int | None = None
     basic: list[CaptureValue] = Field(default_factory=list, max_length=200)
     entries: list[CaptureEntry] = Field(default_factory=list, max_length=100)
     answers: list[CaptureAnswer] = Field(default_factory=list, max_length=200)
@@ -113,6 +133,7 @@ class AnswerRequest(BaseModel):
     lang: Literal["zh", "en"] = "zh"
     job: JobContext | None = None
     max_length: int | None = Field(default=None, ge=20, le=5000)
+    min_length: int | None = Field(default=None, ge=20, le=5000)
 
 
 class MapFieldsRequest(BaseModel):
@@ -124,6 +145,11 @@ class JobUrlPreviewRequest(BaseModel):
     url: str = Field(min_length=8, max_length=500)
 
 
+@app.exception_handler(DataFileError)
+def data_file_error(_request: Any, exc: DataFileError) -> JSONResponse:
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+
 def ai_error(exc: ai_client.AIError) -> HTTPException:
     status = 412 if isinstance(exc, ai_client.AINotConfigured) else 502
     return HTTPException(status_code=status, detail=str(exc))
@@ -131,7 +157,11 @@ def ai_error(exc: ai_client.AIError) -> HTTPException:
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
-    return {"status": "ok", "version": API_VERSION, "ai": ai_client.is_configured()}
+    try:
+        ai = ai_client.is_configured()
+    except DataFileError:
+        ai = False
+    return {"status": "ok", "version": API_VERSION, "ai": ai}
 
 
 @app.get("/api/schema")
@@ -146,7 +176,12 @@ def get_profile() -> dict[str, Any]:
 
 @app.put("/api/profile")
 def put_profile(request: ProfileRequest) -> dict[str, Any]:
-    return {"profile": save_profile(request.profile)}
+    try:
+        if "expectedUpdatedAt" in request.model_fields_set:
+            return {"profile": save_profile(request.profile, expected_updated_at=request.expectedUpdatedAt)}
+        return {"profile": save_profile(request.profile)}
+    except ProfileConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.post("/api/profile/answers")
@@ -157,8 +192,11 @@ def post_answers(request: AnswersRequest) -> dict[str, Any]:
 @app.post("/api/profile/capture")
 def post_capture(request: CaptureRequest) -> dict[str, Any]:
     """Saves values the user typed into an application form (read by the extension) into the profile."""
-    profile, applied = apply_capture(request.model_dump())
-    return {"profile": profile, "applied": applied}
+    try:
+        profile, applied, skipped = apply_capture(request.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"profile": profile, "applied": applied, "skipped": skipped}
 
 
 @app.get("/api/attachments")
@@ -183,6 +221,17 @@ def get_attachment_file(attachment_id: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Attachment not found")
     record, path = found
     return FileResponse(path, media_type=record["contentType"], filename=record["name"])
+
+
+@app.get("/api/attachments/{attachment_id}/content")
+def get_attachment_content(attachment_id: str) -> dict[str, Any]:
+    """JSON transport for extension messaging, independent of browser download handling."""
+    found = get_attachment(attachment_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    record, path = found
+    content = path.read_bytes()
+    return {"name": record["name"], "type": record["contentType"], "size": len(content), "data": base64.b64encode(content).decode("ascii")}
 
 
 @app.delete("/api/attachments/{attachment_id}")
@@ -269,6 +318,7 @@ def answer(request: AnswerRequest) -> dict[str, Any]:
             lang=request.lang,
             job=request.job.model_dump() if request.job else None,
             max_length=request.max_length,
+            min_length=request.min_length,
         )
     except ai_client.AIError as exc:
         raise ai_error(exc) from exc

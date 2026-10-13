@@ -5,11 +5,16 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from backend.app.services.storage import load_schema, private_data_dir, read_json, write_json
+from backend.app.services.storage import load_schema, private_data_dir, read_json, synchronized, write_json
 
 MAX_TEXT = 20000
 MAX_ENTRIES = 30
 MAX_ANSWERS = 1000
+_UNCONDITIONAL = object()
+
+
+class ProfileConflict(ValueError):
+    pass
 
 
 def profile_path():
@@ -105,13 +110,17 @@ def load_profile() -> dict[str, Any]:
     return normalize_profile(read_json(profile_path(), {}))
 
 
-def save_profile(payload: Any) -> dict[str, Any]:
+@synchronized
+def save_profile(payload: Any, *, expected_updated_at: str | None | object = _UNCONDITIONAL) -> dict[str, Any]:
+    if expected_updated_at is not _UNCONDITIONAL and load_profile().get("updatedAt") != expected_updated_at:
+        raise ProfileConflict("资料已被插件或其他页面更新，本次修改未保存。请保留本次修改后刷新资料库，再重新编辑。")
     profile = normalize_profile(payload)
     profile["updatedAt"] = datetime.now(timezone.utc).isoformat()
     write_json(profile_path(), profile)
     return profile
 
 
+@synchronized
 def merge_answers(incoming: list[Any]) -> list[dict[str, Any]]:
     """Adds or replaces answers by normalized question text. Newest answer wins."""
     profile = load_profile()
@@ -159,16 +168,41 @@ def _set_value(target: dict[str, Any], field: dict[str, Any], value: str, lang: 
     target[key] = merged
 
 
-def apply_capture(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
+def _entry_has(entry: dict[str, Any], identity: list[dict[str, Any]]) -> bool:
+    for item in identity:
+        stored = entry.get(item.get("key", ""))
+        values = [stored] if isinstance(stored, str) else list(stored.values()) if isinstance(stored, dict) else []
+        if _clean_text(item.get("value")).strip() not in [_clean_text(value).strip() for value in values]:
+            return False
+    return True
+
+
+def _resolve_entry(entries: list[dict[str, Any]], index: int, identity: list[dict[str, Any]]) -> int | None:
+    """The position of the entry the extension read, which may have moved since; None if it is gone or ambiguous."""
+    if not identity:
+        return index if 0 <= index < len(entries) else None
+    if 0 <= index < len(entries) and _entry_has(entries[index], identity):
+        return index
+    matches = [position for position, entry in enumerate(entries) if _entry_has(entry, identity)]
+    return matches[0] if len(matches) == 1 else None
+
+
+@synchronized
+def apply_capture(payload: dict[str, Any]) -> tuple[dict[str, Any], int, int]:
     """Writes values read from an application form into the profile.
 
     ``basic`` items set basic fields, ``entries`` update an existing entry (``index``) or add a new one
-    (``index`` is None), and ``answers`` are merged into the saved answers. Returns the profile and the
-    number of values written.
+    (``index`` is None), and ``answers`` are merged into the saved answers. An entry update whose
+    ``identity`` no longer matches any single stored entry is skipped. Returns the profile, the number of
+    values written and the number of values skipped.
     """
+    changed_meanings = {"address", "addressRegion", "postcode", "expectedCity"}
+    if payload.get("schemaVersion") != load_schema()["captureVersion"] and any(item.get("key") in changed_meanings for item in payload.get("basic") or []):
+        raise ValueError("地址和城市字段含义已更新，请重新加载插件并刷新网页后重新读取资料，再存入资料库。")
     profile = load_profile()
     basic_defs, section_defs = _field_defs()
     applied = 0
+    skipped = 0
     for item in payload.get("basic") or []:
         field = basic_defs.get(item.get("key", ""))
         value = _clean_text(item.get("value")).strip()
@@ -190,9 +224,10 @@ def apply_capture(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
                 continue
             target: dict[str, Any] = {}
             entries.append(target)
-        elif isinstance(index, int) and 0 <= index < len(entries):
-            target = entries[index]
+        elif isinstance(index, int) and (position := _resolve_entry(entries, index, entry.get("identity") or [])) is not None:
+            target = entries[position]
         else:
+            skipped += len(values)
             continue
         for item in values:
             _set_value(target, defs[item["key"]], _clean_text(item["value"]).strip(), item.get("lang", "zh"))
@@ -201,7 +236,7 @@ def apply_capture(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
     if answers:
         _merge_answers_into(profile, answers)
         applied += len([answer for answer in answers if _clean_text(answer.get("answer")).strip()])
-    return save_profile(profile), applied
+    return save_profile(profile), applied, skipped
 
 
 def merge_profile_draft(base: dict[str, Any], draft: dict[str, Any], *, overwrite: bool = False) -> dict[str, Any]:

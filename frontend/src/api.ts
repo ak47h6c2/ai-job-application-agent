@@ -98,7 +98,7 @@ export const api = {
   health: () => request<Health>("/api/health", {}, 4000),
 
   getProfile: () => request<{ profile: ProfileData }>("/api/profile"),
-  saveProfile: (profile: ProfileData) => request<{ profile: ProfileData }>("/api/profile", json("PUT", { profile })),
+  saveProfile: (profile: ProfileData) => request<{ profile: ProfileData }>("/api/profile", json("PUT", { profile, expectedUpdatedAt: profile.updatedAt ?? null })),
 
   listAttachments: () => request<{ attachments: AttachmentMeta[] }>("/api/attachments"),
   uploadAttachment: (file: File, kind: string) => {

@@ -29,6 +29,10 @@ export interface FillContext {
   settings: ExtensionSettings;
   memory: Record<string, string>;
   cachedAt?: string;
+  /** A rebuilt unpacked extension that Chrome has not reloaded yet. */
+  newVersion?: string;
+  /** The backend answered but could not provide the profile. */
+  error?: string;
 }
 
 export interface FrameReport extends FillReport {
@@ -39,6 +43,28 @@ export interface TaggedField extends FieldReport {
   frameId: number;
 }
 
+export interface DraftField {
+  id: string;
+  label: string;
+  kind: FieldReport["kind"];
+  mappingKey?: string;
+}
+
+export interface DraftSnapshot {
+  field?: DraftField;
+  value?: string;
+  maxLength?: number;
+  minLength?: number;
+  error?: string;
+}
+
+export interface DraftResult {
+  answer?: string;
+  applied?: boolean;
+  id?: string;
+  error?: string;
+}
+
 export interface JobInfo {
   title: string;
   company: string;
@@ -47,6 +73,7 @@ export interface JobInfo {
 }
 
 export interface CaptureResult {
+  schemaVersion: number;
   lang: Lang;
   proposals: Proposal[];
 }
@@ -61,15 +88,16 @@ export type Request =
   | { type: "get-context"; host: string }
   | { type: "get-file"; kind: string; lang: Lang }
   | { type: "fill-all"; lang: Lang | "auto"; overwrite: boolean }
-  | { type: "fill-one"; frameId: number; id: string; target: string; lang: Lang; remember: boolean; label: string }
+  | { type: "inspect-all"; lang: Lang | "auto" }
+  | { type: "fill-one"; frameId: number; id: string; target: string; lang: Lang; remember: boolean; label: string; automatic?: boolean }
   | { type: "focus-field"; frameId: number; id: string }
   | { type: "clear-marks" }
   | { type: "describe-all" }
   | { type: "click-edit"; frameId: number }
   | { type: "save-answers"; answers: LearnedAnswer[] }
   | { type: "record-application"; job: JobInfo; note?: string }
-  | { type: "ai-answer"; frameId: number; id: string; question: string; lang: Lang; job: JobInfo; maxLength?: number }
-  | { type: "ai-map"; fields: { index: number; label: string; type: string }[]; lang: Lang }
+  | { type: "ai-answer"; frameId: number; field: DraftField; question: string; lang: Lang; job: JobInfo; maxLength?: number; minLength?: number }
+  | { type: "ai-map"; fields: { index: number; label: string; type: string; section?: string | null; heading?: string; options?: string[] }[]; lang: Lang }
   | { type: "learned"; answer: LearnedAnswer; key: string }
   | { type: "submitted" }
   | { type: "open-panel"; fill?: boolean }
@@ -81,14 +109,17 @@ export type Request =
   | { type: "captured"; result: CaptureResult }
   | { type: "get-captured" }
   | { type: "clear-captured" }
-  | { type: "save-capture"; payload: CapturePayload };
+  | { type: "save-capture"; payload: CapturePayload }
+  | { type: "save-site-setting"; key: string; value: string | null };
 
 /** Messages the background sends into frames. */
 export type FrameCommand =
   | { type: "fill-frame"; lang: Lang | "auto"; overwrite: boolean }
-  | { type: "fill-one-frame"; id: string; target: string; lang: Lang }
+  | { type: "inspect-frame"; lang: Lang | "auto" }
+  | { type: "fill-one-frame"; id: string; target: string; lang: Lang; automatic?: boolean; mappingKey?: string }
   | { type: "focus-frame-field"; id: string }
-  | { type: "set-frame-text"; id: string; text: string }
+  | { type: "prepare-frame-draft"; field: DraftField }
+  | { type: "set-frame-text"; field: DraftField; text: string; expectedValue: string }
   | { type: "clear-frame-marks" }
   | { type: "describe-frame" }
   | { type: "click-edit" }

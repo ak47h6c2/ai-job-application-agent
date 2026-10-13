@@ -1,9 +1,9 @@
 import type { Control } from "./discover";
-import { isVisible, pressKey, realClick, setNativeValue, sleep, textOf, waitFor } from "./dom";
+import { SEARCH_SETTLE_MS, isVisible, pressEscape, pressKey, realClick, setNativeValue, sleep, textOf, typeInto, waitFor } from "./dom";
 import { allowsOther, closeDropdown, fillCascader, fillCustomSelect, fillNativeSelect, isMultiSelect, OTHER_OPTION, type ChoiceResult } from "./dropdown";
-import { bestOption } from "./options";
+import { ambiguousOptions, bestOption } from "./options";
 import { normalizeLabel } from "./text";
-import { datePattern, formatDate, numericValue, splitMulti, type DateValue, type Desired } from "./values";
+import { datePattern, formatDate, numericValue, parseDate, splitMulti, type DateValue, type Desired } from "./values";
 
 export type FillResult = ChoiceResult;
 
@@ -21,7 +21,7 @@ export function truncateText(text: string, max: number): string {
   return head;
 }
 
-function writeText(element: HTMLInputElement | HTMLTextAreaElement, text: string): FillResult {
+function writeText(element: HTMLInputElement | HTMLTextAreaElement, text: string, limit?: number): FillResult {
   let value = text;
   let uncertain = false;
   if (element instanceof HTMLInputElement && element.type === "number") {
@@ -30,8 +30,9 @@ function writeText(element: HTMLInputElement | HTMLTextAreaElement, text: string
     uncertain = number !== text.trim();
     value = number;
   }
-  const max = element.maxLength;
-  if (max > 0 && value.length > max) {
+  // The widget's own maxlength, or a limit stated by the label or a "0/200" counter.
+  const max = Math.min(element.maxLength > 0 ? element.maxLength : Infinity, limit && limit > 0 ? limit : Infinity);
+  if (Number.isFinite(max) && value.length > max) {
     value = truncateText(value, max);
     uncertain = true;
   }
@@ -39,7 +40,7 @@ function writeText(element: HTMLInputElement | HTMLTextAreaElement, text: string
   if (wasReadOnly) element.readOnly = false;
   setNativeValue(element, value);
   if (wasReadOnly) element.readOnly = true;
-  const truncated = element.maxLength > 0 && text.length > element.maxLength;
+  const truncated = Number.isFinite(max) && text.length > max;
   return { ok: element.value === value || element.value.length > 0, uncertain: uncertain || wasReadOnly, chosen: value, reason: truncated ? "truncated" : undefined };
 }
 
@@ -52,12 +53,46 @@ function plainText(desired: Desired, element?: HTMLInputElement | HTMLTextAreaEl
   return desired.text;
 }
 
+async function fillAutocomplete(control: Control, desired: Desired): Promise<FillResult> {
+  const input = control.input as HTMLInputElement;
+  if (!input) return { ok: false, reason: "no-input" };
+  realClick(input);
+  typeInto(input, desired.text);
+  await sleep(SEARCH_SETTLE_MS);
+  // Debounced remote suggestions appear only after typing. Never choose another open dropdown.
+  const suggestions = () => {
+    const listIds = [control.root.getAttribute("aria-owns"), control.root.getAttribute("aria-controls"), input.getAttribute("aria-controls"), input.getAttribute("aria-owns")];
+    const owned = listIds.map(id => id ? document.getElementById(id) : null).find(Boolean);
+    return Array.from((owned ?? control.root).querySelectorAll<HTMLElement>("li, [role=option]"))
+      .filter(isVisible);
+  };
+  const match = await waitFor(() => {
+    const found = bestOption(suggestions(), element => textOf(element, 200), desired);
+    return found && found.score >= 90 ? found : null;
+  }, 1800, 100);
+  if (match) {
+    realClick(match.item);
+    await sleep(150);
+    closeDropdown(control);
+    const chosen = textOf(match.item, 200);
+    return { ok: Boolean(input.value.trim()), uncertain: match.score < 100, chosen: input.value.trim() || chosen };
+  }
+  closeDropdown(control);
+  await sleep(150);
+  return input.value.trim() === desired.text.trim()
+    ? { ok: true, uncertain: true, chosen: input.value, reason: "autocomplete-free-text" }
+    : { ok: false, reason: "value-not-accepted" };
+}
+
 export function hasValue(control: Control): boolean {
   switch (control.kind) {
     case "radio-group":
       return Boolean(control.members?.some((member) => member.checked)) || Boolean(control.choiceItems?.some((item) => /(is-active|checked|selected|active)/.test(item.className)));
-    case "checkbox":
-      return false;
+    case "checkbox": {
+      // Ticked, or unticked by the user after we ticked it: either way their choice stands.
+      const box = control.input as HTMLInputElement;
+      return box.checked || box.dataset.jafTicked === "1";
+    }
     case "checkbox-group":
       return Boolean(control.members?.some((member) => member.checked));
     case "file":
@@ -85,7 +120,89 @@ export function hasValue(control: Control): boolean {
   }
 }
 
+function showsDate(input: HTMLInputElement, date: DateValue): boolean {
+  const shown = parseDate(input.value);
+  return Boolean(shown && !shown.present && shown.year === date.year && (!shown.month || !date.month || shown.month === date.month));
+}
+
+/** Ant Design 3 month and year panels have no editable box: page to the year, then click the cell. */
+async function clickAntPanel(popup: HTMLElement, input: HTMLInputElement, date: DateValue): Promise<boolean> {
+  const press = (selector: string) => {
+    const button = popup.querySelector<HTMLElement>(selector);
+    if (!button || !isVisible(button)) return false;
+    realClick(button);
+    return true;
+  };
+  const year = Number(date.year);
+  const monthPanel = popup.querySelector<HTMLElement>(".ant-calendar-month-panel");
+  if (monthPanel && isVisible(monthPanel)) {
+    const shown = () => Number(/\d{4}/.exec(textOf(monthPanel.querySelector(".ant-calendar-month-panel-year-select") ?? monthPanel, 40))?.[0] ?? NaN);
+    for (let step = 0; step < 100 && shown() !== year; step += 1) {
+      if (!press(shown() > year ? ".ant-calendar-month-panel-prev-year-btn" : ".ant-calendar-month-panel-next-year-btn")) return false;
+      await sleep(25);
+    }
+    const cell = monthPanel.querySelectorAll<HTMLElement>(".ant-calendar-month-panel-cell")[Number(date.month || "1") - 1];
+    if (shown() !== year || !cell) return false;
+    realClick(cell.querySelector(".ant-calendar-month-panel-month") ?? cell);
+  } else {
+    const yearPanel = popup.querySelector<HTMLElement>(".ant-calendar-year-panel");
+    if (!yearPanel || !isVisible(yearPanel)) return false;
+    const decade = () => Number(/\d{4}/.exec(textOf(yearPanel.querySelector(".ant-calendar-year-panel-decade-select") ?? yearPanel, 40))?.[0] ?? NaN);
+    for (let step = 0; step < 30 && !(decade() <= year && year < decade() + 10); step += 1) {
+      if (!press(decade() > year ? ".ant-calendar-year-panel-prev-decade-btn" : ".ant-calendar-year-panel-next-decade-btn")) return false;
+      await sleep(25);
+    }
+    const cell = Array.from(yearPanel.querySelectorAll<HTMLElement>(".ant-calendar-year-panel-cell")).find((item) => textOf(item, 8) === date.year);
+    if (!cell) return false;
+    realClick(cell.querySelector(".ant-calendar-year-panel-year") ?? cell);
+  }
+  await sleep(200);
+  return showsDate(input, date);
+}
+
+/**
+ * Ant Design 3 pickers keep their own editable box in the popup. It only accepts the widget's exact format
+ * ("2027年" for a year picker), and Enter on unparsed text would commit the panel's current date instead,
+ * so each format is tried and Enter is pressed only once the box stops reporting it as invalid.
+ */
+async function typeAntCalendar(input: HTMLInputElement, date: DateValue, precision: "year" | "month" | "day"): Promise<FillResult | null> {
+  if (!input.closest(".ant-calendar-picker")) return null;
+  const popup = () => Array.from(document.querySelectorAll<HTMLElement>(".ant-calendar-picker-container")).find(isVisible) ?? null;
+  realClick(input);
+  const opened = await waitFor(popup, 800);
+  if (!opened) return null;
+  const { year } = date;
+  const month = date.month || "01";
+  const day = date.day || "01";
+  let result: FillResult = { ok: false, reason: "date-not-accepted" };
+  const box = opened.querySelector<HTMLInputElement>(".ant-calendar-input");
+  const formats = [formatDate(date, datePattern(input.value || input.placeholder, precision)),
+    `${year}-${month}-${day}`, `${year}-${month}`, `${year}/${month}/${day}`, `${year}/${month}`, `${year}.${month}.${day}`, `${year}.${month}`,
+    `${year}年${month}月${day}日`, `${year}年${month}月`, `${year}年`, year];
+  for (const text of box ? Array.from(new Set(formats)) : []) {
+    setNativeValue(box!, text, { blur: false });
+    await sleep(80);
+    if (box!.classList.contains("ant-calendar-input-invalid")) continue;
+    pressKey(box!, "Enter");
+    await sleep(200);
+    if (showsDate(input, date)) {
+      result = { ok: true, uncertain: Boolean(parseDate(input.value)?.day && !date.day), chosen: input.value };
+      break;
+    }
+  }
+  if (!result.ok && (await clickAntPanel(popup() ?? opened, input, date))) result = { ok: true, chosen: input.value };
+  if (popup()) {
+    if (box) pressEscape(box);
+    document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    document.body.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    await sleep(150);
+  }
+  return result;
+}
+
 async function typeDate(input: HTMLInputElement, date: DateValue, precision: "year" | "month" | "day", library: boolean): Promise<FillResult> {
+  const antCalendar = await typeAntCalendar(input, date, precision);
+  if (antCalendar) return antCalendar;
   if (input.type === "date" || input.type === "month") {
     const value = input.type === "month" ? `${date.year}-${date.month || "01"}` : `${date.year}-${date.month || "01"}-${date.day || "01"}`;
     setNativeValue(input, value);
@@ -125,7 +242,7 @@ async function typeDate(input: HTMLInputElement, date: DateValue, precision: "ye
     pressKey(input, "Enter");
     await sleep(80);
     // Close the picker panel, then check whether the widget kept (and reformatted) the value.
-    pressKey(input, "Escape");
+    pressEscape(input);
     input.blur();
     document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
     document.body.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
@@ -231,7 +348,7 @@ export async function fillDateRange(control: Control, start: Desired | null, end
     results.push({ ok: true });
   }
   await sleep(120);
-  pressKey(second ?? first, "Escape");
+  pressEscape(second ?? first);
   (document.activeElement as HTMLElement | null)?.blur?.();
   document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
   document.body.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
@@ -273,6 +390,8 @@ export async function fillChoice(control: Control, desired: Desired): Promise<Fi
   if (control.members?.length) {
     const radios = control.members.filter((member) => !member.disabled);
     let match = bestOption(radios, choiceLabel, desired);
+    const tied = match ? null : ambiguousOptions(radios, choiceLabel, desired);
+    if (tied) return { ok: false, reason: "ambiguous-option", options: tied };
     let chosenOther = false;
     if (!match && allowsOther(desired)) {
       const other = radios.find((radio) => OTHER_OPTION.test(choiceLabel(radio).replace(/\s+/g, "")));
@@ -331,7 +450,10 @@ async function fillMultiSelect(control: Control, desired: Desired): Promise<Fill
 export function fillCheckbox(control: Control, desired: Desired): FillResult {
   const box = control.input as HTMLInputElement;
   const want = desired.kind === "enum" ? desired.value === "yes" : /^(是|yes|true|1)$/i.test(desired.text);
-  if (box.checked !== want) box.click();
+  if (box.checked !== want) {
+    box.click();
+    box.dataset.jafTicked = "1";
+  }
   return { ok: box.checked === want, chosen: want ? "✓" : "✗" };
 }
 
@@ -365,6 +487,7 @@ export async function setPresent(control: Control, container: Element | null): P
 }
 
 export async function fillFile(control: Control, file: File): Promise<FillResult> {
+  if (!file.size) return { ok: false, reason: "empty-file" };
   const input = control.input as HTMLInputElement;
   const transfer = new DataTransfer();
   transfer.items.add(file);
@@ -375,7 +498,7 @@ export async function fillFile(control: Control, file: File): Promise<FillResult
   return { ok: Boolean(input.files?.length), chosen: file.name };
 }
 
-export async function fillControl(control: Control, desired: Desired, options: { precision: "month" | "day"; part?: string }): Promise<FillResult> {
+export async function fillControl(control: Control, desired: Desired, options: { precision: "month" | "day"; part?: string; maxLength?: number }): Promise<FillResult> {
   switch (control.kind) {
     case "native-select":
       if (options.part === undefined && isMultiSelect(control)) return fillMultiSelect(control, desired);
@@ -394,12 +517,16 @@ export async function fillControl(control: Control, desired: Desired, options: {
     case "checkbox":
       return fillCheckbox(control, desired);
     case "contenteditable": {
+      const truncated = Boolean(options.maxLength && desired.text.length > options.maxLength);
+      const text = truncated ? truncateText(desired.text, options.maxLength!) : desired.text;
       control.root.focus();
-      control.root.textContent = desired.text;
-      control.root.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: desired.text }));
+      control.root.textContent = text;
+      control.root.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
       control.root.blur();
-      return { ok: true, chosen: desired.text };
+      return { ok: true, chosen: text, uncertain: truncated || undefined, reason: truncated ? "truncated" : undefined };
     }
+    case "autocomplete":
+      return fillAutocomplete(control, desired);
     case "text":
     case "textarea": {
       const input = control.input as HTMLInputElement | HTMLTextAreaElement;
@@ -412,7 +539,7 @@ export async function fillControl(control: Control, desired: Desired, options: {
         if (viaDropdown.ok) return viaDropdown;
       }
       const text = plainText(desired, input, options.precision);
-      return writeText(input, text);
+      return writeText(input, text, options.maxLength);
     }
     default:
       return { ok: false, reason: "unsupported" };

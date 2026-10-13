@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>华电风格 - 教育经历</title>
+<style>
+body{font-family:sans-serif;padding:20px;max-width:1000px}
+.semi-tabs-bar{display:flex;gap:16px;margin-bottom:12px}
+.semi-tabs-tab-active{color:#06f}
+.semi-modal{position:fixed;inset:0;background:rgba(0,0,0,.3);overflow:auto}
+.semi-modal-content{background:#fff;width:640px;margin:20px auto;padding:16px}
+.semi-form-field{display:flex;gap:8px;margin:4px 0;align-items:center}
+.semi-form-field label{width:120px}
+.semi-select{border:1px solid #ccc;width:260px;min-height:22px;cursor:pointer}
+.popup{position:absolute;background:#fff;border:1px solid #999;width:280px;z-index:100}
+.semi-select-option{padding:2px 6px;cursor:pointer}
+.hidden-pane{display:none}
+</style></head>
+<body>
+<!-- Mirrors rencaishichang.chd.com.cn 我的简历 · 教育经历: the add dialog's selects reuse the ids of the basic-info
+     summary fields (so aria-labelledby resolves to "最高全日制学历" there), 是/否 lists for 全日制 and 是否最高全日制,
+     a 学习形式 list with 海外留学生, and grades as bands. Like Semi there, the search box filters at compositionend but ends the
+     composition in a later task: an option clicked before that is ignored and the list takes no clicks any more. A list
+     reopened while it is still closing stays empty. -->
+<div class="semi-tabs-bar" role="tablist">
+  <div class="semi-tabs-tab" role="tab">基本信息</div>
+  <div class="semi-tabs-tab" role="tab">工作经历</div>
+  <div class="semi-tabs-tab semi-tabs-tab-active" role="tab" aria-selected="true">教育经历</div>
+  <div class="semi-tabs-tab" role="tab">证书</div>
+</div>
+<div class="hidden-pane"><span id="education_ext_name-label">最高全日制学历</span><span id="graduate_school_ext_name-label">最高全日制毕业院校</span><span id="major_ext_name-label">最高全日制专业</span><span id="degree_ext_name-label">最高全日制学位</span></div>
+<p>请从初中教育经历填至最高教育经历，并设置最高全日制教育经历。</p>
+<button class="semi-button semi-button-primary" id="add" type="button">+ 添加</button>
+<table><tbody id="rows"><tr><td>暂无数据</td></tr></tbody></table>
+<script>
+window.saved = [];
+let popupId = 0;
+const lists = {
+  // Only the first 10 matches show: 新南威尔士大学 needs the search box.
+  school: ["测试工业大学", "测试师范大学", "北京大学", "清华大学", "复旦大学", "浙江大学", "南京大学", "武汉大学", "中山大学", "四川大学", "山东大学", "新南威尔士大学（悉尼）", "新南威尔士大学", "其他"],
+  level: ["初中", "高中", "大专", "本科", "本科(专升本)", "硕士研究生", "博士研究生"],
+  yesno: ["", "否", "是"],
+  degree: ["理学学士", "工学学士", "理学硕士", "工学硕士", "管理学硕士", "工程硕士", "电子信息硕士"],
+  mode: ["全国普通高等院校全日制", "全国普通高等院校非全日制", "统招专升本", "自学考试", "海外留学生", "其他"],
+  major: ["计算机科学与技术", "软件工程", "电子信息工程", "通信工程", "其他"],
+  rank: ["前5%", "前10%", "前20%", "前30%", "前50%", "其他"],
+  duration: ["1", "1.5", "2", "2.5", "3", "4", "5"],
+  grade: ["90分及以上/4.0", "80-89分/3.0-3.9", "70-79分/2.0-2.9", "60-69分/1.0-1.9"],
+};
+
+function select(id, key, options, filterable) {
+  const root = document.createElement("div");
+  const listId = `semi-select-${++popupId}`;
+  root.className = `semi-select semi-select-single${filterable ? " semi-select-filterable" : ""}`;
+  root.id = id;
+  root.setAttribute("role", "combobox");
+  root.setAttribute("aria-controls", listId);
+  root.setAttribute("aria-labelledby", `${id}-label`);
+  root.innerHTML = '<div class="semi-select-selection"><span class="semi-select-selection-text"></span></div>';
+  let popup = null;
+  let closedAt = 0;
+  const close = () => { if (popup) closedAt = Date.now(); popup?.remove(); popup = null; };
+  root.addEventListener("mousedown", (event) => {
+    if (popup) return;
+    event.preventDefault();
+    const closing = Date.now() - closedAt < 350;
+    popup = document.createElement("div");
+    popup.id = listId;
+    popup.className = "popup semi-select-option-list-wrapper";
+    const rect = root.getBoundingClientRect();
+    popup.style.left = `${rect.left + scrollX}px`;
+    popup.style.top = `${rect.bottom + scrollY}px`;
+    popup.innerHTML = `${filterable ? '<div class="semi-select-dropdown-search-wrapper"><input class="semi-input"></div>' : ""}<div class="list"></div>`;
+    const list = popup.querySelector(".list");
+    const render = (filter) => {
+      list.innerHTML = "";
+      if (closing) return;
+      for (const text of options.filter((item) => item.includes(filter)).slice(0, 10)) {
+        const option = document.createElement("div");
+        option.className = "semi-select-option";
+        option.setAttribute("role", "option");
+        option.textContent = text;
+        option.addEventListener("click", () => { if (composing) stuck = true; if (stuck) return; root.dataset.value = text; root.querySelector(".semi-select-selection-text").textContent = text; close(); });
+        list.append(option);
+      }
+    };
+    const search = popup.querySelector("input");
+    let composing = false;
+    let stuck = false;
+    search?.addEventListener("compositionstart", () => { composing = true; });
+    search?.addEventListener("compositionend", (event) => {
+      render(event.target.value);
+      setTimeout(() => { composing = false; });
+    });
+    search?.addEventListener("input", (event) => { if (!composing) render(event.target.value); });
+    render("");
+    document.body.append(popup);
+  });
+  document.addEventListener("mousedown", (event) => { if (popup && !popup.contains(event.target) && !root.contains(event.target)) close(); });
+  return root;
+}
+
+function row(target, id, label, control) {
+  const field = document.createElement("div");
+  field.className = "semi-form-field";
+  field.innerHTML = `<label id="${id}-label">${label}</label>`;
+  field.append(control);
+  target.append(field);
+}
+
+function open() {
+  const modal = document.createElement("div");
+  modal.className = "semi-modal";
+  modal.innerHTML = '<div class="semi-modal-content" role="dialog" aria-modal="true"><div class="semi-modal-title">教育经历</div><div class="body"></div><button class="cancel" type="button">取消</button><button class="semi-button semi-button-primary ok" type="button">确定</button></div>';
+  const body = modal.querySelector(".body");
+  const date = (cls) => { const wrap = document.createElement("div"); wrap.className = "semi-datepicker"; wrap.innerHTML = `<input class="${cls}" placeholder="请选择日期">`; return wrap; };
+  row(body, "start_date", "开始日期", date("start"));
+  row(body, "end_date", "结束日期", date("end"));
+  row(body, "graduate_school_ext_name", "毕业院校", select("graduate_school_ext_name", "school", lists.school, true));
+  row(body, "education_ext_name", "学历", select("education_ext_name", "level", lists.level, true));
+  row(body, "is_final_degree", "是否最高全日制", select("is_final_degree", "highest", lists.yesno));
+  row(body, "degree_ext_name", "学位", select("degree_ext_name", "degree", lists.degree));
+  row(body, "is_full_time", "全日制", select("is_full_time", "fullTime", lists.yesno));
+  row(body, "study_method_ext_name", "学习形式", select("study_method_ext_name", "mode", lists.mode));
+  row(body, "major_ext_name", "专业", select("major_ext_name", "major", lists.major, true));
+  row(body, "major_rank", "专业排名", select("major_rank", "rank", lists.rank));
+  row(body, "edu_years", "学制", select("edu_years", "duration", lists.duration));
+  row(body, "average_score", "必修课平均成绩", select("average_score", "grade", lists.grade));
+  const failed = document.createElement("input");
+  failed.className = "failed";
+  row(body, "failed_count", "挂科数量", failed);
+  document.body.append(modal);
+  modal.querySelector(".cancel").addEventListener("click", () => modal.remove());
+  modal.querySelector(".ok").addEventListener("click", () => {
+    const value = (id) => modal.querySelector(`#${id}`)?.dataset.value ?? "";
+    const entry = { start: modal.querySelector(".start").value, end: modal.querySelector(".end").value, school: value("graduate_school_ext_name"), level: value("education_ext_name"),
+      highest: value("is_final_degree"), degree: value("degree_ext_name"), fullTime: value("is_full_time"), mode: value("study_method_ext_name"), major: value("major_ext_name"),
+      rank: value("major_rank"), duration: value("edu_years"), grade: value("average_score"), failed: failed.value };
+    if (!entry.start || !entry.school || !entry.level || !entry.highest) return;
+    window.saved.push(entry);
+    modal.remove();
+  });
+}
+document.getElementById("add").addEventListener("click", open);
+</script>
+</body>
+</html>

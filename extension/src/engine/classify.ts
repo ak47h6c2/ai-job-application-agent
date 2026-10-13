@@ -1,7 +1,8 @@
-import { SCHEMA, type Answer, type FieldDef } from "../../../shared/profileSchema";
+import { SCHEMA, type AddressUse, type Answer, type FieldDef } from "../../../shared/profileSchema";
+import { addressFieldKey } from "./address";
 import type { Control } from "./discover";
 import type { LabelInfo } from "./label";
-import { BASIC_SECTION, type SectionContext } from "./sections";
+import { BASIC_SECTION, OTHER_SECTION, UNKNOWN_SECTION, type SectionContext } from "./sections";
 import { containsTerm, identifierWords, labelCore, normalizeLabel, similarity } from "./text";
 
 export type Target =
@@ -98,12 +99,16 @@ function typeAdjustment(control: Control, field: FieldDef): number {
  * Inside an education / work / family entry, the user's own personal details never apply:
  * a family member's 出生日期, 民族 or 户口所在地 must not get the user's.
  */
-const PERSONAL_GROUPS = new Set(["identity", "contact"]);
-const PERSONAL_CHINA = new Set(["hometown", "birthplace", "hukou", "hukouType", "studentOrigin", "archiveLocation", "highestDegree", "firstDegree", "graduationDate", "englishLevel", "mandarinLevel", "gaokaoScore"]);
+const RULES = SCHEMA.classification;
+const PERSONAL_GROUPS = new Set(RULES.personalGroups);
+const PERSONAL_FIELDS = new Set(RULES.personalFields);
+
+function personalField(candidate: Candidate): boolean {
+  return candidate.section === BASIC_SECTION && (PERSONAL_GROUPS.has(candidate.group ?? "") || PERSONAL_FIELDS.has(candidate.field.key));
+}
 
 function personalInEntry(candidate: Candidate, contextSection: string | null): boolean {
-  if (candidate.section !== BASIC_SECTION || !contextSection || contextSection === BASIC_SECTION) return false;
-  return PERSONAL_GROUPS.has(candidate.group ?? "") || (candidate.group === "china" && PERSONAL_CHINA.has(candidate.field.key));
+  return Boolean(contextSection) && contextSection !== BASIC_SECTION && personalField(candidate);
 }
 
 /** A field of another section ("家庭成员 · 电话" for "家庭电话") needs a clear match to win. */
@@ -127,9 +132,6 @@ const AUTOCOMPLETE: Record<string, [string, string]> = {
   "family-name": [BASIC_SECTION, "lastName"],
   name: [BASIC_SECTION, "name"],
   bday: [BASIC_SECTION, "birthDate"],
-  "postal-code": [BASIC_SECTION, "postcode"],
-  "street-address": [BASIC_SECTION, "address"],
-  "address-line1": [BASIC_SECTION, "address"],
   "address-level2": [BASIC_SECTION, "currentCity"],
   sex: [BASIC_SECTION, "gender"],
   url: [BASIC_SECTION, "website"],
@@ -143,10 +145,45 @@ export interface ClassifyOptions {
   forcedSection?: string;
   memory?: Map<string, string>;
   answers: Answer[];
+  addressUse?: AddressUse;
 }
 
 export function memoryKey(label: string): string {
   return labelCore(normalizeLabel(label)).slice(0, 80);
+}
+
+export function contextualMemoryKey(label: string, context: SectionContext): string {
+  return `${context.section ?? "unknown"}::${memoryKey(context.heading?.textContent ?? "")}::${memoryKey(label)}`;
+}
+
+/** Generic labels carry no entry identity without a recognized form section. */
+const GENERIC_LABELS = new Set(RULES.genericLabels.map((label) => normalizeLabel(label)));
+/** Section fields that a basic-info form asks for as one list of every entry ("资格证书"). */
+export const LIST_FIELDS = new Set(RULES.listFields);
+const ENTRY_WORDS = new RegExp(RULES.entryWords.join("|"));
+
+export function isGenericLabel(label: string): boolean {
+  return GENERIC_LABELS.has(labelCore(normalizeLabel(label)));
+}
+
+export function compatibleField(section: string, key: string, label: string, context: SectionContext): boolean {
+  const candidate = findCandidate(section, key);
+  if (!candidate) return false;
+  const generic = isGenericLabel(label);
+  if (context.section === OTHER_SECTION) return false;
+  // Under an unrecognized heading nothing identifies an entry, and the block may describe someone else.
+  if (context.section === UNKNOWN_SECTION) return section === BASIC_SECTION && !generic && !personalField(candidate);
+  if (context.section && context.section !== BASIC_SECTION) {
+    if (section !== BASIC_SECTION) return section === context.section;
+    return !generic && !personalField(candidate);
+  }
+  // Under a basic-info heading a section field names no entry: only the highest education (which many sites
+  // show in basic info), a list of every entry, or a label naming the entry ("最近工作单位") fits.
+  if (context.section === BASIC_SECTION && section !== BASIC_SECTION) {
+    return !generic && (section === "education" || LIST_FIELDS.has(`${section}.${key}`) || ENTRY_WORDS.test(normalizeLabel(label)));
+  }
+  if (!context.section && generic) return section === BASIC_SECTION && key === "name" && /^(姓名|name)$/i.test(normalizeLabel(label));
+  return section === BASIC_SECTION || !generic;
 }
 
 function fieldTarget(section: string, key: string, score: number, via: string): Target | null {
@@ -154,29 +191,72 @@ function fieldTarget(section: string, key: string, score: number, via: string): 
   return candidate ? { scope: "field", section, key, field: candidate.field, score, via } : null;
 }
 
+const TOPIC_QUESTION = new RegExp(`^(?:${RULES.topicQuestions.join("|")})$`, "i");
+const CONTENT_LABELS = new Set(RULES.contentLabels.map((label) => normalizeLabel(label)));
+const CONTENT_HEADINGS = RULES.contentHeadings.map(({ heading, key }) => ({ heading: new RegExp(heading, "i"), key }));
+
+/** These boxes summarize a whole topic; none names a field of the next structured entry. */
+export function isDistinctQuestion(rawLabel: string): boolean {
+  return TOPIC_QUESTION.test(labelCore(normalizeLabel(rawLabel)));
+}
+
+/** Commitments and consents are the applicant's own decision. */
+const CONSENT_CHECKBOX = /承诺|同意|阅读|知悉|声明|保证|属实|真实|无误|agree|consent|acknowledge|declare|certify|confirm|terms|privacy|policy/i;
+/** "本人无违法违纪行为" ticked means the opposite of a stored "有违法违纪记录 = 是". */
+const NEGATED_CHECKBOX = /无|没有|未|不|非|never|\bno\b|\bnot\b/i;
+
 export function classify(control: Control, info: LabelInfo, options: ClassifyOptions): Target | null {
   if (control.kind === "file") return classifyAttachment(control, info);
 
   const label = normalizeLabel(info.label);
-  const remembered = options.memory?.get(memoryKey(info.label || info.placeholder));
+  if (control.kind === "checkbox" && (CONSENT_CHECKBOX.test(label || info.placeholder) || NEGATED_CHECKBOX.test(label || info.placeholder))) return null;
+  const context = options.forcedSection ? { ...options.context, section: options.forcedSection } : options.context;
+  const scopedKey = contextualMemoryKey(info.label || info.placeholder, context);
+  const manual = options.memory?.get(`manual::${scopedKey}`);
+  const scoped = manual ?? options.memory?.get(scopedKey);
+  const remembered = scoped ?? options.memory?.get(memoryKey(info.label || info.placeholder));
+  if (isDistinctQuestion(info.label || info.placeholder)) {
+    const question = labelCore(normalizeLabel(info.label || info.placeholder));
+    const answer = options.answers.find(item => item.answer?.trim() && labelCore(normalizeLabel(item.question)) === question);
+    // Old AI mappings may have remembered IELTS as CET/TEM. Only the exact answer applies.
+    return answer ? { scope: "answer", answer, score: 100, via: "specific-question" } : null;
+  }
   if (remembered) {
     if (remembered === "skip") return null;
     const [section, key] = remembered.split(".");
     if (section === "answer") {
       const answer = options.answers.find((item) => item.id === key);
-      if (answer) return { scope: "answer", answer, score: 100, via: "memory" };
+      if (answer && (manual || ((!context.section || context.section === BASIC_SECTION) && !isGenericLabel(label)))) return { scope: "answer", answer, score: 100, via: "memory" };
     } else {
       const target = fieldTarget(section, key, 100, "memory");
-      if (target) return target;
+      // Old scoped mappings also came from AI. Only a confirmed manual choice can override a boundary.
+      if (target && (manual || compatibleField(section, key, info.label || info.placeholder, context))) return target;
     }
   }
 
-  const context = options.forcedSection ? { ...options.context, section: options.forcedSection } : options.context;
+  // Some sites call the sole self-evaluation textarea simply "内容".
+  if (CONTENT_LABELS.has(labelCore(label))) {
+    const heading = normalizeLabel(context.heading?.textContent ?? "");
+    const key = CONTENT_HEADINGS.find((rule) => rule.heading.test(heading))?.key;
+    if (key) return fieldTarget(BASIC_SECTION, key, 100, "heading");
+  }
+
+  // The background filters old combined-address mappings; new explicit user choices take priority.
+  const addressKey = addressFieldKey(info, context.heading, options.addressUse ?? "mailing");
+  if (addressKey === null) return null;
+  if (addressKey && (!context.section || context.section === BASIC_SECTION)) return fieldTarget(BASIC_SECTION, addressKey, 100, "address-purpose");
+
   const placeholder = normalizeLabel(info.placeholder);
   const identifiers = identifierWords(info.identifiers);
   let best: Target | null = null;
 
   for (const candidate of allCandidates()) {
+    if (!compatibleField(candidate.section, candidate.field.key, info.label || info.placeholder, context)) continue;
+    // "父亲是否为银行体系内单位员工" asks for a choice, not an employer name.
+    if (/是否|有无|能否|^(?:is|are|do|does|did|has|have|can|will|would)\b/i.test(label || placeholder) && !["yesno", "workRights", "studyMode", "minorType"].includes(candidate.field.enum ?? "")) continue;
+    // A visible label that rules a field out ("入学主要业绩" is no 学校) also rules out its placeholder and
+    // identifiers (id="enter_school_main_achievement").
+    if (label && candidate.not.some((word) => containsTerm(label, word))) continue;
     let score = scoreLabel(label, candidate);
     let via = "label";
     if (score < 60 && placeholder) {
@@ -200,12 +280,13 @@ export function classify(control: Control, info: LabelInfo, options: ClassifyOpt
   }
 
   const auto = AUTOCOMPLETE[info.autocomplete];
-  if (auto && (!best || best.score < 90)) best = fieldTarget(auto[0], auto[1], 90, "autocomplete") ?? best;
+  const autoCandidate = auto ? findCandidate(auto[0], auto[1]) : undefined;
+  if (auto && autoCandidate && compatibleField(auto[0], auto[1], info.label || info.placeholder, context) && !personalInEntry(autoCandidate, context.section) && (!best || best.score < 90)) best = fieldTarget(auto[0], auto[1], 90, "autocomplete") ?? best;
 
   // Open questions ("请描述你遇到的最大困难…？") should not be forced onto a profile field by a weak match.
   const threshold = QUESTION_LIKE.test(info.label) && info.label.length >= 8 ? 75 : 45;
   if (!best || best.score < Math.max(60, threshold)) {
-    const answer = matchAnswer(info.label || info.placeholder, options.answers);
+    const answer = context.section === OTHER_SECTION || isGenericLabel(label) ? null : matchAnswer(info.label || info.placeholder, options.answers);
     if (answer && (!best || best.score < threshold || answer.score >= best.score)) return answer;
   }
   return best && best.score >= threshold ? best : null;

@@ -8,6 +8,7 @@ from backend.app.services.application_tracker import (
     load_application_records,
     upsert_application_record,
 )
+from backend.app.services.storage import DataFileError
 
 
 class ApplicationTrackerTests(unittest.TestCase):
@@ -135,12 +136,14 @@ class ApplicationTrackerTests(unittest.TestCase):
 
             self.assertEqual(records[0]["status"], "applied")
 
-    def test_load_records_ignores_corrupt_tracker_file(self) -> None:
+    def test_load_records_reports_corrupt_tracker_file(self) -> None:
+        # Treating an unreadable file as empty would let the next save erase every record.
         with tempfile.TemporaryDirectory() as tmp_dir:
             private_dir = Path(tmp_dir)
             (private_dir / "application_tracker.json").write_text("{", encoding="utf-8")
 
-            self.assertEqual(load_application_records(private_dir), [])
+            with self.assertRaises(DataFileError):
+                load_application_records(private_dir)
 
     def test_update_keeps_existing_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

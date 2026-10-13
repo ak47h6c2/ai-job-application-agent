@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>华电风格 - 工作经历</title>
+<style>
+body{font-family:sans-serif;padding:20px;max-width:1000px}
+.semi-tabs-bar{display:flex;gap:16px;margin-bottom:12px}
+.semi-tabs-tab-active{color:#06f;border-bottom:2px solid #06f}
+table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px}
+.semi-modal{position:fixed;inset:0;background:rgba(0,0,0,.3)}
+.semi-modal-content{background:#fff;width:600px;margin:60px auto;padding:16px}
+.semi-form-field{display:flex;gap:8px;margin:6px 0}
+.semi-form-field label{width:120px}
+</style></head>
+<body>
+<!-- Mirrors rencaishichang.chd.com.cn 我的简历 · 工作经历: tabs instead of a section title, a table that starts
+     empty, one plain "+ 添加" button, and a modal that Escape closes without saving. -->
+<div class="semi-tabs-bar" role="tablist">
+  <div class="semi-tabs-tab" role="tab">基本信息</div>
+  <div class="semi-tabs-tab semi-tabs-tab-active" role="tab" aria-selected="true">工作经历</div>
+  <div class="semi-tabs-tab" role="tab">教育经历</div>
+  <div class="semi-tabs-tab" role="tab">证书</div>
+  <div class="semi-tabs-tab" role="tab">奖惩情况</div>
+</div>
+<button class="semi-button semi-button-primary" id="add" type="button"><span class="semi-button-content">+ 添加</span></button>
+<table><thead><tr><th>开始日期</th><th>结束日期</th><th>工作单位</th><th>工作岗位</th><th>工作履历描述</th></tr></thead><tbody id="rows"><tr id="empty"><td colspan="5">暂无数据</td></tr></tbody></table>
+<script>
+window.saved = [];
+window.escapeClosed = 0;
+let modal = null;
+const field = (label, html) => `<div class="semi-form-field"><label>${label}</label>${html}</div>`;
+
+function open() {
+  modal = document.createElement("div");
+  modal.className = "semi-modal";
+  modal.innerHTML = `<div class="semi-modal-content" role="dialog" aria-modal="true">
+    <div class="semi-modal-title">工作经历</div>
+    ${field("开始日期", '<div class="semi-datepicker"><input class="start" placeholder="请选择日期"></div>')}
+    ${field("结束日期", '<div class="semi-datepicker"><input class="end" placeholder="结束日期为空默认至今"></div><label><input type="checkbox" checked disabled>至今</label>')}
+    ${field("工作单位", '<input class="company">')}
+    ${field("工作岗位", '<input class="title">')}
+    ${field("借调/挂职", '<button class="semi-switch" role="switch" aria-checked="false" type="button"></button>')}
+    ${field("工作履历描述", '<textarea class="description" placeholder="时间轴、工作岗位职责、工作内容等..."></textarea>')}
+    <button class="semi-button cancel" type="button">取消</button>
+    <button class="semi-button semi-button-primary ok" type="button">确定</button>
+  </div>`;
+  document.body.append(modal);
+  const value = (name) => modal.querySelector(`.${name}`).value;
+  modal.querySelector(".cancel").addEventListener("click", close);
+  modal.querySelector(".ok").addEventListener("click", () => {
+    if (!value("start") || !value("company")) return;
+    const entry = { start: value("start"), end: value("end"), company: value("company"), title: value("title"), description: value("description") };
+    window.saved.push(entry);
+    document.getElementById("empty")?.remove();
+    const row = document.createElement("tr");
+    for (const key of ["start", "end", "company", "title", "description"]) {
+      const cell = document.createElement("td");
+      cell.textContent = entry[key];
+      row.append(cell);
+    }
+    document.getElementById("rows").append(row);
+    close();
+  });
+}
+function close() { modal?.remove(); modal = null; }
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && modal) { window.escapeClosed += 1; close(); }
+});
+document.getElementById("add").addEventListener("click", open);
+</script>
+</body>
+</html>

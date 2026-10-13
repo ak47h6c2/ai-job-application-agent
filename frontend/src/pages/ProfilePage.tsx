@@ -12,6 +12,7 @@ import { Segmented, Spinner, cx } from "../components/ui";
 import type { SaveState } from "../hooks/useProfile";
 import { useI18n } from "../i18n";
 import { storage } from "../storage";
+import { applyTranslation } from "../profileUpdates";
 
 interface ProfilePageProps {
   online: boolean | null;
@@ -113,9 +114,14 @@ export function ProfilePage({ online, aiReady, profile, loadError, reload, updat
       const result = await api.translate(target, profile);
       if (result.translated > 0) {
         const translated = normalizeProfile(result.profile);
-        update((current) => ({ ...current, basic: translated.basic, sections: translated.sections }));
-        setContentLang(target);
-        toast(t("translate.done", { n: result.translated }), { tone: "success" });
+        let applied = 0;
+        update((current) => {
+          const merged = applyTranslation(current, profile, translated, target);
+          applied = merged.applied;
+          return merged.profile;
+        });
+        if (applied) setContentLang(target);
+        toast(applied ? t("translate.done", { n: applied }) : t("ai.editsKept"), applied ? { tone: "success" } : undefined);
       } else {
         toast(t("translate.none"));
       }
@@ -152,7 +158,7 @@ export function ProfilePage({ online, aiReady, profile, loadError, reload, updat
               ref={resumeInput}
               type="file"
               className="hidden"
-              accept=".pdf,.docx,.doc,.txt,.md"
+              accept=".pdf,.docx,.txt,.md"
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) void parse(file);
@@ -202,11 +208,11 @@ export function ProfilePage({ online, aiReady, profile, loadError, reload, updat
 
 function SaveStatus({ state, onRetry }: { state: SaveState; onRetry: () => void }) {
   const { t } = useI18n();
-  if (state === "error") {
+  if (state === "error" || state === "conflict") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-danger" role="status">
+      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-danger" role={state === "conflict" ? "alert" : "status"}>
         <CircleAlert size={14} />
-        {t("save.error")}
+        {t(state === "conflict" ? "save.conflict" : "save.error")}
         <button type="button" className="font-medium underline underline-offset-2" onClick={onRetry}>
           {t("retry")}
         </button>

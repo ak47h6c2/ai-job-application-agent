@@ -25,6 +25,9 @@ const CASES = {
     获取招聘信息渠道: "basic.referralSource", 驾照类型: "basic.driverLicenseType", 是否有驾照: "basic.hasDriverLicense",
     推荐人: null, 现工作单位: null, 参加工作时间: null, "Phone Device Type": null, "Phone Extension": null, "Country Phone Code": "basic.phoneCode",
     "Address Line 2": null, Suburb: "basic.suburb", State: "basic.state", "Country of residence": "basic.residenceCountry", "Middle name": null,
+    通讯地址: "basic.mailingAddress", 家庭住址: "basic.homeAddress", 现居地址: "basic.address",
+    通讯邮编: "basic.mailingPostcode", 家庭地址邮编: "basic.homePostcode", 现居邮编: "basic.postcode",
+    考试意向城市: "basic.examCity", 期望工作城市: "basic.expectedCity", 紧急联系人与本人关系: "basic.emergencyRelation",
   },
   教育经历: {
     学校名称: "education.school", 学校所在城市: "education.location", 学校所在地: "education.location", 院校性质: "basic.schoolLevel",
@@ -33,11 +36,12 @@ const CASES = {
   实习经历: {
     单位名称: "work.company", 单位性质: "work.companyType", 公司规模: null, 所属行业: "work.industry", 证明人: "work.referenceName",
     证明人职务: "work.referenceTitle", 证明人电话: "work.referencePhone", 薪资: "work.salary", 主要业绩: "work.description", 联系电话: null,
+    "职位月薪(税前)": "work.salary", 证明人关系: "work.referenceRelation", 证明人单位: "work.referenceCompany", 是否有证明人: "work.hasReference",
   },
   项目经历: { 项目名称: "projects.name", 所在单位: "projects.organization" },
   证书: { 证书名称: "certificates.name", 证书编号: null },
   家庭成员: {
-    姓名: "family.name", 关系: "family.relation", 出生年月: "family.birthDate", 年龄: null, 民族: null, 身份证号: null,
+    姓名: "family.name", 关系: "family.relation", 出生年月: "family.birthDate", 年龄: "family.age", 民族: null, 身份证号: null,
     现居住地: "family.location", 学历: "family.degree", 工作单位: "family.company", 联系电话: "family.phone", 政治面貌: "family.politicalStatus",
   },
   References: { "Referee name": null, Company: null, Position: null },

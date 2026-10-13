@@ -1,6 +1,7 @@
 import { SCHEMA, readValue, type Lang } from "../../../shared/profileSchema";
 import { capturePayload, type Proposal } from "../engine/capture";
-import { send, type CaptureResult, type FillContext, type FrameReport, type JobInfo, type LearnedAnswer, type TaggedField } from "../messages";
+import { compatibleField, isDistinctQuestion } from "../engine/classify";
+import { send, type CaptureResult, type DraftResult, type FillContext, type FrameReport, type JobInfo, type LearnedAnswer, type TaggedField } from "../messages";
 import { PANEL_CSS } from "./panelStyles";
 import { rememberKey } from "./frame";
 
@@ -21,20 +22,35 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, 
 
 const STATUS_TEXT: Record<string, string> = {
   "no-matching-option": "下拉里没有匹配的选项",
+  "ambiguous-option": "有几个相近的选项，资料库无法区分，请手动选择",
+  "entry-detail": "按这段经历的其他资料选择，请核对",
+  "alternate-value": "列表里没有原值，已按资料库里的对应名称选择，请核对",
+  "range-option": "按数值区间选了最接近的一档，请核对",
   "dropdown-did-not-open": "下拉框没打开",
+  "autocomplete-free-text": "已填入文字，未找到对应建议，请核对网站是否接受",
+  "value-not-accepted": "网站未接受输入，请从建议中手动选择",
   "cascader-path-not-found": "地区没找到",
   "needs-deeper-level": "还需选到区县",
   "date-not-accepted": "日期格式不被接受",
   "present-toggle-not-found": "没找到「至今」选项",
   "missing-in-profile": "资料库里没填",
+  "section-mismatch": "识别结果与本页类目不符，已拦截",
+  "missing-family-member": "资料库里没有对应关系的家庭成员",
+  "empty-file": "附件内容为空，请重新上传资料库附件",
   "missing-region-level": "资料里的地区少一级（比如缺区县）",
   "chose-other": "列表里没有，已选「其他」，请补充填写",
   "not-a-number": "这里只能填数字",
   "answer-not-written": "问答库里这题还没写答案",
+  "ai-draft": "AI 草稿，请核对",
+  "joined-entries": "已填入资料库里的全部条目，请按网站要求保留需要的",
+  "political-status-mismatch": "和你的政治面貌不符，留空",
+  "chose-overseas": "列表里没有这个境外地点，已选「海外」，请核对",
+  "overseas-study": "境外院校，已选海外留学类选项，请核对",
   "other-language": "用了另一种语言的资料",
-  truncated: "超出字数，已截断",
+  truncated: "超出字数，已在句末截断；可点「AI 缩写」按字数重写",
   sensitive: "敏感信息，默认不填",
   "has-value": "已有内容，未覆盖",
+  "entry-not-in-profile": "资料库中没有唯一对应的经历，请核对学校/公司、日期，或补充资料",
 };
 
 function guessJob(): JobInfo {
@@ -49,8 +65,55 @@ function guessJob(): JobInfo {
   return { title: title.slice(0, 160), company: company.slice(0, 160), url: location.href.slice(0, 500) };
 }
 
-function pageText(): string {
-  return (document.body?.innerText ?? "").replace(/\s+/g, " ").slice(0, 6000);
+const JD_HEADING = /^(?:岗位职责|岗位描述|岗位要求|岗位详情|职位描述|职位职责|职位要求|职位详情|任职要求|任职资格|job description|responsibilities|requirements|qualifications|about the role)/i;
+const FORM_CONTROL = "input:not([type=hidden]), textarea, select, [contenteditable=true], [contenteditable='']";
+
+/** Text under job-description headings only; never the application form or values typed into it. */
+export function jobDescription(): string {
+  const blocks: HTMLElement[] = [];
+  for (const element of Array.from(document.body?.querySelectorAll<HTMLElement>("*") ?? [])) {
+    if (element.children.length > 2 || element.closest("[data-jaf-ui], script, style")) continue;
+    const text = (element.textContent ?? "").replace(/\s+/g, " ").trim().replace(/[:：]$/, "");
+    if (!text || text.length > 24 || !JD_HEADING.test(text)) continue;
+    // Grow from the heading to its paragraph block, stopping before anything that holds form controls.
+    let block = element.parentElement;
+    while (block && block !== document.body && block.innerText.trim().length <= text.length + 4 && !block.querySelector(FORM_CONTROL)) block = block.parentElement;
+    if (!block || block === document.body || block.querySelector(FORM_CONTROL) || blocks.some((other) => other.contains(block!))) continue;
+    blocks.splice(0, blocks.length, ...blocks.filter((other) => !block!.contains(other)), block);
+  }
+  return blocks
+    .map((block) => block.innerText.replace(/\s+/g, " ").trim())
+    .join("\n")
+    // Defensive: a description never needs contact details or identity numbers.
+    .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\b\d{17}[\dXx]\b|\b1[3-9]\d{9}\b/g, "")
+    .slice(0, 4000);
+}
+
+/** Browser messaging errors in plain words. */
+function connectionError(detail: string): string | null {
+  if (/extension context invalidated|receiving end does not exist|could not establish connection/i.test(detail)) return "插件已更新，当前网页连接已失效。请刷新当前网页，再打开网申助手。";
+  if (/message channel closed|message port closed/i.test(detail)) return "插件后台处理超时被浏览器重启（网页在后台时浏览器会限速）。请把网页放在前台，再点一次填写。";
+  return null;
+}
+
+function extensionVersion(): string {
+  return typeof chrome.runtime?.getManifest === "function" ? chrome.runtime.getManifest().version : "";
+}
+
+function captureLabels(proposal: Proposal): { title: string; entry?: string } {
+  const section = SCHEMA.sections.find(item => item.key === proposal.section);
+  if (!section) return { title: proposal.title };
+  const lang: Lang = proposal.title.startsWith(section.en) ? "en" : "zh";
+  const field = proposal.index !== null && proposal.values.length === 1
+    ? section.fields.find(item => item.key === proposal.values[0].key) : undefined;
+  const action = proposal.blocked ? (lang === "zh" ? "待核对" : "Needs review")
+    : proposal.index === null ? (lang === "zh" ? "新增经历" : "New entry") : (lang === "zh" ? "更新经历" : "Update entry");
+  // Pending suggestions from older versions still have the combined title.
+  const parts = proposal.title.split(" · ");
+  let entry = proposal.entryTitle ?? (parts.length > 1 ? parts.slice(1).join(" · ") : proposal.title);
+  const suffix = field ? ` · ${field[lang]}` : "";
+  if (!proposal.entryTitle && suffix && entry.endsWith(suffix)) entry = entry.slice(0, -suffix.length);
+  return { title: `${section[lang]} · ${field?.[lang] ?? action}`, entry: entry || undefined };
 }
 
 function targetOptions(ctx: FillContext | null): HTMLOptGroupElement[] {
@@ -80,6 +143,7 @@ export class Panel {
   private launcher: HTMLElement | null = null;
   private open = false;
   private busy = false;
+  private scanned = false;
   private overwrite = false;
   private lang: Lang | "auto" = "auto";
   private ctx: FillContext | null = null;
@@ -90,6 +154,7 @@ export class Panel {
   private job: JobInfo = guessJob();
   private message = "";
   private drafting = new Set<string>();
+  private pendingDrafts = new Map<string, { label: string; answer: string }>();
   private mapping = false;
   private editFrame: number | null = null;
   private captured: Proposal[] = [];
@@ -103,6 +168,11 @@ export class Panel {
     this.shadow.append(h("style", {}, PANEL_CSS));
     document.documentElement.append(this.host);
     return this.shadow;
+  }
+
+  /** The launcher or the panel is on the page. */
+  get shown(): boolean {
+    return Boolean(this.launcher) || this.open;
   }
 
   showLauncher(): void {
@@ -126,12 +196,27 @@ export class Panel {
     if (open) {
       this.hideLauncher();
       this.job = { ...guessJob(), ...(this.recorded ? this.job : {}) };
-      // Always start from the latest profile and AI settings (they may have just been edited in the Web UI).
-      await send({ type: "refresh-profile" }).catch(() => undefined);
-      this.ctx = await send<FillContext>({ type: "get-context", host: location.host });
-      if (this.ctx.settings) this.lang = this.lang === "auto" ? this.ctx.settings.langMode : this.lang;
+      this.ctx = null;
+      this.message = "正在连接插件并读取资料…";
       this.render();
-      if (autoFill) await this.fill();
+      try {
+        // Always start from the latest profile and AI settings.
+        await send({ type: "refresh-profile" });
+        const context = await send<FillContext & { error?: string }>({ type: "get-context", host: location.host });
+        if (!context?.settings) throw new Error(context?.error ?? "没有收到插件后台的响应");
+        if (!this.open) return;
+        this.ctx = context;
+        this.lang = this.lang === "auto" ? context.settings.langMode : this.lang;
+        this.message = "";
+        this.render();
+        if (autoFill) await this.fill();
+      } catch (error) {
+        const detail = (error as Error).message;
+        this.message = /extension context invalidated|receiving end does not exist|could not establish connection/i.test(detail)
+          ? "插件已更新，当前页面的连接已失效。请刷新当前网页，再打开网申助手。"
+          : `连接插件失败：${detail}。请刷新当前网页后重试。`;
+        this.render();
+      }
     } else {
       this.shadow?.querySelector(".panel")?.remove();
       void send({ type: "clear-marks" });
@@ -178,18 +263,34 @@ export class Panel {
   }
 
   private async saveCaptured(): Promise<void> {
+    if (this.busy) return;
     const payload = capturePayload(this.captured);
-    const count = this.captured.filter((proposal) => proposal.checked).length;
-    const result = await send<{ applied?: number; error?: string }>({ type: "save-capture", payload });
-    if (result?.error) {
-      this.message = `存入失败：${result.error}`;
-    } else {
-      this.message = `已存入资料库 ${count} 项，下次网申自动填写。`;
-      this.captured = [];
-      await send({ type: "refresh-profile" }).catch(() => undefined);
-      this.ctx = await send<FillContext>({ type: "get-context", host: location.host });
-    }
+    const count = this.captured.filter((proposal) => proposal.checked && !proposal.blocked).length;
+    if (!count) return;
+    this.busy = true;
     this.render();
+    try {
+      const result = await send<{ applied?: number; skipped?: number; error?: string; code?: string }>({ type: "save-capture", payload });
+      if (result?.error) {
+        if (result.code === "backend-unreachable" && this.ctx) this.ctx = { ...this.ctx, online: false };
+        throw new Error(result.error);
+      }
+      const moved = result?.skipped ? `资料库里对应的经历已被修改、删除或调整顺序，${result.skipped} 项未写入，请重新读取本页后再存入。` : "";
+      if (!result?.applied) {
+        this.message = moved || "本次未写入资料，请重新读取页面后再试。";
+      } else {
+        const expected = payload.basic.length + payload.entries.reduce((total, entry) => total + entry.values.length, 0) + payload.answers.length;
+        this.message = moved ? `已保存部分资料。${moved}` : result.applied < expected ? "已保存部分资料，请重新读取并检查其余内容。" : `已存入资料库 ${count} 项，下次网申自动填写。`;
+        this.captured = [];
+        await send({ type: "refresh-profile" }).catch(() => undefined);
+        this.ctx = await send<FillContext>({ type: "get-context", host: location.host });
+      }
+    } catch (error) {
+      this.message = `存入失败：${(error as Error).message}`;
+    } finally {
+      this.busy = false;
+      this.render();
+    }
   }
 
   private dismissCaptured(): void {
@@ -200,21 +301,23 @@ export class Panel {
 
   private captureCard(): Node | null {
     if (!this.captured.length) return null;
-    const checked = this.captured.filter((proposal) => proposal.checked).length;
+    const checked = this.captured.filter((proposal) => proposal.checked && !proposal.blocked).length;
     const rows = this.captured.map((proposal) => {
-      const box = h("input", { type: "checkbox", checked: proposal.checked });
+      const labels = captureLabels(proposal);
+      const box = h("input", { type: "checkbox", checked: proposal.checked, disabled: proposal.blocked });
       box.addEventListener("change", () => {
         proposal.checked = box.checked;
         this.render();
       });
       return h(
         "label",
-        { className: "capture-row", title: proposal.change ? "资料库里已经有不同的内容，勾选后会替换" : "资料库里还没有，勾选后存入" },
+        { className: "capture-row", title: proposal.blocked ? proposal.detail : proposal.change ? "资料库里已经有不同的内容，勾选后会替换" : "资料库里还没有，勾选后存入" },
         box,
         h(
           "span",
           { className: "row-main" },
-          h("span", { className: "row-label" }, proposal.title),
+          h("span", { className: "row-label" }, labels.title),
+          labels.entry && h("span", { className: "capture-entry" }, labels.entry),
           h("span", { className: "row-sub" }, proposal.detail),
           proposal.previous && h("span", { className: "was" }, `资料库里是：${proposal.previous}`),
         ),
@@ -229,8 +332,8 @@ export class Panel {
       h(
         "div",
         { className: "capture-actions" },
-        h("button", { className: "primary", disabled: !checked, onClick: () => void this.saveCaptured() }, `存入资料库（${checked} 项）`),
-        h("button", { className: "link", onClick: () => this.dismissCaptured() }, "忽略"),
+        h("button", { className: "primary", disabled: this.busy || !checked, onClick: () => void this.saveCaptured() }, `存入资料库（${checked} 项）`),
+        h("button", { className: "link", disabled: this.busy, onClick: () => this.dismissCaptured() }, "忽略"),
       ),
     );
   }
@@ -249,22 +352,45 @@ export class Panel {
     this.message = "";
     this.render();
     try {
-      this.reports = await send<FrameReport[]>({ type: "fill-all", lang: this.lang, overwrite: this.overwrite });
+      const reports = await send<FrameReport[] | { error?: string }>({ type: "fill-all", lang: this.lang, overwrite: this.overwrite });
+      if (!Array.isArray(reports)) throw new Error(reports?.error ?? "插件后台没有返回填写结果");
+      this.reports = reports;
+      this.scanned = false;
       const readOnly = this.reports.find((report) => !report.items.length && report.notes.some((note) => note.startsWith("edit-buttons:")));
       this.editFrame = this.items().length === 0 && readOnly ? readOnly.frameId : null;
       if (this.editFrame !== null) this.message = "这一页是展示模式，没有输入框。先打开页面上的「编辑 / 添加」，表单出现后再填写。";
       else if (!this.items().length) this.message = "这个页面上没有找到可以填写的栏位。";
       else if (this.reports.every((report) => report.notes.includes("no-profile"))) this.message = "还没有资料：先在资料库里填写或上传简历。";
     } catch (error) {
-      this.message = `填写失败：${(error as Error).message}`;
+      this.message = connectionError((error as Error).message) ?? `填写失败：${(error as Error).message}`;
     } finally {
       this.busy = false;
       this.render();
     }
   }
 
-  private async fillOne(item: TaggedField, target: string): Promise<void> {
-    const report = await send<TaggedField | null>({ type: "fill-one", frameId: item.frameId, id: item.id, target, lang: this.pageLang(), remember: true, label: rememberKey(item.label) });
+  private async inspect(): Promise<void> {
+    if (this.busy || this.drafting.size) return;
+    this.busy = true;
+    this.message = "正在识别本页栏位…";
+    this.render();
+    try {
+      const reports = await send<FrameReport[] | { error?: string }>({ type: "inspect-all", lang: this.lang });
+      if (!Array.isArray(reports)) throw new Error(reports?.error ?? "插件没有返回识别结果");
+      this.reports = reports;
+      this.scanned = true;
+      this.editFrame = null;
+      this.message = this.items().length ? "已识别本页栏位，可以点击 AI 起草。未填写其他内容或上传附件。" : "没有找到输入框，请先打开网页上的「编辑」，再识别栏位。";
+    } catch (error) {
+      this.message = connectionError((error as Error).message) ?? `识别失败：${(error as Error).message}`;
+    } finally {
+      this.busy = false;
+      this.render();
+    }
+  }
+
+  private async fillOne(item: TaggedField, target: string, automatic = false): Promise<boolean> {
+    const report = await send<TaggedField | null>({ type: "fill-one", frameId: item.frameId, id: item.id, target, lang: this.pageLang(), remember: !automatic, automatic, label: item.mappingKey ?? rememberKey(item.label) });
     for (const frame of this.reports) {
       const index = frame.items.findIndex((other) => other.id === item.id && frame.frameId === item.frameId);
       if (index < 0) continue;
@@ -272,25 +398,45 @@ export class Panel {
       else if (report) frame.items[index] = report;
     }
     this.render();
+    return Boolean(report && ["filled", "uncertain"].includes(report.status));
   }
 
-  private async draft(item: TaggedField): Promise<void> {
-    this.drafting.add(item.id);
+  private async draft(item: TaggedField): Promise<boolean> {
+    const key = `${item.frameId}:${item.id}`;
+    if (this.drafting.has(key)) return false;
+    this.drafting.add(key);
+    this.message = `正在为「${item.label}」起草…`;
     this.render();
     try {
-      const result = await send<{ answer?: string; error?: string }>({
+      const result = await send<DraftResult | null>({
         type: "ai-answer",
         frameId: item.frameId,
-        id: item.id,
+        field: { id: item.id, label: item.label, kind: item.kind, mappingKey: item.mappingKey },
         question: item.label,
         lang: this.pageLang(),
-        job: { ...this.job, description: pageText() },
+        job: { ...this.job, description: jobDescription() },
         maxLength: item.maxLength,
+        minLength: item.minLength,
       });
-      if (result.error) this.message = `AI 起草失败：${result.error}`;
-      else item.status = "uncertain";
+      if (!result?.answer?.trim()) throw new Error(result?.error ?? "AI 没有返回草稿，请重试。");
+      if (!result.applied) {
+        this.pendingDrafts.set(key, { label: item.label, answer: result.answer });
+        throw new Error(result.error ?? "草稿未填入网页，请查看下方保留的草稿。");
+      }
+      // items() returns display copies; update the stored report so the result persists.
+      const report = this.reports.find(frame => frame.frameId === item.frameId)?.items.find(other => other.id === item.id);
+      if (report) Object.assign(report, { id: result.id ?? report.id, status: "uncertain", value: result.answer, reason: "ai-draft", targetLabel: "AI 草稿" });
+      this.pendingDrafts.delete(key);
+      this.message = `已将「${item.label}」草稿填入网页，请核对后再保存。`;
+      return true;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.message = /extension context invalidated|receiving end does not exist|could not establish connection/i.test(detail)
+        ? "AI 起草失败：插件已更新，当前网页连接已失效。请保留草稿，刷新网页后重试。"
+        : `AI 起草失败：${detail}`;
+      return false;
     } finally {
-      this.drafting.delete(item.id);
+      this.drafting.delete(key);
       this.render();
     }
   }
@@ -309,12 +455,12 @@ export class Panel {
     await this.fill();
   }
 
-  /** Lets the AI map fields the rules could not recognize, then fills (and remembers) them. */
+  /** AI suggestions carry form context and must pass the same section boundary checks. */
   private async aiMap(items: TaggedField[]): Promise<void> {
     this.mapping = true;
     this.render();
     try {
-      const fields = items.map((item, index) => ({ index, label: item.label, type: item.kind }));
+      const fields = items.map((item, index) => ({ index, label: item.label, type: item.kind, section: item.contextSection, heading: item.heading, options: item.options }));
       const result = await send<{ mappings?: { index: number; key: string | null }[]; error?: string }>({ type: "ai-map", fields, lang: this.pageLang() });
       if (result.error) {
         this.message = `AI 识别失败：${result.error}`;
@@ -324,10 +470,15 @@ export class Panel {
       for (const mapping of result.mappings ?? []) {
         const item = items[mapping.index];
         if (!item || !mapping.key || mapping.key === "answer") continue;
-        await this.fillOne(item, mapping.key);
-        filled += 1;
+        // An exam-specific score must never borrow the next language entry's score.
+        if (isDistinctQuestion(item.label)) continue;
+        const [section, key] = mapping.key.split(".");
+        if (!compatibleField(section, key, item.label, { section: item.contextSection ?? null, variant: "all", heading: null })) continue;
+        if (await this.fillOne(item, mapping.key, true)) filled += 1;
       }
       this.message = filled ? `AI 识别并填写了 ${filled} 个栏位，请检查。` : "AI 也没能识别剩下的栏位。";
+    } catch (error) {
+      this.message = `AI 识别失败：${error instanceof Error ? error.message : String(error)}`;
     } finally {
       this.mapping = false;
       this.render();
@@ -336,10 +487,18 @@ export class Panel {
 
   /** Drafts every open question on the page one after another. */
   private async draftAll(items: TaggedField[]): Promise<void> {
+    this.message = "";
     for (const item of items) {
-      if (this.message.startsWith("AI 起草失败")) break;
-      await this.draft(item);
+      if (!await this.draft(item)) break;
     }
+  }
+
+  /** This site stores dates one day early (time zone conversion): type every date one day later here. */
+  private async setDateShift(on: boolean): Promise<void> {
+    const memory = await send<Record<string, string> | null>({ type: "save-site-setting", key: "date-shift", value: on ? "1" : null });
+    if (memory && this.ctx) this.ctx = { ...this.ctx, memory };
+    this.message = !memory ? "设置保存失败，请刷新页面后重试。" : on ? "已开启：本站填写日期时自动多填一天，网站会存成正确的日期。" : "已关闭本站的日期补偿。";
+    this.render();
   }
 
   private async saveLearned(): Promise<void> {
@@ -362,6 +521,11 @@ export class Panel {
   }
 
   private profileLine(): Node {
+    if (!this.ctx) return h("div", { className: "warn" }, "插件尚未连接，暂不能填写。");
+    if (this.ctx.newVersion) {
+      return h("div", { className: "warn" }, `插件正在更新到 v${this.ctx.newVersion}（当前 v${extensionVersion()}），几秒后自动生效。若面板没有反应，请刷新本页。`);
+    }
+    if (this.ctx.error) return h("div", { className: "warn" }, `资料读取失败：${this.ctx.error}`);
     const profile = this.ctx?.profile;
     if (!this.ctx?.online && !profile) return h("div", { className: "warn" }, "本地服务未启动，也没有缓存的资料。请先运行 start-webui。");
     if (!profile || !Object.keys(profile.basic).length) {
@@ -387,6 +551,12 @@ export class Panel {
       h("span", { className: "chip warn" }, `需检查 ${count(["uncertain", "failed"])}`),
       h("span", { className: "chip muted" }, `未填 ${count(["unmatched", "empty", "question"])}`),
     );
+  }
+
+  private draftButton(item: TaggedField, text = "AI 起草"): HTMLElement {
+    const busy = this.drafting.has(`${item.frameId}:${item.id}`);
+    const length = [item.minLength && `不少于 ${item.minLength} 字`, item.maxLength && `${item.maxLength} 字以内`].filter(Boolean).join("、");
+    return h("button", { className: "mini", disabled: this.drafting.size > 0, title: length ? `按${length}起草` : "", onClick: () => void this.draft(item) }, busy ? "起草中…" : text);
   }
 
   private row(item: TaggedField, extra?: Node): HTMLElement {
@@ -417,31 +587,36 @@ export class Panel {
     const questions = items.filter((item) => item.status === "question");
     const unmatched = items.filter((item) => item.status === "unmatched");
     const empty = items.filter((item) => item.status === "empty");
+    const filled = items.filter((item) => item.status === "filled");
     const ai = Boolean(this.ctx?.ai);
     const mapSelect = (item: TaggedField) => {
-      const select = h("select", { className: "map", title: "选一个资料字段填入，本站下次自动记住" }, h("option", { value: "" }, "填入…"), ...targetOptions(this.ctx), h("option", { value: "skip" }, "本站跳过此栏"));
+      const select = h("select", { className: "map", title: "选一个资料字段填入，本站下次自动记住" }, h("option", { value: "" }, "填入…"));
+      // Hundreds of options per row: build them only when this list is opened.
+      const populate = () => {
+        if (select.options.length > 1) return;
+        select.append(...targetOptions(this.ctx), h("option", { value: "skip" }, "本站跳过此栏"));
+      };
+      select.addEventListener("mousedown", populate);
+      select.addEventListener("focus", populate);
       select.addEventListener("change", () => select.value && void this.fillOne(item, select.value));
       return select;
     };
-    const notes = this.reports.flatMap((report) => report.notes.filter((note) => note !== "no-profile"));
+    const notes = this.reports.flatMap((report) => report.notes.filter((note) => !["no-profile", "scan-only"].includes(note)));
     return [
       this.summary(items),
+      ...Array.from(this.pendingDrafts.values()).map(draft => h("section", { className: "group retained-draft" },
+        h("div", { className: "group-title" }, `${draft.label} · 未填入的 AI 草稿`),
+        h("textarea", { readOnly: true, "aria-label": `${draft.label} AI 草稿`, style: "width:100%;min-height:100px;box-sizing:border-box;resize:vertical;" }, draft.answer))),
       ...notes.map((note) => h("div", { className: "note" }, note)),
-      this.group("需要你检查", check.map((item) => this.row(item))),
+      // Text cut to the site's limit can be rewritten to fit by AI from the profile.
+      this.group("需要你检查", check.map((item) => this.row(item, ai && item.reason === "truncated" ? this.draftButton(item, "AI 缩写") : undefined))),
       this.group(
         "开放题",
         [
           ...(ai && questions.length > 1
             ? [h("button", { className: "mini wide", disabled: this.drafting.size > 0, onClick: () => void this.draftAll(questions) }, this.drafting.size > 0 ? "起草中…" : `AI 全部起草（${questions.length}）`)]
             : []),
-          ...questions.map((item) =>
-          this.row(
-            item,
-            ai
-              ? h("button", { className: "mini", disabled: this.drafting.has(item.id), onClick: () => void this.draft(item) }, this.drafting.has(item.id) ? "起草中…" : "AI 起草")
-              : undefined,
-          ),
-          ),
+          ...questions.map((item) => this.row(item, ai ? this.draftButton(item) : undefined)),
         ],
         ai ? undefined : "在设置里配置 AI 后可一键起草；你手写的答案会被记住。",
       ),
@@ -456,6 +631,7 @@ export class Panel {
         "选择对应的资料字段，本网站下次会自动识别。",
       ),
       this.group("资料库里缺少", empty.map((item) => this.row(item))),
+      filled.length ? h("details", { className: "group" }, h("summary", { className: "group-title" }, `已填资料（${filled.length}）`), ...filled.map(item => this.row({ ...item, value: undefined }))) : null,
     ].filter(Boolean) as Node[];
   }
 
@@ -478,10 +654,10 @@ export class Panel {
       { className: "footer" },
       h(
         "button",
-        { className: "secondary", disabled: this.capturing, title: "读取你在本页填好的内容，把资料库里没有的存进去", onClick: () => void this.captureNow() },
+        { className: "secondary", disabled: this.capturing || !this.ctx, title: "读取你在本页填好的内容，把资料库里没有的存进去", onClick: () => void this.captureNow() },
         this.capturing ? "读取中…" : "把本页填好的内容存入资料库",
       ),
-      h("button", { className: "link small", title: "导出栏位名称和组件类型，不含你填写的内容", onClick: () => void this.exportStructure() }, "导出页面结构（用于适配新网站）"),
+      h("button", { className: "link small", disabled: !this.ctx, title: "导出栏位名称和组件类型，不含你填写的内容", onClick: () => void this.exportStructure() }, "导出页面结构（用于适配新网站）"),
       learnedCount > 0 && h("button", { className: "secondary", onClick: () => void this.saveLearned() }, `记住我填的 ${learnedCount} 条答案`),
       this.submitted && !this.recorded
         ? h(
@@ -499,22 +675,29 @@ export class Panel {
   render(): void {
     if (!this.open) return;
     const shadow = this.ensureHost();
-    shadow.querySelector(".panel")?.remove();
+    const previous = shadow.querySelector(".panel");
+    // The panel is rebuilt on every change; keep the list where the user was.
+    const scrollTop = previous?.querySelector(".body")?.scrollTop ?? 0;
+    previous?.remove();
     const langSelect = h("select", { className: "lang", title: "填写语言" }, h("option", { value: "auto" }, "自动语言"), h("option", { value: "zh" }, "中文资料"), h("option", { value: "en" }, "English"));
     langSelect.value = this.lang;
     langSelect.addEventListener("change", () => (this.lang = langSelect.value as Lang | "auto"));
     const overwrite = h("input", { type: "checkbox", checked: this.overwrite });
     overwrite.addEventListener("change", () => (this.overwrite = overwrite.checked));
+    const dateShift = h("input", { type: "checkbox", checked: this.ctx?.memory?.["setting::date-shift"] === "1", disabled: !this.ctx });
+    dateShift.addEventListener("change", () => void this.setDateShift(dateShift.checked));
     const panel = h(
       "div",
       { className: "panel" },
-      h("header", {}, h("div", { className: "title" }, h("span", { className: "logo" }, "填"), "网申助手"), langSelect, h("button", { className: "close", title: "关闭", onClick: () => void this.toggle(false) }, "×")),
+      h("header", {}, h("div", { className: "title" }, h("span", { className: "logo" }, "填"), "网申助手", extensionVersion() && h("span", { className: "version", title: "插件版本" }, `v${extensionVersion()}`)), langSelect, h("button", { className: "close", title: "关闭", onClick: () => void this.toggle(false) }, "×")),
       h(
         "div",
         { className: "body" },
         this.profileLine(),
-        h("button", { className: "primary big", disabled: this.busy || !this.ctx?.profile, onClick: () => void this.fill() }, this.busy ? "正在填写…" : this.items().length ? "再填一次" : "一键填写本页"),
+        h("button", { className: "primary big", disabled: this.busy || this.drafting.size > 0 || !this.ctx?.profile, onClick: () => void this.fill() }, this.busy ? "处理中…" : this.items().length && !this.scanned ? "再填一次" : "一键填写本页"),
+        h("button", { className: "secondary", disabled: this.busy || this.drafting.size > 0 || !this.ctx?.profile, onClick: () => void this.inspect() }, "识别栏位 / AI 起草"),
         h("label", { className: "check" }, overwrite, "覆盖已有内容"),
+        h("label", { className: "check", title: "有的网站按北京时间换算日期，电脑在其他时区时会存成前一天。勾选后本站填日期自动多填一天。" }, dateShift, "本站日期 +1 天（保存后日期总早一天时勾选）"),
         this.message && h("div", { className: "message" }, this.message),
         this.captureCard(),
         this.editFrame !== null && h("button", { className: "secondary", disabled: this.busy, onClick: () => void this.editAndFill() }, "帮我点「编辑」并填写"),
@@ -523,5 +706,7 @@ export class Panel {
       this.footer(),
     );
     shadow.append(panel);
+    const body = panel.querySelector<HTMLElement>(".body");
+    if (body) body.scrollTop = scrollTop;
   }
 }

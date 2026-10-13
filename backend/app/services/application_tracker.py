@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from backend.app.services.storage import read_json, synchronized, write_json
 
 
 APPLICATION_STATUSES = {
@@ -59,13 +60,8 @@ def tracker_path(private_data_dir: Path) -> Path:
 
 
 def load_application_records(private_data_dir: Path) -> list[dict[str, object]]:
-    path = tracker_path(private_data_dir)
-    if not path.exists():
-        return []
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (OSError, json.JSONDecodeError):
-        return []
+    # An unreadable tracker raises instead of looking empty, so the next save cannot erase it.
+    payload = read_json(tracker_path(private_data_dir), {})
     if not isinstance(payload, dict):
         return []
     records = payload.get("records", [])
@@ -75,10 +71,10 @@ def load_application_records(private_data_dir: Path) -> list[dict[str, object]]:
     return sorted(normalized, key=lambda record: str(record.get("updated_at", "")), reverse=True)
 
 
+@synchronized
 def save_application_records(private_data_dir: Path, records: list[dict[str, object]]) -> None:
     path = tracker_path(private_data_dir)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"records": records}, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_json(path, {"records": records})
 
 
 def normalize_application_record(payload: dict[str, Any]) -> dict[str, object]:
@@ -104,6 +100,7 @@ def normalize_application_record(payload: dict[str, Any]) -> dict[str, object]:
     }
 
 
+@synchronized
 def upsert_application_record(private_data_dir: Path, payload: dict[str, Any]) -> dict[str, object]:
     incoming = normalize_application_record(
         {
@@ -123,6 +120,7 @@ def upsert_application_record(private_data_dir: Path, payload: dict[str, Any]) -
     return incoming
 
 
+@synchronized
 def delete_application_record(private_data_dir: Path, key: str) -> bool:
     normalized_key = normalize_text(key, limit=560)
     if not normalized_key:

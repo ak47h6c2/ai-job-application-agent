@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>工行风格 - 教育经历（Ant Design 3）</title>
+<link rel="stylesheet" href="/test/node_modules/antd3/dist/antd.min.css">
+<script src="/test/node_modules/react16/umd/react.production.min.js"></script>
+<script src="/test/node_modules/react-dom16/umd/react-dom.production.min.js"></script>
+<script src="/test/node_modules/moment/min/moment.min.js"></script>
+<script src="/test/node_modules/antd3/dist/antd.min.js"></script>
+<style>body{font-family:sans-serif;padding:20px}.layout{display:flex;gap:24px}.menu{list-style:none;width:160px}.block{border:1px solid #eee;padding:12px;margin-bottom:16px;width:640px}</style></head>
+<body>
+<div id="root"></div>
+<script>
+// Mirrors job.icbc.com.cn resumeEdit · 教育经历: a status-suffixed side menu, three entry blocks with their own
+// titles, a 学位 list that only distinguishes 学术/专业硕士, and one label over three dropdowns (主修专业).
+const h = React.createElement;
+const { Form, Select, DatePicker, Input, Radio } = antd;
+const values = {};
+window.formValues = () => JSON.parse(JSON.stringify(values));
+const set = (block, key) => (value) => { values[block] = { ...(values[block] || {}), [key]: value && value.format ? value.format("YYYY-MM-DD") : value && value.target ? value.target.value : value }; };
+
+function Choice({ block, name, options, placeholder, initial, search }) {
+  return h(Select, { placeholder, defaultValue: initial, showSearch: search, style: { width: 200 }, onChange: set(block, name),
+    filterOption: (input, option) => String(option.props.children).includes(input) }, options.map((text) => h(Select.Option, { key: text, value: text }, text)));
+}
+const YesNo = ({ block, name }) => h(Radio.Group, { onChange: set(block, name) }, h(Radio, { value: "是" }, "是"), h(Radio, { value: "否" }, "否"));
+const Item = (label, ...children) => h(Form.Item, { label, required: !/选填/.test(label || "") }, ...children);
+const Dates = (block) => h(Form.Item, {}, h("span", {}, "入学时间："), h(DatePicker, { placeholder: "开始时间", onChange: set(block, "start") }),
+  h("span", {}, "毕业时间："), h(DatePicker, { placeholder: "结束时间", onChange: set(block, "end") }));
+const Major = (block, directions) => Item("主修专业",
+  h(Choice, { block, name: "category", placeholder: "请选择一级学科", options: ["哲学", "经济学", "理学", "工学", "管理学"] }),
+  h(Choice, { block, name: "subject", placeholder: "请选择二级学科", options: ["计算机类", "电子信息类", "其他"] }),
+  h(Choice, { block, name: "direction", placeholder: "请选择专业方向", options: directions }));
+const Rank = (block) => Item("班级排名", h(Choice, { block, name: "rank", placeholder: "请选择班级排名", options: ["前5%", "前10%", "前20%", "其他"] }));
+const Common = (block, schools, directions) => [
+  Dates(block),
+  Item("学校名称", h(Choice, { block, name: "school", placeholder: "请输入学校名称", search: true, options: schools, initial: block === "highest" ? "Test Tech(测试科技大学)" : undefined })),
+  Item("学校所在地", h(Input, { placeholder: "请输入学校所在地", onChange: set(block, "location") })),
+  Item("学院（选填）", h(Input, { placeholder: "请输入学院", onChange: set(block, "college") })),
+  Major(block, directions), Rank(block),
+  Item("是否是学生干部", h(YesNo, { block, name: "leader" })),
+];
+const schools = ["Test Tech(测试科技大学)", "测试工业大学", "测试师范大学"];
+
+function App() {
+  return h("div", {},
+    h("h1", {}, "校招简历"),
+    h("div", { className: "layout" },
+      h("ul", { className: "menu" }, ["个人基本信息（待完善）", "教育经历（待完善）", "语言能力（待完善）", "荣誉或奖励", "学术成果", "资格认证", "工作（实习）经历", "家庭关系（待完善）"]
+        .map((text, index) => h("li", { key: text, className: index === 1 ? "menu__item menu__item--active___x" : "menu__item" }, text.replace(/（.*$/, ""), /（/.test(text) ? h("span", {}, "（待完善）") : null))),
+      h(Form, { layout: "vertical" },
+        h("div", { className: "block" }, h("div", { className: "title___a" }, "最高学历"),
+          Item("最高学历", h(Choice, { block: "highest", name: "level", options: ["硕士研究生", "大学本科"], initial: "硕士研究生" })),
+          Item("是否主要经历", h(YesNo, { block: "highest", name: "main" })),
+          Item("学历类型", h(Choice, { block: "highest", name: "mode", placeholder: "请选择学历类型", options: ["全日制普通硕士学位研究生（包括全日制学硕、全日制专硕）", "非全日制普通硕士学位研究生（专业硕士）"] })),
+          Item("学位", h(Choice, { block: "highest", name: "degree", placeholder: "请选择学位", options: ["学术硕士", "专业硕士", "无学位"] })),
+          Item("学位类型", h(Choice, { block: "highest", name: "degreeType", placeholder: "请选择学位类型", options: ["工学硕士", "理学硕士", "电子信息硕士", "金融硕士"] })),
+          ...Common("highest", schools, ["计算机科学与技术", "软件工程", "智能科学与技术"])),
+        h("div", { className: "block" }, h("div", { className: "title___a" }, "其他高校教育经历1"),
+          Item("学历", h(Choice, { block: "other", name: "level", options: ["大学本科", "大学专科"], initial: "大学本科" })),
+          Item("是否主要经历", h(YesNo, { block: "other", name: "main" })),
+          Item("是否双学位", h(YesNo, { block: "other", name: "double" })),
+          Item("是否专升本", h(YesNo, { block: "other", name: "upgraded" })),
+          Item("学历类型", h(Choice, { block: "other", name: "mode", placeholder: "请选择学历类型", options: ["普通全日制本科", "非全日制本科"] })),
+          Item("学位", h(Choice, { block: "other", name: "degree", placeholder: "请选择学位", options: ["学士", "无学位"] })),
+          Item("学位类型", h(Choice, { block: "other", name: "degreeType", placeholder: "请选择学位类型", options: ["理学学士", "工学学士"] })),
+          ...Common("other", schools, ["电子信息工程", "通信工程"])),
+        h("div", { className: "block" }, h("div", { className: "title___a" }, "高中教育经历"),
+          Item("高中毕业院校",
+            h(Choice, { block: "high", name: "province", placeholder: "省", options: ["吉林省", "辽宁省"] }),
+            h(Choice, { block: "high", name: "city", placeholder: "市", options: ["白山市", "大连市"] })),
+          Dates("high"),
+          Item("是否主要经历", h(YesNo, { block: "high", name: "main" }))))));
+}
+ReactDOM.render(h(App), document.getElementById("root"));
+</script>
+</body>
+</html>

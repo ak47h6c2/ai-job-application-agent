@@ -20,6 +20,27 @@ class ApiTests(unittest.TestCase):
         self.env.stop()
         self.tmp.cleanup()
 
+    def test_writes_from_other_websites_are_refused(self) -> None:
+        files = {"file": ("resume.pdf", b"%PDF-1.4 test", "application/pdf")}
+        blocked = self.client.post("/api/attachments", files=files, data={"kind": "resume_zh"}, headers={"Origin": "https://evil.example"})
+        self.assertEqual(blocked.status_code, 403)
+        self.assertEqual(self.client.get("/api/attachments").json()["attachments"], [])
+        for origin in ("http://127.0.0.1:5173", "chrome-extension://abcdefghijklmnop"):
+            allowed = self.client.post("/api/attachments", files=files, data={"kind": "resume_zh"}, headers={"Origin": origin})
+            self.assertEqual(allowed.status_code, 200, origin)
+        # Reads and non-browser clients (no Origin) are unaffected.
+        self.assertEqual(self.client.get("/api/profile", headers={"Origin": "https://evil.example"}).status_code, 200)
+        self.assertEqual(self.client.put("/api/profile", json={"profile": {}}).status_code, 200)
+
+    def test_answer_drafts_are_cut_at_a_sentence_end(self) -> None:
+        from backend.app.services import ai_tasks
+
+        reply = "我在实习中负责硬件测试。熟悉嵌入式开发和电路调试，能够独立完成模块验证。希望在银行科技岗位继续成长"
+        with mock.patch.object(ai_tasks, "chat", return_value=reply) as chat:
+            answer = ai_tasks.answer_question({}, question="自我介绍", lang="zh", max_length=40, min_length=20)
+        self.assertEqual(answer, "我在实习中负责硬件测试。熟悉嵌入式开发和电路调试，能够独立完成模块验证。")
+        self.assertIn("between 20 and 40 characters", chat.call_args.args[0])
+
     def test_profile_round_trip_cleans_values(self) -> None:
         empty = self.client.get("/api/profile").json()["profile"]
         self.assertEqual(empty["sections"]["education"], [])
@@ -44,6 +65,24 @@ class ApiTests(unittest.TestCase):
         ).json()["profile"]
         self.assertEqual([answer["question"] for answer in saved["answers"]], ["你为什么选择我们公司？"])
         self.assertEqual(saved["answers"][0]["answer"], "")
+
+    def test_stale_editor_cannot_overwrite_an_extension_capture(self) -> None:
+        loaded = self.client.put("/api/profile", json={"profile": {"basic": {"name": {"zh": "测试用户"}}}}).json()["profile"]
+        self.client.post("/api/profile/capture", json={"basic": [{"key": "email", "value": "captured@example.com"}]})
+        loaded["basic"]["name"] = {"zh": "编辑中的名字"}
+        response = self.client.put("/api/profile", json={"profile": loaded, "expectedUpdatedAt": loaded["updatedAt"]})
+        self.assertEqual(response.status_code, 409)
+        current = self.client.get("/api/profile").json()["profile"]
+        self.assertEqual(current["basic"], {"name": {"zh": "测试用户"}, "email": "captured@example.com"})
+        current["basic"]["name"] = {"zh": "编辑中的名字"}
+        accepted = self.client.put("/api/profile", json={"profile": current, "expectedUpdatedAt": current["updatedAt"]})
+        self.assertEqual(accepted.status_code, 200)
+        self.assertEqual(accepted.json()["profile"]["basic"]["email"], "captured@example.com")
+
+    def test_empty_profile_revision_is_checked_on_first_save(self) -> None:
+        self.client.post("/api/profile/capture", json={"basic": [{"key": "email", "value": "captured@example.com"}]})
+        stale = self.client.put("/api/profile", json={"profile": {"basic": {}}, "expectedUpdatedAt": None})
+        self.assertEqual(stale.status_code, 409)
 
     def test_learned_answers_merge_by_question(self) -> None:
         self.client.put("/api/profile", json={"profile": {"answers": [{"question": "期望薪资：", "answer": "面议", "source": "manual"}]}})
@@ -108,6 +147,13 @@ class ApiTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in listed], [uploaded["id"]])
         download = self.client.get(f"/api/attachments/{uploaded['id']}/file")
         self.assertEqual(download.content, b"%PDF-1.4 test")
+        self.assertTrue(download.headers["content-disposition"].startswith("attachment;"))
+        import base64
+        content = self.client.get(f"/api/attachments/{uploaded['id']}/content").json()
+        self.assertEqual(base64.b64decode(content["data"]), download.content)
+        self.assertEqual(content["size"], len(download.content))
+        self.assertEqual(content["name"], "我的简历.pdf")
+        self.assertEqual(self.client.get("/api/attachments/not-found/content").status_code, 404)
 
         self.assertTrue(self.client.delete(f"/api/attachments/{uploaded['id']}").json()["deleted"])
         self.assertEqual(self.client.get("/api/attachments").json()["attachments"], [])
@@ -196,6 +242,74 @@ class ApiTests(unittest.TestCase):
     def test_schema_endpoint(self) -> None:
         schema = self.client.get("/api/schema").json()
         self.assertIn("education", [section["key"] for section in schema["sections"]])
+
+    def test_capture_correspondence_does_not_replace_residence(self) -> None:
+        old = {"address": {"zh": "10 Test St"}, "postcode": {"zh": "2000"}, "preferredAddressUse": "mailing"}
+        self.client.put("/api/profile", json={"profile": {"basic": old}})
+        response = self.client.post("/api/profile/capture", json={"schemaVersion": 2, "basic": [
+            {"key": "mailingAddress", "value": "测试路1号", "lang": "zh"},
+            {"key": "mailingPostcode", "value": "100000", "lang": "zh"},
+            {"key": "examCity", "value": "上海", "lang": "zh"},
+        ]})
+        self.assertEqual(response.status_code, 200)
+        basic = response.json()["profile"]["basic"]
+        self.assertEqual(basic["address"], old["address"])
+        self.assertEqual(basic["postcode"], old["postcode"])
+        self.assertEqual(basic["mailingAddress"], {"zh": "测试路1号"})
+        self.assertEqual(basic["mailingPostcode"], "100000")
+        self.assertNotIn("expectedCity", basic)
+
+    def test_capture_old_address_suggestions_are_rejected_without_writing(self) -> None:
+        old = {"address": {"zh": "10 Test St"}, "postcode": {"zh": "2000"}}
+        self.client.put("/api/profile", json={"profile": {"basic": old}})
+        response = self.client.post("/api/profile/capture", json={"basic": [{"key": "address", "value": "误识别的地址"}]})
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("重新读取", response.json()["detail"])
+        self.assertEqual(self.client.get("/api/profile").json()["profile"]["basic"], old)
+
+    def test_capture_follows_moved_entries_and_skips_deleted_ones(self) -> None:
+        a = {"school": {"zh": "甲大学"}, "startDate": "2019-09"}
+        b = {"school": {"zh": "乙大学"}, "startDate": "2023-09"}
+        self.client.put("/api/profile", json={"profile": {"sections": {"education": [b, a]}}})
+        response = self.client.post("/api/profile/capture", json={"entries": [
+            # Read when 甲大学 was entry 0; the Web UI has since moved it to position 1.
+            {"section": "education", "index": 0, "values": [{"key": "major", "value": "甲专业"}],
+             "identity": [{"key": "school", "value": "甲大学"}, {"key": "startDate", "value": "2019-09"}]},
+            {"section": "education", "index": 1, "values": [{"key": "major", "value": "已删除条目的专业"}],
+             "identity": [{"key": "school", "value": "丙大学"}]},
+        ]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual((response.json()["applied"], response.json()["skipped"]), (1, 1))
+        education = response.json()["profile"]["sections"]["education"]
+        self.assertEqual(education[0], b)
+        self.assertEqual(education[1]["major"], {"zh": "甲专业"})
+
+    def test_unreadable_profile_is_reported_and_never_overwritten(self) -> None:
+        path = Path(self.tmp.name) / "profile.json"
+        path.write_text('{"basic": {"name": "张三"', encoding="utf-8")
+        response = self.client.get("/api/profile")
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("profile.json", response.json()["detail"])
+        capture = self.client.post("/api/profile/capture", json={"basic": [{"key": "email", "value": "a@b.com"}]})
+        self.assertEqual(capture.status_code, 503)
+        self.assertEqual(self.client.post("/api/profile/answers", json={"answers": [{"question": "Q", "answer": "A"}]}).status_code, 503)
+        self.assertEqual(path.read_text(encoding="utf-8"), '{"basic": {"name": "张三"')
+        self.assertEqual(self.client.get("/api/health").status_code, 200)
+
+    def test_unreadable_tracker_is_not_replaced_by_a_new_record(self) -> None:
+        path = Path(self.tmp.name) / "application_tracker.json"
+        path.write_text("not json", encoding="utf-8")
+        self.assertEqual(self.client.post("/api/applications", json={"title": "工程师", "company": "测试公司"}).status_code, 503)
+        self.assertEqual(path.read_text(encoding="utf-8"), "not json")
+
+    def test_resume_address_purposes_are_independent(self) -> None:
+        from backend.app.services.resume_parser import parse_resume_text
+        result = parse_resume_text("姓名：测试人\n现居地址：10 Test St\n现居邮编：2000\n通讯地址：测试路1号\n通讯邮编：100000\n家庭地址：家庭路2号\n家庭邮编：200001\n")
+        basic = result["basic"]
+        self.assertEqual(basic["address"], {"zh": "10 Test St"})
+        self.assertEqual(basic["mailingAddress"], {"zh": "测试路1号"})
+        self.assertEqual(basic["homeAddress"], {"zh": "家庭路2号"})
+        self.assertEqual([basic[key] for key in ("postcode", "mailingPostcode", "homePostcode")], ["2000", "100000", "200001"])
 
 
 if __name__ == "__main__":

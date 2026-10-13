@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>工行风格 - 工作（实习）经历</title>
+<link rel="stylesheet" href="/test/node_modules/antd3/dist/antd.min.css">
+<script src="/test/node_modules/react16/umd/react.production.min.js"></script>
+<script src="/test/node_modules/react-dom16/umd/react-dom.production.min.js"></script>
+<script src="/test/node_modules/moment/min/moment.min.js"></script>
+<script src="/test/node_modules/antd3/dist/antd.min.js"></script>
+<style>body{font-family:sans-serif;padding:20px}.layout{display:flex;gap:24px}.menu{list-style:none;width:160px}.block{border:1px solid #eee;padding:12px;margin-bottom:12px;width:640px}</style></head>
+<body>
+<div id="root"></div>
+<script>
+// Mirrors job.icbc.com.cn resumeEdit · 工作（实习）经历: one default block, two labels per fact family
+// (单位类别 / 工作单位, 工作岗位 / 岗位级别), a 200-character counter and a wrapped add button.
+const h = React.createElement;
+const { Form, Input, DatePicker, Select } = antd;
+window.jobs = [];
+function Choice({ index, name, placeholder, options }) {
+  return h(Select, { placeholder, style: { width: 220 }, onChange: (value) => { window.jobs[index] = { ...(window.jobs[index] || {}), [name]: value }; } }, options.map((text) => h(Select.Option, { key: text, value: text }, text)));
+}
+function Job({ index }) {
+  const [text, setText] = React.useState("");
+  const set = (key) => (value) => { window.jobs[index] = { ...(window.jobs[index] || {}), [key]: value && value.format ? value.format("YYYY-MM") : value && value.target ? value.target.value : value }; };
+  return h("div", { className: "block" },
+    h(Form.Item, {}, h("span", {}, "开始时间："), h(DatePicker.MonthPicker, { placeholder: "开始时间", onChange: set("start") }), h("span", {}, "结束时间："), h(DatePicker.MonthPicker, { placeholder: "结束时间", onChange: set("end") })),
+    h(Form.Item, { label: "单位类别" }, h(Choice, { index, name: "kind", placeholder: "请选择单位类别", options: ["国有企业", "外资企业", "私营企业", "其他"] })),
+    h(Form.Item, { label: "工作单位" }, h(Input, { placeholder: "请输入工作单位", onChange: set("company") })),
+    h(Form.Item, { label: "工作形式" }, h(Choice, { index, name: "form", placeholder: "请选择工作形式", options: ["全职", "兼职", "实习", "校园实践"] })),
+    h(Form.Item, { label: "工作岗位" }, h(Input, { placeholder: "请输入工作岗位", onChange: set("title") })),
+    h(Form.Item, { label: "岗位级别" }, h(Input, { placeholder: "请输入岗位级别", onChange: set("level") })),
+    h(Form.Item, { label: "主要业绩" }, h(Input.TextArea, { placeholder: "请输入主要业绩", value: text, onChange: (event) => { setText(event.target.value); set("result")(event); } }), h("span", { className: "count___x" }, `${text.length}/200`)));
+}
+function App() {
+  const [count, setCount] = React.useState(1);
+  return h("div", {}, h("h1", {}, "校招简历"),
+    h("div", { className: "layout" },
+      h("ul", { className: "menu" }, ["个人基本信息", "教育经历（待完善）", "荣誉或奖励", "学术成果", "工作（实习）经历", "家庭关系"].map((text, index) =>
+        h("li", { key: text, className: index === 4 ? "menu__item menu__item--active___x" : "menu__item" }, text.replace(/（待完善）$/, ""), /（待完善）$/.test(text) ? h("span", {}, "（待完善）") : null))),
+      h(Form, { layout: "vertical" }, Array.from({ length: count }, (_, index) => h(Job, { key: index, index })),
+        h("div", { className: "add-btn-wrapper___x" }, h("button", { type: "button", className: "add-btn___x", onClick: () => setCount(count + 1) }, "+ 添加工作经历(选填)")))));
+}
+ReactDOM.render(h(App), document.getElementById("root"));
+</script>
+</body>
+</html>

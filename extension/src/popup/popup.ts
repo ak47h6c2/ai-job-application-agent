@@ -11,13 +11,14 @@ async function activeTab(): Promise<chrome.tabs.Tab | undefined> {
 async function toTab(command: FrameCommand): Promise<void> {
   const tab = await activeTab();
   if (tab?.id === undefined) return;
-  await chrome.tabs.sendMessage(tab.id, command, { frameId: 0 }).catch(() => {
-    $("profile").textContent = "这个页面不能使用助手（浏览器内置页面或需要刷新）。";
-  });
-  window.close();
+  const sent = await chrome.tabs.sendMessage(tab.id, command, { frameId: 0 }).then(() => true, () => false);
+  // Keep the popup open so the reason stays readable.
+  if (!sent) $("profile").textContent = "这个页面不能使用助手（浏览器内置页面或需要刷新）。";
+  else window.close();
 }
 
 async function init(): Promise<void> {
+  $("version").textContent = ` v${chrome.runtime.getManifest().version}`;
   const settings = await send<ExtensionSettings>({ type: "get-settings" });
   const tab = await activeTab();
   const host = tab?.url ? new URL(tab.url).host : "";
@@ -33,10 +34,10 @@ async function init(): Promise<void> {
   status.textContent = health.online ? (health.ai ? "已连接 · AI 可用" : "已连接") : "本地服务未启动";
   status.className = `status ${health.online ? "on" : "off"}`;
 
-  const context = await send<{ profile: ProfileData | null; cachedAt?: string }>({ type: "get-context", host });
+  const context = await send<{ profile: ProfileData | null; cachedAt?: string; error?: string }>({ type: "get-context", host });
   const profile = context.profile;
   const name = profile ? readValue(profile.basic.name, "zh").value || readValue(profile.basic.name, "en").value : "";
-  $("profile").textContent = profile && name ? `资料：${name} · ${profile.sections.education?.length ?? 0} 段教育 · ${profile.sections.work?.length ?? 0} 段经历` : "资料库还是空的，先去填写资料。";
+  $("profile").textContent = context.error ? `资料读取失败：${context.error}` : profile && name ? `资料：${name} · ${profile.sections.education?.length ?? 0} 段教育 · ${profile.sections.work?.length ?? 0} 段经历` : "资料库还是空的，先去填写资料。";
 
   $("fill").onclick = () => void toTab({ type: "open-panel", fill: true });
   $("open").onclick = () => void toTab({ type: "open-panel" });

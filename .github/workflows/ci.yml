@@ -26,8 +26,15 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: |
+            frontend/package-lock.json
+            extension/package-lock.json
       - run: npm ci
+        working-directory: frontend
+      # The Web UI tests bundle sources with the extension's esbuild.
+      - run: npm ci
+        working-directory: extension
+      - run: npm test
         working-directory: frontend
       - run: npm run build
         working-directory: frontend

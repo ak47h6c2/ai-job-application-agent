@@ -1,4 +1,25 @@
-export const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+// Background tabs run timers about once a second, and after five minutes about once a minute. Message ticks
+// are not throttled, so short engine waits stay short while the user looks at another tab.
+const ticks: (() => void)[] = [];
+let channel: MessageChannel | null = null;
+function tick(): Promise<void> {
+  if (!channel) {
+    channel = new MessageChannel();
+    channel.port1.onmessage = () => ticks.shift()?.();
+  }
+  return new Promise((resolve) => {
+    ticks.push(resolve);
+    channel!.port2.postMessage(0);
+  });
+}
+
+export async function sleep(ms: number): Promise<void> {
+  if (typeof document === "undefined" || !document.hidden || typeof MessageChannel === "undefined") {
+    return new Promise<void>((resolve) => setTimeout(resolve, ms));
+  }
+  const end = performance.now() + ms;
+  while (performance.now() < end) await tick();
+}
 
 export function isVisible(element: Element | null | undefined): boolean {
   if (!element || !(element instanceof Element) || !element.isConnected) return false;
@@ -43,6 +64,7 @@ export async function waitFor<T>(probe: () => T | null | undefined | false, time
 
 /** Resolves once the DOM has had no mutations for `quiet` ms (or after `timeout`). */
 export function waitForIdle(root: Node = document.body, quiet = 250, timeout = 3000): Promise<void> {
+  if (document.hidden) return waitForIdleHidden(root, quiet, timeout);
   return new Promise((resolve) => {
     let timer = window.setTimeout(done, quiet);
     const hardStop = window.setTimeout(done, timeout);
@@ -94,6 +116,17 @@ export function pressKey(element: Element, key: string, type: "keydown" | "keyup
   if (type !== "keydown") element.dispatchEvent(make("keyup"));
 }
 
+export const MODALS = "[role=dialog], [aria-modal=true], .semi-modal, .el-dialog, .ant-modal, .ivu-modal, .arco-modal, .t-dialog, .layui-layer, .n-modal";
+
+/** Escape closes a picker, but inside a dialog it can close the dialog and lose the entry: blur there instead. */
+export function pressEscape(element: Element): void {
+  if (element.closest(MODALS)) {
+    (element as HTMLElement).blur?.();
+    return;
+  }
+  pressKey(element, "Escape");
+}
+
 const valueSetters = new Map<string, ((this: HTMLElement, value: string) => void) | undefined>();
 
 function nativeSetter(element: HTMLElement): ((this: HTMLElement, value: string) => void) | undefined {
@@ -118,15 +151,29 @@ export function setNativeValue(element: HTMLInputElement | HTMLTextAreaElement |
   }
 }
 
-/** Types text into a search box (dropdown filters, remote search) without committing via blur. */
+/**
+ * Types text into a search box (dropdown filters, remote search) without committing via blur, the way Chrome's IME
+ * delivers Chinese text: compositionstart, the input event (isComposing), then compositionend with no input after it.
+ * Clearing is a plain deletion. Wait SEARCH_SETTLE_MS before using the results.
+ */
+/**
+ * Semi Design (rencaishichang.chd.com.cn) finishes a composition in a later task; a click on a filtered option before
+ * that is ignored, and the list then ignores every later click too.
+ */
+export const SEARCH_SETTLE_MS = 50;
+
 export function typeInto(element: HTMLInputElement, value: string): void {
   element.focus({ preventScroll: true });
   const setter = nativeSetter(element);
-  element.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+  const composing = Boolean(value);
+  if (composing) {
+    element.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true, data: "" }));
+    element.dispatchEvent(new CompositionEvent("compositionupdate", { bubbles: true, data: value }));
+  }
   if (setter) setter.call(element, value);
   else element.value = value;
-  element.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: value }));
-  element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+  element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: composing ? "insertCompositionText" : "deleteContentBackward", data: value || null, isComposing: composing }));
+  if (composing) element.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: value }));
   element.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: value.slice(-1) || "a" }));
 }
 
@@ -165,4 +212,14 @@ export function isDisabled(element: Element): boolean {
 export function docPosition(a: Node, b: Node): number {
   if (a === b) return 0;
   return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+}
+
+/** waitForIdle for background tabs, where its timers would be throttled. */
+async function waitForIdleHidden(root: Node, quiet: number, timeout: number): Promise<void> {
+  let last = performance.now();
+  const observer = new MutationObserver(() => { last = performance.now(); });
+  observer.observe(root, { childList: true, subtree: true, attributes: true, characterData: true });
+  const stop = performance.now() + timeout;
+  while (performance.now() < stop && performance.now() - last < quiet) await sleep(20);
+  observer.disconnect();
 }

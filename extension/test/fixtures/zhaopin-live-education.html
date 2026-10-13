@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>智联教育编辑控件复现</title>
+<link rel="stylesheet" href="/test/node_modules/element-ui/lib/theme-chalk/index.css">
+<script src="/test/node_modules/vue2/dist/vue.js"></script>
+<script src="/test/node_modules/element-ui/lib/index.js"></script>
+<style>body{font:14px sans-serif;padding:20px;max-width:1000px}</style></head>
+<body><div id="app">
+  <h6>教育经历 必填</h6>
+  <el-form label-position="top" :key="revision">
+    <el-form-item label="学历"><el-select v-model="entry.degree"><el-option label="硕士研究生" value="master"></el-option><el-option label="本科" value="bachelor"></el-option></el-select></el-form-item>
+    <el-form-item label="专业"><el-autocomplete v-model="entry.major" :fetch-suggestions="suggest" :trigger-on-focus="false" placeholder="请填写专业名称" @select="selections++" @blur="onBlur"></el-autocomplete></el-form-item>
+    <el-form-item label="学位"><el-select v-model="entry.award"><el-option label="硕士" value="master"></el-option><el-option label="学士" value="bachelor"></el-option></el-select></el-form-item>
+    <el-form-item label="学校名称"><el-input v-model="entry.school" placeholder="请填写学校全称"></el-input></el-form-item>
+    <el-form-item label="请选择该段教育经历学位所属学科门类"><el-select v-model="entry.discipline"><el-option label="理学" value="science"></el-option><el-option label="工学" value="engineering"></el-option></el-select></el-form-item>
+    <el-form-item label="入学时间"><el-date-picker v-model="entry.start" value-format="yyyy-MM-dd" :editable="false" placeholder="请选择您的入学时间"></el-date-picker></el-form-item>
+    <el-form-item label="毕业时间"><el-date-picker v-model="entry.end" value-format="yyyy-MM-dd" :editable="false" placeholder="请选择您的毕业时间"></el-date-picker></el-form-item>
+    <el-form-item label="该段教育经历内是否有国外、港澳台地区学习经历"><el-select v-model="entry.overseas"><el-option label="有" value="yes"></el-option><el-option label="无" value="no"></el-option></el-select></el-form-item>
+    <el-form-item label="该段学历是否有第二学位或辅修专业"><el-select v-model="entry.minorType"><el-option label="无" value="none"></el-option><el-option label="第二学位" value="second_degree"></el-option><el-option label="辅修" value="minor"></el-option></el-select></el-form-item>
+    <el-button @click="saves++">添 加</el-button><el-button>取 消</el-button>
+  </el-form>
+  <nav><h6>个人信息</h6><h6>家庭关系</h6><h6>教育经历</h6></nav>
+</div>
+<script>
+window.vm = new Vue({el:'#app',data:{entry:{degree:'master',award:'',major:'',school:'',discipline:'',start:'',end:'',overseas:'',minorType:''},suggestions:['信息技术（AI方向）'],selections:0,saves:0,strict:false,rebuild:false,revision:0},watch:{
+  'entry.degree'(){if(this.rebuild)this.revision++},
+  'entry.award'(){if(this.rebuild)this.revision++},
+  'entry.discipline'(){if(this.rebuild)this.revision++}
+},methods:{
+  suggest(text,done){setTimeout(()=>done(this.suggestions.filter(value=>value.includes(text)).map(value=>({value}))),350)},
+  onBlur(){if(this.strict&&!this.selections)this.entry.major=''}
+}});
+</script></body></html>

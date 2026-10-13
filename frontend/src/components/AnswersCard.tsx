@@ -4,6 +4,7 @@ import commonQuestions from "../../../shared/common-questions.json";
 import type { Answer, Lang, ProfileData } from "../../../shared/profileSchema";
 import { api } from "../api";
 import { useI18n } from "../i18n";
+import { applyAnswerDraft } from "../profileUpdates";
 import { AutoTextarea } from "./FieldInput";
 import { Collapsible } from "./GroupCard";
 import { useToast } from "./Toast";
@@ -78,8 +79,14 @@ export function AnswersCard({ profile, update, aiReady, contentLang }: AnswersCa
     try {
       const lang: Lang = item.lang === "en" || item.lang === "zh" ? item.lang : /[一-鿿]/.test(item.question) ? "zh" : "en";
       const { answer } = await api.aiAnswer(item.question, lang);
-      edit(item.id, { answer });
-      return true;
+      let applied = false;
+      setAnswers((list) => {
+        const merged = applyAnswerDraft(list, item, answer);
+        applied = merged.applied;
+        return merged.answers;
+      });
+      if (!applied) toast(t("ai.editsKept"));
+      return applied;
     } catch (error) {
       toast(t("answers.draftFailed", { msg: (error as Error).message }), { tone: "error" });
       return false;

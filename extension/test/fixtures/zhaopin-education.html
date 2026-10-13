@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><title>智联校园网申 · 教育经历</title>
+  <link rel="stylesheet" href="/test/node_modules/element-ui/lib/theme-chalk/index.css">
+  <script src="/test/node_modules/vue2/dist/vue.js"></script>
+  <script src="/test/node_modules/element-ui/lib/index.js"></script>
+  <style>body{font:14px sans-serif;padding:20px;max-width:900px}</style>
+</head>
+<body>
+<div id="app">
+  <h3>教育经历 必填</h3>
+  <el-form label-width="420px">
+    <div v-for="(entry,index) in entries" :key="index">
+      <el-form-item label="学历"><el-select v-model="entry.degree"><el-option label="硕士" value="master"></el-option><el-option label="本科" value="bachelor"></el-option></el-select></el-form-item>
+      <el-form-item label="研究方向"><el-input v-model="entry.research"></el-input></el-form-item>
+      <el-form-item label="院系"><el-input v-model="entry.college"></el-input></el-form-item>
+      <el-form-item label="专业"><el-input v-model="entry.major"></el-input></el-form-item>
+      <el-form-item label="专业课程"><el-input v-model="entry.courses"></el-input></el-form-item>
+      <el-form-item label="学位"><el-select v-model="entry.award"><el-option label="硕士" value="master"></el-option><el-option label="学士" value="bachelor"></el-option></el-select></el-form-item>
+      <el-form-item label="学校名称"><el-input v-model="entry.school"></el-input></el-form-item>
+      <el-form-item label="请选择该段教育经历学位所属学科门类"><el-select v-model="entry.discipline"><el-option label="工学" value="engineering"></el-option></el-select></el-form-item>
+      <el-form-item label="学制"><el-select v-model="entry.duration"><el-option label="一年制" value="1"></el-option><el-option label="二年制" value="2"></el-option><el-option label="三年制" value="3"></el-option><el-option label="四年制" value="4"></el-option><el-option label="五年制" value="5"></el-option><el-option label="其他" value="other"></el-option></el-select></el-form-item>
+      <el-form-item label="受教育类型"><el-select v-model="entry.mode"><el-option label="全日制" value="full_time"></el-option><el-option label="非全日制" value="part_time"></el-option></el-select></el-form-item>
+      <el-form-item label="入学时间"><el-input v-model="entry.start"></el-input></el-form-item>
+      <el-form-item label="毕业时间"><el-input v-model="entry.end"></el-input></el-form-item>
+      <el-form-item label="该段教育经历内是否有国外、港澳台地区学习经历"><el-select v-model="entry.overseas"><el-option label="是" value="yes"></el-option><el-option label="否" value="no"></el-option></el-select></el-form-item>
+      <el-form-item label="该段学历是否有第二学位或辅修专业"><el-select v-model="entry.secondDegree"><el-option label="是" value="yes"></el-option><el-option label="否" value="no"></el-option></el-select></el-form-item>
+    </div>
+    <el-button @click="saves++">添 加</el-button>
+    <el-button>取 消</el-button>
+  </el-form>
+  <nav><h6>个人信息</h6><h6>家庭关系</h6><h6>教育经历</h6><h6>校园经历</h6></nav>
+</div>
+<script>
+window.vm = new Vue({el:'#app',data:{saves:0,entries:[0,1].map(()=>({degree:'',research:'',college:'',major:'',courses:'',award:'',school:'',discipline:'',duration:'',mode:'',start:'',end:'',overseas:'',secondDegree:''}))}});
+</script>
+</body>
+</html>

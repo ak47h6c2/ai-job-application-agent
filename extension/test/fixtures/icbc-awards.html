@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>工行风格 - 荣誉或奖励（空板块 + 添加按钮）</title>
+<link rel="stylesheet" href="/test/node_modules/antd3/dist/antd.min.css">
+<script src="/test/node_modules/react16/umd/react.production.min.js"></script>
+<script src="/test/node_modules/react-dom16/umd/react-dom.production.min.js"></script>
+<script src="/test/node_modules/moment/min/moment.min.js"></script>
+<script src="/test/node_modules/antd3/dist/antd.min.js"></script>
+<style>body{font-family:sans-serif;padding:20px}.layout{display:flex;gap:24px}.menu{list-style:none;width:160px}.block{border:1px solid #eee;padding:12px;margin-bottom:12px;width:600px}</style></head>
+<body>
+<div id="root"></div>
+<script>
+// Mirrors job.icbc.com.cn resumeEdit · 荣誉或奖励: the optional section starts empty with only an add button.
+const h = React.createElement;
+const { Form, Input, DatePicker, Select, Button } = antd;
+window.awards = [];
+function Award({ index }) {
+  const set = (key) => (value) => { window.awards[index] = { ...(window.awards[index] || {}), [key]: value && value.format ? value.format("YYYY-MM") : value && value.target ? value.target.value : value }; };
+  return h("div", { className: "block" },
+    h(Form.Item, { label: "奖励名称" }, h(Input, { placeholder: "请输入奖励名称", onChange: set("name") })),
+    h(Form.Item, { label: "获得时间" }, h(DatePicker.MonthPicker, { placeholder: "--", onChange: set("date") })),
+    h(Form.Item, { label: "奖励等级" }, h(Select, { placeholder: "请选择奖励等级", style: { width: 200 }, onChange: set("level") }, ["国家级", "省级", "市级", "校级", "其他"].map((text) => h(Select.Option, { key: text, value: text }, text)))));
+}
+function App() {
+  const [count, setCount] = React.useState(0);
+  return h("div", {}, h("h1", {}, "校招简历"),
+    h("div", { className: "layout" },
+      h("ul", { className: "menu" }, ["个人基本信息", "教育经历（待完善）", "语言能力", "荣誉或奖励", "学术成果", "资格认证"].map((text, index) =>
+        h("li", { key: text, className: index === 3 ? "menu__item menu__item--active___x" : "menu__item" }, text.replace(/（.*$/, ""), /（/.test(text) ? h("span", {}, "（待完善）") : null))),
+      h(Form, { layout: "vertical" }, Array.from({ length: count }, (_, index) => h(Award, { key: index, index })),
+        // The real page wraps a plain button in a div with the same text.
+        h("div", { className: "add-btn-wrapper___x" }, h("button", { type: "button", className: "add-btn___x", onClick: () => setCount(count + 1) }, "+ 添加荣誉或奖励(选填)")))));
+}
+ReactDOM.render(h(App), document.getElementById("root"));
+</script>
+</body>
+</html>

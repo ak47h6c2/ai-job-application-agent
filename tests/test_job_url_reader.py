@@ -1,6 +1,9 @@
+import socket
 import unittest
+from unittest import mock
+from urllib.request import Request
 
-from backend.app.services.job_url_reader import JobUrlReadError, preview_from_html, validate_public_http_url
+from backend.app.services.job_url_reader import JobUrlReadError, _PublicRedirects, decode_page, preview_from_html, validate_public_http_url
 
 
 class JobUrlReaderTests(unittest.TestCase):
@@ -133,6 +136,23 @@ class JobUrlReaderTests(unittest.TestCase):
     def test_preview_requires_enough_information(self) -> None:
         with self.assertRaises(JobUrlReadError):
             preview_from_html("<html><title>x</title></html>", "https://example.com")
+
+    def test_host_names_resolving_to_private_addresses_and_redirects_to_them_are_rejected(self) -> None:
+        private = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.8", 80))]
+        with mock.patch("socket.getaddrinfo", return_value=private):
+            with self.assertRaises(ValueError):
+                validate_public_http_url("http://jobs.example.com/1", resolve=True)
+            # Without resolving (tests, previews), only literal addresses are checked.
+            self.assertEqual(validate_public_http_url("http://jobs.example.com/1"), "http://jobs.example.com/1")
+        with self.assertRaises(ValueError):
+            _PublicRedirects().redirect_request(Request("https://example.com/job"), None, 302, "Found", {}, "http://127.0.0.1:8000/api/profile")
+
+    def test_gbk_job_pages_are_decoded(self) -> None:
+        page = "<html><head><meta charset=gb2312><title>软件工程师招聘</title></head><body>岗位职责</body></html>"
+        self.assertEqual(decode_page(page.encode("gbk")), page)
+        self.assertEqual(decode_page("<p>岗位职责</p>".encode("gbk"), "text/html; charset=GBK"), "<p>岗位职责</p>")
+        self.assertEqual(decode_page("<p>无声明</p>".encode("gb18030")), "<p>无声明</p>")
+        self.assertEqual(decode_page("<p>岗位职责</p>".encode("utf-8")), "<p>岗位职责</p>")
 
 
 if __name__ == "__main__":

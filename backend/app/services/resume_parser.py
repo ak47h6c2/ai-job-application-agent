@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import io
 import re
+import zipfile
 from typing import Any
+from xml.etree import ElementTree
 
 from backend.app.services.storage import load_schema
 
@@ -27,6 +29,12 @@ KV_LABELS = {
     "hometown": ["籍贯"],
     "ethnicity": ["民族"],
     "currentCity": ["现居地", "现居住地", "所在城市", "现居"],
+    "address": ["现居住地址", "现居地址", "现住址", "居住地址", "Current address", "Residential address"],
+    "postcode": ["现居地址邮编", "现居邮编", "Current postcode", "Residential postcode"],
+    "mailingAddress": ["通讯地址", "通信地址", "联系地址", "邮寄地址", "Mailing address", "Correspondence address"],
+    "mailingPostcode": ["通讯地址邮编", "通讯邮编", "通信邮编", "Mailing postcode", "Correspondence postcode"],
+    "homeAddress": ["家庭住址", "家庭地址", "Home address", "Permanent address"],
+    "homePostcode": ["家庭地址邮编", "家庭邮编", "Home postcode"],
     "jobIntent": ["求职意向", "意向岗位", "应聘职位"],
     "expectedSalary": ["期望薪资", "期望月薪"],
     "wechat": ["微信"],
@@ -35,6 +43,43 @@ KV_LABELS = {
 
 class ResumeParseError(ValueError):
     pass
+
+
+WORD = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+MAX_DOCX_XML_BYTES = 20 * 1024 * 1024
+
+
+def _paragraph_text(paragraph: ElementTree.Element) -> str:
+    parts: list[str] = []
+    for node in paragraph.iter():
+        if node.tag == f"{WORD}t":
+            parts.append(node.text or "")
+        elif node.tag == f"{WORD}tab":
+            parts.append("\t")
+        elif node.tag in (f"{WORD}br", f"{WORD}cr"):
+            parts.append("\n")
+    return "".join(parts)
+
+
+def _docx_text(content: bytes) -> str:
+    """Text of a .docx body: paragraphs as lines, table rows as tab-separated cells."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            if archive.getinfo("word/document.xml").file_size > MAX_DOCX_XML_BYTES:
+                raise ResumeParseError("The DOCX file is too large to read.")
+            root = ElementTree.fromstring(archive.read("word/document.xml"))
+    except (zipfile.BadZipFile, KeyError, ElementTree.ParseError) as exc:
+        raise ResumeParseError(f"Could not read DOCX: {exc}") from exc
+    body = root.find(f"{WORD}body")
+    lines: list[str] = []
+    for block in body if body is not None else []:
+        if block.tag == f"{WORD}p":
+            lines.append(_paragraph_text(block))
+        elif block.tag == f"{WORD}tbl":
+            for row in block.iter(f"{WORD}tr"):
+                cells = [" ".join(_paragraph_text(p) for p in cell.iter(f"{WORD}p")).strip() for cell in row.findall(f"{WORD}tc")]
+                lines.append("\t".join(cells))
+    return "\n".join(lines)
 
 
 def extract_text(filename: str, content: bytes) -> str:
@@ -47,10 +92,14 @@ def extract_text(filename: str, content: bytes) -> str:
             text = "\n".join(page.extract_text() or "" for page in reader.pages)
         except Exception as exc:  # pypdf raises many exception types for broken files
             raise ResumeParseError(f"Could not read PDF: {exc}") from exc
+    elif lower.endswith(".docx"):
+        text = _docx_text(content)
+    elif lower.endswith(".doc"):
+        raise ResumeParseError("Old .doc files cannot be read. Save the resume as .docx or PDF and upload it again.")
     elif lower.endswith((".txt", ".md")):
         text = content.decode("utf-8", errors="ignore")
     else:
-        raise ResumeParseError("Only PDF or text resumes can be parsed")
+        raise ResumeParseError("Only PDF, DOCX or text resumes can be parsed")
     text = text.replace("\x00", "")
     if len(text.strip()) < 20:
         raise ResumeParseError("No readable text found. Scanned (image) PDFs are not supported yet.")
@@ -75,9 +124,10 @@ def _year_month(year: str, month: str) -> str:
     return f"{int(year):04d}-{int(month):02d}"
 
 
-def _kv(text: str, labels: list[str]) -> str:
+def _kv(text: str, labels: list[str], max_length: int = 40) -> str:
     for label in labels:
-        match = re.search(label + r"\s*[:：]\s*([^\n|｜，,；;]{1,40})", text)
+        value_chars = r"[^\n|｜；;]" if max_length > 40 else r"[^\n|｜，,；;]"
+        match = re.search(re.escape(label) + rf"\s*[:：]\s*({value_chars}{{1,{max_length}}})", text, re.I)
         if match:
             value = re.split(r"\s{2,}|\t", match.group(1).strip())[0]
             return value.strip()
@@ -146,7 +196,8 @@ def parse_resume_text(text: str) -> dict[str, Any]:
         basic["linkedin"] = linkedin.group(0) if linkedin.group(0).startswith("http") else f"https://{linkedin.group(0)}"
 
     for key, labels in KV_LABELS.items():
-        value = _kv(text, labels)
+        is_address = key in {"address", "mailingAddress", "homeAddress"}
+        value = _kv(text, labels, max_length=300 if is_address else 40)
         if not value:
             continue
         if key == "gender":
@@ -161,10 +212,10 @@ def parse_resume_text(text: str) -> dict[str, Any]:
             match = re.search(YEAR_MONTH, value)
             if match:
                 basic["birthDate"] = _year_month(match.group(1), match.group(2))
-        elif key in {"ethnicity", "wechat"}:
+        elif key in {"ethnicity", "wechat", "postcode", "mailingPostcode", "homePostcode"}:
             basic[key] = value
         else:
-            basic[key] = {"zh": value}
+            basic[key] = {lang: value}
 
     if "name" not in basic and lines:
         first = lines[0]

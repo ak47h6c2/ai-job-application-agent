@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from backend.app.services.storage import load_schema, private_data_dir, read_json, write_json
+from backend.app.services.storage import load_schema, private_data_dir, read_json, synchronized, write_json
 
 MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024
 ALLOWED_SUFFIXES = {".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png", ".txt", ".md", ".zip"}
@@ -41,6 +41,7 @@ def _safe_name(name: str) -> str:
     return cleaned[:120] or "file"
 
 
+@synchronized
 def save_attachment(*, filename: str, content: bytes, kind: str, content_type: str | None = None) -> dict[str, Any]:
     if kind not in attachment_kinds():
         raise AttachmentError(f"Unknown attachment kind: {kind}")
@@ -78,6 +79,7 @@ def get_attachment(attachment_id: str) -> tuple[dict[str, Any], Path] | None:
     return record, attachments_dir() / record["file"]
 
 
+@synchronized
 def delete_attachment(attachment_id: str) -> bool:
     found = get_attachment(attachment_id)
     if not found:

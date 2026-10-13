@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>华电风格 - 我的简历</title>
+<style>
+body{font-family:sans-serif;padding:20px;max-width:1000px}
+.semi-form-field{display:flex;gap:8px;margin:6px 0;align-items:center}
+.semi-form-field label{width:150px}
+.semi-select{border:1px solid #ccc;width:240px;min-height:24px;cursor:pointer}
+.semi-select-disabled{background:#eee;cursor:not-allowed}
+.popup{position:absolute;background:#fff;border:1px solid #999;width:260px;z-index:10}
+.semi-select-option{padding:2px 6px;cursor:pointer}
+.chat{position:fixed;right:10px;bottom:10px;width:200px;height:120px;border:1px solid #888;background:#fafafa}
+</style></head>
+<body>
+<!-- Mirrors rencaishichang.chd.com.cn 我的简历: a form shown disabled until the pencil button is clicked,
+     Semi Design selects whose search box sits in the popup list (aria-controls), lists that render only ten
+     options, region lists at county or city level, 海外 for schools abroad, and English levels as score brackets. -->
+<div class="tabs"><span>基本信息</span> <span>工作经历</span> <span>教育经历</span> <span>证书</span> <span>奖惩情况</span></div>
+<button class="semi-button" id="edit" type="button"><span class="semi-button-content"><span role="img" aria-label="edit" class="semi-icon semi-icon-edit"><svg width="14" height="14" viewBox="0 0 24 24"><path d="M3 21l3-1 12-12-2-2L4 18z"/></svg></span><span>简历维护</span></span></button>
+<div class="title">基础个人信息</div>
+<div id="basic"></div>
+<div class="title">教育背景</div>
+<div id="education"></div>
+<div class="title">其他信息</div>
+<div id="other"></div>
+<div class="chat chat-bot-embed-popup-container"><textarea class="Input Composer-input" placeholder="请输入..."></textarea></div>
+<script>
+const values = {};
+window.formValues = () => ({ ...values });
+const provinces = { 北京市: ["东城区", "西城区", "朝阳区"], 河北省: ["保定市安国市", "石家庄市长安区"], 吉林省: ["白山市浑江区", "白山市抚松县", "白山市靖宇县", "长春市南关区"], 海南省: ["海口市龙华区", "海口市美兰区"] };
+const counties = Object.entries(provinces).flatMap(([province, list]) => list.map((item) => province + item));
+const cities = ["北京市", "上海市", "天津市", "重庆市", "河北省石家庄市", "河北省保定市", "河北省其它", "吉林省长春市", "吉林省白山市", "吉林省其它", "海南省海口市", "海外"];
+const english = ["英语专业八级", "大学英语六级<425", "大学英语六级≥425", "大学英语四级", "英语专业四级", "雅思≥7.5", "6≤雅思＜7", "雅思≤5.5", "托福≥100", "80≤托福＜100"];
+let popupId = 0;
+
+function select(key, options) {
+  const root = document.createElement("div");
+  const listId = `semi-select-${++popupId}`;
+  root.className = "semi-select semi-select-single semi-select-filterable semi-select-disabled";
+  root.setAttribute("role", "combobox");
+  root.setAttribute("aria-disabled", "true");
+  root.setAttribute("aria-expanded", "false");
+  root.setAttribute("aria-controls", listId);
+  root.innerHTML = '<div class="semi-select-selection"><span class="semi-select-selection-text"></span></div>';
+  let popup = null;
+  const close = () => { popup?.remove(); popup = null; root.setAttribute("aria-expanded", "false"); };
+  root.addEventListener("mousedown", (event) => {
+    if (root.getAttribute("aria-disabled") === "true" || popup) return;
+    event.preventDefault();
+    popup = document.createElement("div");
+    popup.id = listId;
+    popup.className = "popup semi-select-option-list-wrapper";
+    const rect = root.getBoundingClientRect();
+    popup.style.left = `${rect.left + scrollX}px`;
+    popup.style.top = `${rect.bottom + scrollY}px`;
+    popup.innerHTML = '<div class="semi-select-dropdown-search-wrapper"><input class="semi-input"></div><div class="semi-select-option-list"></div>';
+    const list = popup.querySelector(".semi-select-option-list");
+    const render = (filter) => {
+      const shown = options.filter((text) => text.includes(filter)).slice(0, 10);
+      list.innerHTML = shown.length ? "" : '<div class="semi-select-option semi-select-option-empty">暂无数据</div>';
+      for (const text of shown) {
+        const option = document.createElement("div");
+        option.className = "semi-select-option";
+        option.setAttribute("role", "option");
+        option.textContent = text;
+        option.addEventListener("click", () => { values[key] = text; root.querySelector(".semi-select-selection-text").textContent = text; close(); });
+        list.append(option);
+      }
+    };
+    popup.querySelector("input").addEventListener("input", (event) => render(event.target.value));
+    render("");
+    document.body.append(popup);
+    root.setAttribute("aria-expanded", "true");
+  });
+  document.addEventListener("mousedown", (event) => { if (popup && !popup.contains(event.target) && !root.contains(event.target)) close(); });
+  return root;
+}
+
+function text(key, multiline) {
+  const input = document.createElement(multiline ? "textarea" : "input");
+  input.className = "semi-input";
+  input.disabled = true;
+  input.addEventListener("input", () => { values[key] = input.value; });
+  return input;
+}
+
+function row(target, label, control) {
+  const field = document.createElement("div");
+  field.className = "semi-form-field";
+  field.innerHTML = `<label>${label}</label>`;
+  field.append(control);
+  document.getElementById(target).append(field);
+}
+
+row("basic", "性别", select("gender", ["男", "女"]));
+row("basic", "籍贯", select("hometown", counties));
+row("basic", "生源地", select("origin", cities));
+row("basic", "政治面貌", select("political", ["中共党员", "中共预备党员", "共青团员", "群众"]));
+row("basic", "入党时间", text("partyDate"));
+const weight = text("weight");
+weight.value = "0";
+row("basic", "体重（kg）", weight);
+row("basic", "资格证书", text("certificates"));
+row("education", "毕业院校所在地", select("schoolPlace", cities));
+row("education", "最高外语水平", select("english", english));
+row("education", "专业技术职称", text("title"));
+row("education", "熟悉专业及特长", text("specialty"));
+const achievement = text("studyResults", true);
+achievement.id = "enter_school_main_achievement";
+row("education", "入学主要业绩", achievement);
+row("other", "主要业绩", text("results", true));
+row("other", "奖惩经历", text("awards"));
+row("other", "其他病史", text("disease"));
+
+document.getElementById("edit").addEventListener("click", () => {
+  document.querySelectorAll(".semi-select").forEach((root) => { root.classList.remove("semi-select-disabled"); root.setAttribute("aria-disabled", "false"); });
+  document.querySelectorAll("#basic input, #education input, #education textarea, #other input, #other textarea").forEach((input) => { input.disabled = false; });
+});
+</script>
+</body>
+</html>

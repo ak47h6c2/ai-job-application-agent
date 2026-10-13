@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><title>智联校园网申 · 家庭关系</title>
+  <link rel="stylesheet" href="/test/node_modules/element-ui/lib/theme-chalk/index.css">
+  <script src="/test/node_modules/vue2/dist/vue.js"></script>
+  <script src="/test/node_modules/element-ui/lib/index.js"></script>
+  <style>body{font:14px sans-serif;padding:20px;max-width:900px}</style>
+</head>
+<body>
+<div id="app">
+  <h3>家庭关系 必填</h3>
+  <el-form label-width="360px">
+    <div v-for="member in members" :key="member.role">
+      <el-form-item :label="'姓名-' + member.role"><el-input v-model="member.name"></el-input></el-form-item>
+      <el-form-item :label="'年龄-' + member.role"><el-input v-model="member.age"></el-input></el-form-item>
+      <el-form-item :label="'工作单位-' + member.role"><el-input v-model="member.company"></el-input></el-form-item>
+      <el-form-item :label="'职务-' + member.role"><el-input v-model="member.position"></el-input></el-form-item>
+      <el-form-item :label="'联系电话-' + member.role"><el-input v-model="member.phone"></el-input></el-form-item>
+      <el-form-item :label="'政治面貌-' + member.role">
+        <el-select v-model="member.politicalStatus"><el-option label="中共党员" value="party_member"></el-option><el-option label="群众" value="masses"></el-option></el-select>
+      </el-form-item>
+      <el-form-item :label="member.role + '是否为邮储银行体系内单位员工'">
+        <el-select v-model="member.bank"><el-option label="是" value="yes"></el-option><el-option label="否" value="no"></el-option></el-select>
+      </el-form-item>
+      <el-form-item :label="member.role + '是否为邮政体系内（不含邮储银行）单位员工'">
+        <el-select v-model="member.post"><el-option label="是" value="yes"></el-option><el-option label="否" value="no"></el-option></el-select>
+      </el-form-item>
+    </div>
+    <el-button @click="saves++">保 存</el-button><el-button>取 消</el-button>
+  </el-form>
+  <nav><h6>个人信息</h6><h6>家庭关系</h6><h6>教育经历</h6><h6>校园经历</h6></nav>
+</div>
+<script>
+window.vm = new Vue({el:'#app',data:{saves:0,members:['父亲','母亲'].map(role=>({role,name:'',age:'',company:'',position:'',phone:'',politicalStatus:'',bank:'',post:''}))}});
+</script>
+</body>
+</html>

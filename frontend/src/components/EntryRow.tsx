@@ -92,7 +92,8 @@ export function EntryRow({ section, entry, index, count, open, contentLang, onTo
       {summary.dates && !open && <div className="-mt-2 pb-2.5 pl-[42px] text-[12.5px] tabular-nums text-muted sm:hidden">{summary.dates}</div>}
       {open && (
         <div className="grid grid-cols-1 gap-x-4 gap-y-4 px-4 pb-5 pt-1 sm:grid-cols-2 sm:px-5">
-          {section.fields.map((field) => (
+          {/* Derived facts ("是否最高全日制") are worked out from the other entries, not typed in. */}
+          {section.fields.filter((field) => !field.derived).map((field) => (
             <FieldInput
               key={field.key}
               field={field}

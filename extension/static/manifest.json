@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "网申助手 Job Autofill",
-  "version": "0.4.0",
+  "version": "0.4.36",
   "description": "资料填一次，网申页面一键填写。One profile, autofill every job application form.",
-  "permissions": ["storage", "webNavigation", "tabs"],
+  "permissions": ["storage", "webNavigation", "tabs", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js" },
   "content_scripts": [

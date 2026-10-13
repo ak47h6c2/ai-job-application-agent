@@ -1,16 +1,17 @@
 // Reads what the user typed into an application form and turns it into profile updates,
 // so filling two or three applications by hand builds up the profile library.
-import { PRESENT, SCHEMA, basicField, sectionDef, type FieldDef, type FieldValue, type Lang, type ProfileData } from "../../../shared/profileSchema";
-import { matchAnswer } from "./classify";
+import { CAPTURE_SCHEMA_VERSION, PRESENT, SCHEMA, basicField, resolveBasic, sectionDef, type FieldDef, type FieldValue, type Lang, type ProfileData } from "../../../shared/profileSchema";
+import { isDistinctQuestion, LIST_FIELDS, matchAnswer } from "./classify";
 import type { Control } from "./discover";
 import { isVisible, textOf } from "./dom";
 import { detectLang, plan, PRIMARY_KEYS, type Planned } from "./engine";
 import { choiceLabel, hasValue } from "./fillers";
-import { enumValueOf } from "./options";
+import { enumValueOf, isRangeChoice, scoreOption } from "./options";
 import { visibleDialogs } from "./repeat";
 import { BASIC_SECTION, matchHeadingText, OTHER_SECTION, type WorkVariant } from "./sections";
-import { compact, hasCJK, normalizeLabel, toHalfWidth } from "./text";
-import { splitRegion } from "./values";
+import { compact, hasCJK, normalizeLabel, studyDurationYears, toHalfWidth } from "./text";
+import { DATE_SHIFT_KEY, shiftIsoDate, splitRegion } from "./values";
+import { sameWorkCompany, workPeriodMatches } from "./work";
 
 export interface CapturedValue {
   section: string;
@@ -48,16 +49,23 @@ export interface Proposal {
   values: ProposalValue[];
   question?: string;
   title: string;
+  /** Full company/school/name of the repeatable entry, separate from its field label. */
+  entryTitle?: string;
   detail: string;
   previous?: string;
   /** Replaces a value that is already in the profile. */
   change: boolean;
   checked: boolean;
+  /** Contradictory fields on the page require correction before this entry can be imported. */
+  blocked?: boolean;
+  /** Stored identity of entry `index` when read; the backend refuses the write if that entry has changed. */
+  identity?: ProposalValue[];
 }
 
 export interface CapturePayload {
+  schemaVersion: number;
   basic: ProposalValue[];
-  entries: { section: string; index: number | null; values: ProposalValue[] }[];
+  entries: { section: string; index: number | null; values: ProposalValue[]; identity?: ProposalValue[] }[];
   answers: { question: string; answer: string; lang: Lang }[];
 }
 
@@ -205,6 +213,8 @@ const PASS_THROUGH = /^(市辖区|市辖县|县|省直辖县级行政区划|自�
 export function toStored(field: FieldDef, raw: string): string | null {
   const text = field.type === "longtext" ? raw.trim() : raw.replace(/\s+/g, " ").trim();
   if (!text || text.length > 8000 || OTHER.test(text)) return null;
+  // A number box's untouched default ("体重 0") is no fact.
+  if (/^0+(?:\.0+)?$/.test(text)) return null;
   switch (field.type) {
     case "enum":
       return field.enum ? enumValueOf(field.enum, text) : null;
@@ -253,6 +263,9 @@ export function capturePage(profile: ProfileData, options: CaptureOptions = {}):
   const forced = dialog ? dialogSection(dialog) : null;
   const { planned } = plan(dialog ?? document, { profile, memory: options.memory, forcedSection: forced?.section, forcedVariant: forced?.variant });
   const lang = options.lang && options.lang !== "auto" ? options.lang : detectLang(planned);
+  // Dates typed one day later for this site (see shiftDesired) are stored as the day before.
+  const shift = Number(options.memory?.get(DATE_SHIFT_KEY) ?? 0) || 0;
+  const unshift = (value: string | null) => (value && shift ? shiftIsoDate(value, -shift) : value);
 
   const values: CapturedValue[] = [];
   const answers: CapturedAnswer[] = [];
@@ -269,9 +282,11 @@ export function capturePage(profile: ProfileData, options: CaptureOptions = {}):
 
     if (target?.scope === "field") {
       const { section, field } = target;
+      // "资格证书" in basic info holds every certificate joined by the fill, not one entry to store.
+      if (item.context.section === BASIC_SECTION && LIST_FIELDS.has(`${section}.${field.key}`)) continue;
       const container = item.info.container ?? control.root;
       if (control.kind === "date-range") {
-        const [start, end] = (control.rangeInputs ?? []).map((input) => parseLooseDate(input.value));
+        const [start, end] = (control.rangeInputs ?? []).map((input) => unshift(parseLooseDate(input.value)));
         if (start) push(item, section, "startDate", start);
         if (end) push(item, section, "endDate", end);
         else if (start && presentTicked(container)) push(item, section, "endDate", PRESENT);
@@ -303,8 +318,13 @@ export function capturePage(profile: ProfileData, options: CaptureOptions = {}):
           continue;
         }
       }
-      const stored = toStored(field, raw);
-      if (stored !== null) push(item, section, target.key, stored);
+      const stored = field.type === "date" ? unshift(toStored(field, raw)) : toStored(field, raw);
+      if (stored !== null) {
+        push(item, section, target.key, stored);
+        if (section === "family" && item.familyRole && !values.some((value) => value.section === "family" && value.entry === item.entry && value.key === "relation")) {
+          push(item, section, "relation", item.familyRole === "father" ? "父亲" : "母亲");
+        }
+      }
       // A basic yes/no or choice that does not fit the profile's options is still worth keeping as an answer.
       else if (section === BASIC_SECTION && field.type === "enum" && !OTHER.test(raw)) answers.push({ question: item.info.label || item.info.placeholder, answer: raw });
       continue;
@@ -316,7 +336,7 @@ export function capturePage(profile: ProfileData, options: CaptureOptions = {}):
       continue;
     }
     // Unrecognized fields: keep site-wide questions ("从哪里得知招聘信息") as answers, not per-entry details.
-    if (item.context.section && item.context.section !== BASIC_SECTION) continue;
+    if (item.context.section && item.context.section !== BASIC_SECTION && !isDistinctQuestion(item.info.label || item.info.placeholder)) continue;
     const question = (item.info.label || item.info.placeholder).trim();
     if (question.length < 2 || question.length > 300 || JUNK_LABEL.test(question) || raw.length > 5000) continue;
     answers.push({ question, answer: raw });
@@ -363,6 +383,11 @@ function regionKey(value: string): string {
 
 function compare(current: string, next: string, field: FieldDef): Comparison {
   if (!current.trim()) return "new";
+  if (field.key === "duration") {
+    const currentYears = studyDurationYears(current);
+    const nextYears = studyDurationYears(next);
+    if (currentYears !== null && nextYears !== null) return currentYears === nextYears ? "same" : "different";
+  }
   switch (field.type) {
     case "date":
     case "month":
@@ -383,7 +408,9 @@ function compare(current: string, next: string, field: FieldDef): Comparison {
       return b.includes(a) ? "richer" : "different";
     }
     default:
-      return norm(current) === norm(next) ? "same" : "different";
+      if (norm(current) === norm(next)) return "same";
+      // A site's own option for the stored value ("6≤雅思＜7" for "雅思 6.5", "70-79分/2.0-2.9" for 2.75) restates it.
+      return field.type === "text" && (scoreOption(next, { kind: "text", text: current, fallback: false }) >= 90 || isRangeChoice(next, current)) ? "same" : "different";
   }
 }
 
@@ -398,6 +425,16 @@ function sameEntry(entryValue: FieldValue | undefined, captured: string): boolea
   if (wanted.length < 2) return false;
   const stored = typeof entryValue === "string" ? [entryValue] : [entryValue?.zh ?? "", entryValue?.en ?? ""];
   return stored.map(norm).some((value) => value.length >= 2 && (value === wanted || value.includes(wanted) || wanted.includes(value)));
+}
+
+/** The stored values that identify an entry, exactly as the extension saw them. */
+function entryIdentity(entry: Record<string, FieldValue>, keys: string[]): ProposalValue[] {
+  return keys.flatMap((key) => {
+    const value = entry[key];
+    if (typeof value === "string") return value ? [{ key, value, lang: "zh" as Lang }] : [];
+    if (value?.zh) return [{ key, value: value.zh, lang: "zh" as Lang }];
+    return value?.en ? [{ key, value: value.en, lang: "en" as Lang }] : [];
+  });
 }
 
 function normalizeQuestion(question: string): string {
@@ -432,7 +469,8 @@ export function diffCapture(profile: ProfileData, capture: PageCapture): Proposa
     const field = basicField(key);
     if (!field || field.derived) return;
     const valueLang = slotLang(field, value, lang);
-    const current = ownValue(profile.basic[key], field, valueLang);
+    // A value the profile derives (英语水平 from the language records) is what got filled: compare with it.
+    const current = ownValue(profile.basic[key], field, valueLang) || resolveBasic(profile, key, valueLang).value;
     const result = compare(current, value, field);
     if (result === "same") return;
     proposals.push({
@@ -449,32 +487,52 @@ export function diffCapture(profile: ProfileData, capture: PageCapture): Proposa
   });
 
   // Repeatable sections: group values into entries, then match each entry to the profile by its main field.
-  const entries = new Map<string, { section: string; variant: WorkVariant; values: Map<string, string> }>();
+  const entries = new Map<string, { section: string; variant: WorkVariant; values: Map<string, string>; degreeConflict: boolean }>();
   capture.values
     .filter((value) => value.section !== BASIC_SECTION)
     .forEach((value) => {
       const bucket = `${value.section}:${value.variant}:${value.entry}`;
-      const entry = entries.get(bucket) ?? { section: value.section, variant: value.variant, values: new Map<string, string>() };
+      const entry = entries.get(bucket) ?? { section: value.section, variant: value.variant, values: new Map<string, string>(), degreeConflict: false };
+      if (value.section === "education" && value.key === "degree" && entry.values.has(value.key) && entry.values.get(value.key) !== value.value) entry.degreeConflict = true;
       entry.values.set(value.key, value.value);
       entries.set(bucket, entry);
     });
   const claimed = new Map<string, Set<number>>();
 
-  entries.forEach(({ section, variant, values }) => {
+  entries.forEach(({ section, variant, values, degreeConflict }, bucket) => {
     const def = sectionDef(section);
     const primaryKey = PRIMARY_KEYS[section];
     const primary = primaryKey ? values.get(primaryKey) : undefined;
     if (!def || !primaryKey || !primary) return;
+    if (degreeConflict) {
+      proposals.push({ id: `${bucket}:degree-conflict`, section, index: null, values: [], title: `${def[lang]} · ${primary}`, entryTitle: primary,
+        detail: lang === "zh" ? "页面中的学历与学位不一致，请改正后重新读取这段教育资料。" : "The education level and degree disagree. Correct this entry before importing it.",
+        blocked: true, change: true, checked: false });
+      return;
+    }
     const used = claimed.get(section) ?? new Set<number>();
     claimed.set(section, used);
     const stored = profile.sections[section] ?? [];
     const startDate = values.get("startDate");
-    const index = stored.findIndex((entry, position) => {
-      if (used.has(position) || !sameEntry(entry[primaryKey], primary)) return false;
+    let matches = stored.map((entry, position) => ({ entry, position })).filter(({ entry, position }) => {
+      if (used.has(position) || !(section === "work" ? sameWorkCompany(entry[primaryKey], primary) : sameEntry(entry[primaryKey], primary))) return false;
+      if (section === "work") return workPeriodMatches(entry, startDate, values.get("endDate"));
       // Same school twice (bachelor + master): tell them apart by start date.
       const storedStart = typeof entry.startDate === "string" ? entry.startDate : "";
       return !startDate || !storedStart || storedStart.startsWith(startDate) || startDate.startsWith(storedStart);
     });
+    if (section === "work" && matches.length > 1) {
+      const title = values.get("title");
+      const titled = title ? matches.filter(({ entry }) => ["zh", "en"].some(lang => norm(ownValue(entry.title, def.fields.find(field => field.key === "title")!, lang as Lang)) === norm(title))) : [];
+      if (titled.length) matches = titled;
+      if (matches.length > 1) {
+        proposals.push({ id: `${bucket}:work-conflict`, section, index: null, values: [], title: `${def[lang]} · ${primary}`, entryTitle: primary,
+          detail: lang === "zh" ? "资料库中有多段同公司的经历，请补充日期或职务后重新读取，避免覆盖另一段经历。" : "Several work records match this company. Add dates or a job title before importing it.",
+          blocked: true, change: true, checked: false });
+        return;
+      }
+    }
+    const index = matches[0]?.position ?? -1;
     const name = def[lang];
 
     if (index < 0) {
@@ -493,6 +551,7 @@ export function diffCapture(profile: ProfileData, capture: PageCapture): Proposa
         index: null,
         values: list,
         title: `${name}${lang === "zh" ? "（新增）" : " (new)"} · ${primary}`,
+        entryTitle: primary,
         detail: shown.join(" · "),
         change: false,
         checked: true,
@@ -501,6 +560,7 @@ export function diffCapture(profile: ProfileData, capture: PageCapture): Proposa
     }
 
     used.add(index);
+    const identity = entryIdentity(stored[index], [primaryKey, "startDate"]);
     values.forEach((value, key) => {
       const field = def.fields.find((candidate) => candidate.key === key);
       if (!field) return;
@@ -514,10 +574,12 @@ export function diffCapture(profile: ProfileData, capture: PageCapture): Proposa
         index,
         values: [{ key, value, lang: valueLang }],
         title: `${name} · ${primary} · ${field[lang]}`,
+        entryTitle: primary,
         detail: display(field, value, lang),
         previous: current ? display(field, current, lang) : undefined,
         change: result !== "new",
         checked: result !== "different",
+        identity,
       });
     });
   });
@@ -549,10 +611,11 @@ export function diffCapture(profile: ProfileData, capture: PageCapture): Proposa
 
 /** Request body for POST /api/profile/capture from the proposals the user kept ticked. */
 export function capturePayload(proposals: Proposal[]): CapturePayload {
-  const kept = proposals.filter((proposal) => proposal.checked);
+  const kept = proposals.filter((proposal) => proposal.checked && !proposal.blocked);
   return {
+    schemaVersion: CAPTURE_SCHEMA_VERSION,
     basic: kept.filter((proposal) => proposal.section === BASIC_SECTION).flatMap((proposal) => proposal.values),
-    entries: kept.filter((proposal) => proposal.section !== BASIC_SECTION && proposal.section !== "answer").map((proposal) => ({ section: proposal.section, index: proposal.index, values: proposal.values })),
+    entries: kept.filter((proposal) => proposal.section !== BASIC_SECTION && proposal.section !== "answer").map((proposal) => ({ section: proposal.section, index: proposal.index, values: proposal.values, ...(proposal.identity?.length ? { identity: proposal.identity } : {}) })),
     answers: kept
       .filter((proposal) => proposal.section === "answer")
       .map((proposal) => ({ question: proposal.question ?? "", answer: proposal.values[0]?.value ?? "", lang: proposal.values[0]?.lang ?? "zh" })),

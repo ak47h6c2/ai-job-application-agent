@@ -4,12 +4,13 @@ import html
 import ipaddress
 import json
 import re
+import socket
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 MAX_JOB_PAGE_BYTES = 1_500_000
 HTTP_TIMEOUT_SECONDS = 12
@@ -262,26 +263,63 @@ def strip_html(value: str) -> str:
     return normalize_text(re.sub(r"<[^>]+>", " ", value))
 
 
-def validate_public_http_url(url: str) -> str:
+def _private_ip(address: str) -> bool:
+    ip = ipaddress.ip_address(address.split("%", 1)[0])
+    return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified
+
+
+def validate_public_http_url(url: str, *, resolve: bool = False) -> str:
+    """Rejects local and private-network links; with ``resolve``, also host names that resolve to them."""
     clean_url = url.strip()
     parsed = urlparse(clean_url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise ValueError("Invalid job URL. Use a public http or https link.")
-    host = (parsed.hostname or "").lower()
-    if host in {"localhost", "localhost.localdomain"}:
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if host in {"localhost", "localhost.localdomain"} or host.endswith(".localhost"):
         raise ValueError("Invalid job URL. Local links are not supported.")
     try:
-        ip = ipaddress.ip_address(host)
+        addresses = [str(ipaddress.ip_address(host))]
     except ValueError:
-        return clean_url
-    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+        if not resolve:
+            return clean_url
+        try:
+            addresses = [info[4][0] for info in socket.getaddrinfo(host, parsed.port or None, proto=socket.IPPROTO_TCP)]
+        except (OSError, UnicodeError):
+            # Unresolvable hosts fail later with a normal connection error.
+            return clean_url
+    if any(_private_ip(address) for address in addresses):
         raise ValueError("Invalid job URL. Private network links are not supported.")
     return clean_url
 
 
+class _PublicRedirects(HTTPRedirectHandler):
+    """A public page must not redirect the backend to a local or private-network address."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        validate_public_http_url(newurl, resolve=True)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def decode_page(raw: bytes, content_type: str = "") -> str:
+    """Decodes with the charset from the header or <meta>, then UTF-8, then GB18030 (GBK / GB2312 pages)."""
+    declared = re.search(r"charset=[\"']?([\w-]+)", content_type, re.I)
+    meta = re.search(rb"<meta[^>]+charset=[\"']?([\w-]+)", raw[:4096], re.I)
+    names = [declared.group(1) if declared else "", meta.group(1).decode("ascii", "ignore") if meta else "", "utf-8", "gb18030"]
+    for name in names:
+        if not name:
+            continue
+        if name.lower() in {"gb2312", "gbk", "x-gbk"}:
+            name = "gb18030"
+        try:
+            return raw.decode(name)
+        except (LookupError, UnicodeDecodeError):
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
 def fetch_job_page(url: str) -> str:
     request = Request(
-        validate_public_http_url(url),
+        validate_public_http_url(url, resolve=True),
         headers={
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -292,7 +330,7 @@ def fetch_job_page(url: str) -> str:
         },
     )
     try:
-        with urlopen(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
+        with build_opener(_PublicRedirects).open(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
             content_type = response.headers.get("content-type", "")
             if "text/html" not in content_type and "application/xhtml" not in content_type:
                 raise JobUrlReadError("The link did not return an HTML job page.")
@@ -303,7 +341,7 @@ def fetch_job_page(url: str) -> str:
         raise JobUrlReadError("Could not automatically read this job page. The site may block automated access.") from exc
     if len(raw) > MAX_JOB_PAGE_BYTES:
         raise JobUrlReadError("The job page is too large to read automatically.")
-    return raw.decode("utf-8", errors="replace")
+    return decode_page(raw, content_type)
 
 
 def iter_json_values(value: Any) -> list[dict[str, Any]]:

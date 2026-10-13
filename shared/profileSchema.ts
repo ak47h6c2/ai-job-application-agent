@@ -22,6 +22,9 @@ export interface FieldDef {
   enum?: string;
   sensitive?: boolean;
   derived?: boolean;
+  /** Another way to state the same fact, used when a site's options do not contain the main value
+   * (国内对应专业 "计算机科学与技术" for an overseas major). */
+  alternateOf?: string;
   match: string[];
   exact?: string[];
   not?: string[];
@@ -32,6 +35,7 @@ export interface GroupDef {
   zh: string;
   en: string;
   fields: FieldDef[];
+  description?: LocalizedValue;
 }
 
 export interface SectionDef extends GroupDef {
@@ -46,8 +50,28 @@ export interface AttachmentKindDef {
   match: string[];
 }
 
+/** Section-boundary rules, also read by the backend's AI field mapping. */
+export interface ClassificationRules {
+  /** Labels that name no entry by themselves ("名称", "类型"); they need a recognized section. */
+  genericLabels: string[];
+  /** Basic groups and fields describing the user, never a family member or another entry. */
+  personalGroups: string[];
+  personalFields: string[];
+  /** Whole-topic questions (regex sources) answered only by the saved answer with the same question. */
+  topicQuestions: string[];
+  /** A "内容" box takes the field named by its heading. */
+  contentLabels: string[];
+  contentHeadings: { heading: string; key: string }[];
+  /** "section.field" filled with every entry's value under a basic-info heading ("资格证书": all certificates). */
+  listFields: string[];
+  /** Words that let a basic-info label name one entry of a section ("最近工作单位"). */
+  entryWords: string[];
+}
+
 export interface ProfileSchema {
   version: number;
+  captureVersion: number;
+  classification: ClassificationRules;
   enums: Record<string, EnumOption[]>;
   basicGroups: GroupDef[];
   sections: SectionDef[];
@@ -55,6 +79,7 @@ export interface ProfileSchema {
 }
 
 export const SCHEMA = rawSchema as ProfileSchema;
+export const CAPTURE_SCHEMA_VERSION = SCHEMA.captureVersion;
 
 export type LocalizedValue = { zh?: string; en?: string };
 export type FieldValue = string | LocalizedValue;
@@ -90,6 +115,23 @@ export interface AttachmentMeta {
 }
 
 export const PRESENT = "present";
+
+export type AddressUse = "current" | "mailing" | "home";
+export const ADDRESS_FIELDS = {
+  current: { address: "address", region: "addressRegion", postcode: "postcode" },
+  mailing: { address: "mailingAddress", region: "mailingAddressRegion", postcode: "mailingPostcode" },
+  home: { address: "homeAddress", region: "homeAddressRegion", postcode: "homePostcode" },
+} as const;
+
+/** The address purpose is independent of the language used to render its text. */
+export function preferredAddressUse(profile: ProfileData): AddressUse {
+  const use = readValue(profile.basic.preferredAddressUse, "zh").value;
+  return use === "current" || use === "home" ? use : "mailing";
+}
+
+export function addressRegionKey(key: string): string | undefined {
+  return Object.values(ADDRESS_FIELDS).find((fields) => fields.address === key)?.region;
+}
 
 export function emptyProfile(): ProfileData {
   return {
@@ -255,6 +297,9 @@ export function resolveBasic(profile: ProfileData, key: string, lang: Lang): { v
     return stored;
   }
   if (key === "graduationDate" && education.length) {
+    // Still studying in the latest programme ("至今"): its graduation date is unknown, not the previous one's.
+    const latest = [...education].sort((a, b) => readValue(a.startDate, lang).value.localeCompare(readValue(b.startDate, lang).value)).pop();
+    if (latest && readValue(latest.endDate, lang).value === PRESENT) return { value: "", fallback: false };
     const ends = education.map((entry) => readValue(entry.endDate, lang).value).filter((value) => value && value !== PRESENT).sort();
     return { value: ends[ends.length - 1] ?? "", fallback: false };
   }

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>工行风格 - Ant Design 3 日期选择</title>
+<link rel="stylesheet" href="/test/node_modules/antd3/dist/antd.min.css">
+<script src="/test/node_modules/react16/umd/react.production.min.js"></script>
+<script src="/test/node_modules/react-dom16/umd/react-dom.production.min.js"></script>
+<script src="/test/node_modules/moment/min/moment.min.js"></script>
+<script src="/test/node_modules/antd3/dist/antd.min.js"></script>
+<style>body{font-family:sans-serif;padding:20px;max-width:900px}.ant-row{margin-bottom:16px}</style></head>
+<body>
+<div id="root"></div>
+<script>
+// Mirrors job.icbc.com.cn resumeEdit: label rows and antd 3 pickers, one of them a year picker shown as "2027年".
+const h = React.createElement;
+const { DatePicker, Input } = antd;
+const values = {};
+window.formValues = () => ({ ...values });
+
+function YearPicker() {
+  const [value, setValue] = React.useState(null);
+  const [open, setOpen] = React.useState(false);
+  const commit = (next) => { setValue(next); values.graduation = next ? next.format("YYYY") : ""; };
+  return h(DatePicker, { mode: "year", format: "YYYY年", placeholder: "请选择日期", value, open,
+    onOpenChange: setOpen, onChange: commit, onPanelChange: (next) => { commit(next); setOpen(false); } });
+}
+
+function Field({ label, children }) {
+  return h("div", { className: "ant-row" }, h("div", { className: "label" }, label), h("div", {}, children));
+}
+
+function App() {
+  const [birth, setBirth] = React.useState(null);
+  const [joined, setJoined] = React.useState(null);
+  return h("div", {},
+    h("h2", {}, "校招简历"),
+    h(Field, { label: "真实姓名" }, h(Input, { id: "name", placeholder: "请输入真实姓名", onChange: (event) => { values.name = event.target.value; } })),
+    h(Field, { label: "出生日期" }, h(DatePicker, { placeholder: "请选择日期", value: birth, onChange: (next) => { setBirth(next); values.birth = next ? next.format("YYYY-MM-DD") : ""; } })),
+    h(Field, { label: "入团时间" }, h(DatePicker.MonthPicker, { placeholder: "请选择月份", value: joined, onChange: (next) => { setJoined(next); values.joined = next ? next.format("YYYY-MM") : ""; } })),
+    h(Field, { label: "应届毕业时间" }, h(YearPicker)),
+  );
+}
+ReactDOM.render(h(App), document.getElementById("root"));
+</script>
+</body>
+</html>

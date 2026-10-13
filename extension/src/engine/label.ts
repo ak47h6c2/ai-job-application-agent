@@ -81,12 +81,17 @@ function textWithoutControls(element: Element): string {
   return clean(clone.textContent);
 }
 
-function textByIds(ids: string | null): string {
+/**
+ * Text of the elements an aria attribute names. Sites reuse ids across tabs and dialogs (a 教育经历 dialog's
+ * "学历" and basic info's "最高全日制学历" share an id), so the element nearest the control wins.
+ */
+function textByIds(ids: string | null, near: Element): string {
   if (!ids) return "";
+  const scope = near.closest("[role=dialog], [aria-modal=true], .semi-modal, .el-dialog, .ant-modal, form");
   return clean(
     ids
       .split(/\s+/)
-      .map((id) => document.getElementById(id)?.textContent ?? "")
+      .map((id) => (scope?.querySelector(`#${CSS.escape(id)}`) ?? document.getElementById(id))?.textContent ?? "")
       .join(" "),
   );
 }
@@ -161,9 +166,10 @@ export function readLabel(control: Control): LabelInfo {
   const identifiers = clean([element.getAttribute("name"), element.id, element.getAttribute("formcontrolname"), element.getAttribute("data-automation-id"), element.getAttribute("ng-model"), element.getAttribute("v-model")].filter(Boolean).join(" "));
   const autocomplete = clean(element.getAttribute("autocomplete")).toLowerCase();
 
-  let label = textByIds(element.getAttribute("aria-labelledby") ?? control.root.getAttribute("aria-labelledby"));
+  let label = textByIds(element.getAttribute("aria-labelledby") ?? control.root.getAttribute("aria-labelledby"), control.root);
   if (!label && element.id) {
-    const explicit = document.querySelector(`label[for="${CSS.escape(element.id)}"]`);
+    const selector = `label[for="${CSS.escape(element.id)}"]`;
+    const explicit = element.closest("[role=dialog], [aria-modal=true], .semi-modal, .el-dialog, .ant-modal, form")?.querySelector(selector) ?? document.querySelector(selector);
     if (explicit) label = textWithoutControls(explicit);
   }
   if (!label && control.kind !== "radio-group" && control.kind !== "checkbox-group") {
